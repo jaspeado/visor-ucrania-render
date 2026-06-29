@@ -22,7 +22,7 @@
             border: 1px solid #30363d;
             border-radius: 8px;
             padding: 12px 14px;
-            width: 230px;
+            width: 220px;
             max-height: calc(100% - 20px);
             overflow-y: auto;
             font-size: 12px;
@@ -36,15 +36,15 @@
         #panel h2 {
             font-size: 14px;
             font-weight: 600;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             color: #f0f6fc;
             border-bottom: 1px solid #30363d;
             padding-bottom: 6px;
         }
 
         .control-group {
-            margin-bottom: 8px;
-            padding-bottom: 8px;
+            margin-bottom: 6px;
+            padding-bottom: 6px;
             border-bottom: 1px solid #21262d;
         }
         .control-group:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
@@ -78,8 +78,8 @@
         }
 
         .control-group input[type="color"] {
-            width: 24px;
-            height: 24px;
+            width: 22px;
+            height: 22px;
             border: 2px solid #30363d;
             border-radius: 4px;
             padding: 0;
@@ -150,18 +150,36 @@
             white-space: nowrap;
         }
 
+        #debug {
+            position: absolute;
+            bottom: 60px;
+            right: 10px;
+            z-index: 1000;
+            background: rgba(0,0,0,0.9);
+            color: #0f0;
+            padding: 8px;
+            font-family: monospace;
+            font-size: 10px;
+            max-width: 300px;
+            max-height: 120px;
+            overflow: auto;
+            border-radius: 4px;
+            border: 1px solid #30363d;
+            pointer-events: none;
+            display: none;
+        }
+
         @media (max-width: 640px) {
-            #panel { width: 200px; padding: 10px; font-size: 11px; max-height: calc(100% - 80px); top: 60px; left: 6px; }
+            #panel { width: 190px; padding: 8px; font-size: 11px; }
+            #debug { max-width: 180px; font-size: 9px; }
         }
     </style>
 </head>
 <body>
 
-    <!-- PANEL DE CONTROL -->
     <div id="panel">
         <h2>🎛️ Controles</h2>
 
-        <!-- Mapa base -->
         <div class="control-group">
             <label>🗺️ Mapa base</label>
             <select id="map-style-selector">
@@ -175,7 +193,6 @@
             </div>
         </div>
 
-        <!-- DeepState -->
         <div class="control-group">
             <div class="checkbox-group">
                 <input type="checkbox" id="chk-deepstate" checked>
@@ -184,9 +201,9 @@
             <div class="color-row">
                 <input type="color" id="color-deepstate-fill" value="#FF0000">
                 <span>Relleno</span>
-                <span style="margin-left:auto; font-size:10px;">Opacidad <span class="slider-value" id="val-opacity-ds-fill">0.50</span></span>
+                <span style="margin-left:auto; font-size:10px;">Opacidad <span class="slider-value" id="val-opacity-ds-fill">0.60</span></span>
             </div>
-            <input type="range" id="opacity-ds-fill" min="0" max="100" value="50">
+            <input type="range" id="opacity-ds-fill" min="0" max="100" value="60">
             <div class="color-row" style="margin-top:2px;">
                 <input type="color" id="color-deepstate-line" value="#FFFFFF">
                 <span>Borde</span>
@@ -195,7 +212,6 @@
             <input type="range" id="opacity-ds-line" min="0" max="100" value="100">
         </div>
 
-        <!-- Incendios -->
         <div class="control-group">
             <div class="checkbox-group">
                 <input type="checkbox" id="chk-fires" checked>
@@ -209,27 +225,26 @@
             <input type="range" id="opacity-fires" min="0" max="100" value="85">
         </div>
 
-        <!-- Stats -->
         <div style="display:flex; justify-content:space-between; font-size:10px; color:#8b949e; margin-top:6px; padding-top:6px; border-top:1px solid #21262d;">
             <span id="stats-fires">🔥 0</span>
-            <span id="stats-date">📅 --</span>
         </div>
     </div>
 
-    <div id="map-info">🌍 Visor 3D Ucrania | Clic en punto para detalles</div>
-
+    <div id="map-info">🌍 Visor 3D Ucrania</div>
+    <div id="debug"></div>
     <div id="map"></div>
 
     <script>
         // ============================================================
-        // CONFIGURACIÓN - USANDO deepstate_frente.geojson (LIGERO)
+        // CONFIGURACIÓN
         // ============================================================
         const FIRMS_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires.geojson';
-        const DEEPSTATE_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/deepstate_frente.geojson';
+        const DEEPSTATE_URL = 'https://raw.githubusercontent.com/cyterat/deepstate-map-data/main/deepstate-map-data.geojson.gz';
 
         let map;
         let allFiresData = [];
-        let deepstateData = null;
+        let allDeepstateData = null;
+        let deepstateDates = [];
 
         const LAYER_IDS = {
             BASE: 'base-layer',
@@ -244,16 +259,20 @@
             FIRES: 'fires-source'
         };
 
+        const debugEl = document.getElementById('debug');
+        function logDebug(msg) {
+            debugEl.style.display = 'block';
+            debugEl.textContent = msg + '\n' + debugEl.textContent;
+            debugEl.textContent = debugEl.textContent.split('\n').slice(0, 10).join('\n');
+            console.log(msg);
+        }
+
         // ============================================================
         // MAPA - VISTA CENITAL
         // ============================================================
         map = new maplibregl.Map({
             container: 'map',
-            style: {
-                version: 8,
-                sources: {},
-                layers: []
-            },
+            style: { version: 8, sources: {}, layers: [] },
             center: [31.0, 48.5],
             zoom: 6,
             pitch: 0,
@@ -263,12 +282,7 @@
         map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
         function reorderLayers() {
-            const order = [
-                LAYER_IDS.BASE,
-                LAYER_IDS.DEEPSTATE_FILL,
-                LAYER_IDS.DEEPSTATE_LINE,
-                LAYER_IDS.FIRES
-            ];
+            const order = [LAYER_IDS.BASE, LAYER_IDS.DEEPSTATE_FILL, LAYER_IDS.DEEPSTATE_LINE, LAYER_IDS.FIRES];
             let beforeId = undefined;
             for (let i = order.length - 1; i >= 0; i--) {
                 const id = order[i];
@@ -288,7 +302,6 @@
                 .then(r => r.json())
                 .then(data => {
                     allFiresData = data.features || [];
-                    console.log('🔥 FIRMS:', allFiresData.length);
                     updateFires();
                     document.getElementById('stats-fires').textContent = '🔥 ' + allFiresData.length;
                 })
@@ -296,21 +309,33 @@
         }
 
         function loadDeepstate() {
-            console.log('📡 Cargando deepstate_frente.geojson...');
-            fetch(DEEPSTATE_URL)
-                .then(r => {
-                    if (!r.ok) throw new Error('HTTP ' + r.status);
-                    return r.json();
-                })
-                .then(data => {
-                    deepstateData = data;
-                    const features = data.features || [];
-                    console.log('🟥 DeepState cargado:', features.length, 'polígonos');
-                    updateDeepstate();
-                })
-                .catch(e => {
-                    console.error('❌ Error cargando DeepState:', e);
-                });
+            logDebug('📡 Cargando DeepState...');
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js';
+            script.onload = function() {
+                fetch(DEEPSTATE_URL)
+                    .then(r => r.arrayBuffer())
+                    .then(buffer => {
+                        const data = pako.ungzip(new Uint8Array(buffer), { to: 'string' });
+                        const geojson = JSON.parse(data);
+                        allDeepstateData = geojson;
+                        const features = geojson.features || [];
+                        logDebug('✅ DeepState: ' + features.length + ' polígonos');
+
+                        const fechas = new Set();
+                        features.forEach(f => {
+                            const d = f.properties?.date || '';
+                            if (d) fechas.add(d);
+                        });
+                        deepstateDates = Array.from(fechas).sort();
+                        const ultimaFecha = deepstateDates[deepstateDates.length - 1] || '';
+                        logDebug('📅 Última fecha: ' + ultimaFecha);
+
+                        updateDeepstate();
+                    })
+                    .catch(e => logDebug('❌ Error: ' + e.message));
+            };
+            document.head.appendChild(script);
         }
 
         // ============================================================
@@ -336,10 +361,7 @@
 
             map.addSource(sourceId, {
                 type: 'geojson',
-                data: {
-                    type: 'FeatureCollection',
-                    features: filtered
-                }
+                data: { type: 'FeatureCollection', features: filtered }
             });
 
             map.addLayer({
@@ -347,12 +369,7 @@
                 type: 'circle',
                 source: sourceId,
                 paint: {
-                    'circle-radius': [
-                        'interpolate', ['linear'], ['get', 'frp'],
-                        10, 4,
-                        50, 12,
-                        100, 20
-                    ],
+                    'circle-radius': ['interpolate', ['linear'], ['get', 'frp'], 10, 4, 50, 12, 100, 20],
                     'circle-color': color,
                     'circle-opacity': opacity,
                     'circle-stroke-color': '#FFFF00',
@@ -376,12 +393,8 @@
                     .addTo(map);
             });
 
-            map.on('mouseenter', layerId, function() {
-                map.getCanvas().style.cursor = 'pointer';
-            });
-            map.on('mouseleave', layerId, function() {
-                map.getCanvas().style.cursor = '';
-            });
+            map.on('mouseenter', layerId, () => map.getCanvas().style.cursor = 'pointer');
+            map.on('mouseleave', layerId, () => map.getCanvas().style.cursor = '');
 
             reorderLayers();
         }
@@ -397,29 +410,35 @@
             const fillLayerId = LAYER_IDS.DEEPSTATE_FILL;
             const lineLayerId = LAYER_IDS.DEEPSTATE_LINE;
 
+            // Eliminar capas anteriores
             if (map.getLayer(fillLayerId)) map.removeLayer(fillLayerId);
             if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId);
             if (map.getSource(sourceId)) map.removeSource(sourceId);
 
-            if (!enabled || !deepstateData) {
-                console.log('🟥 DeepState desactivado o sin datos');
+            if (!enabled || !allDeepstateData) {
+                logDebug('🟥 DeepState desactivado');
                 return;
             }
 
-            const features = deepstateData.features || [];
+            // Filtrar por la fecha más reciente
+            const ultimaFecha = deepstateDates[deepstateDates.length - 1] || '';
+            const features = allDeepstateData.features.filter(f =>
+                (f.properties?.date || '') === ultimaFecha
+            );
+
             if (features.length === 0) {
-                console.log('🟥 DeepState: 0 polígonos');
+                logDebug('🟥 No hay polígonos para ' + ultimaFecha);
                 return;
             }
 
-            console.log('🟥 DeepState: dibujando ' + features.length + ' polígonos');
+            logDebug('🟥 Dibujando ' + features.length + ' polígonos');
 
             map.addSource(sourceId, {
                 type: 'geojson',
-                data: deepstateData
+                data: { type: 'FeatureCollection', features: features }
             });
 
-            // Relleno
+            // Capa de relleno (con color FORZADO)
             map.addLayer({
                 id: fillLayerId,
                 type: 'fill',
@@ -432,7 +451,7 @@
                 }
             });
 
-            // Borde
+            // Capa de borde (con color FORZADO)
             map.addLayer({
                 id: lineLayerId,
                 type: 'line',
@@ -444,8 +463,11 @@
                 }
             });
 
-            reorderLayers();
-            console.log('🟥 DeepState dibujado correctamente');
+            // FORZAR que DeepState esté por encima del mapa base
+            map.moveLayer(fillLayerId, LAYER_IDS.BASE);
+            map.moveLayer(lineLayerId, LAYER_IDS.BASE);
+
+            logDebug('✅ DeepState dibujado con ' + features.length + ' polígonos');
         }
 
         // ============================================================
@@ -515,7 +537,7 @@
         // CONECTAR CONTROLES
         // ============================================================
 
-        document.getElementById('map-style-selector').addEventListener('change', function() {
+        document.getElementById('map-style-selector').addEventListener('change', () => {
             updateBaseMap();
             setTimeout(reorderLayers, 100);
         });
@@ -549,7 +571,7 @@
             loadFires();
             loadDeepstate();
             updateTerrain();
-            console.log('✅ Visor 3D listo');
+            logDebug('🚀 Visor listo');
         });
     </script>
 
