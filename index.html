@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Visor 3D - Ucrania</title>
+    <style>
+        html, body, #cesiumContainer {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #000;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 8px 14px;
+            border-radius: 5px;
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            z-index: 1000;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">🌍 Visor 3D - Ucrania</div>
+    <div id="cesiumContainer"></div>
+
+    <script src="https://cesium.com/downloads/cesiumjs/releases/1.128/Build/Cesium/Cesium.js">
+    </script>
+    <link href="https://cesium.com/downloads/cesiumjs/releases/1.128/Build/Cesium/Widgets/widgets.css" 
+          rel="stylesheet">
+
+    <script>
+        // --- CONFIGURACIÓN ---
+        // REEMPLAZA 'TU_TOKEN_DE_CESIUM_AQUI' con tu token real de Cesium Ion
+        Cesium.Ion.defaultAccessToken = 'TU_TOKEN_DE_CESIUM_AQUI';
+        const GEOJSON_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires.geojson';
+        
+        const viewer = new Cesium.Viewer('cesiumContainer', {
+            terrainProvider: Cesium.createWorldTerrain(),
+            baseLayerPicker: false,
+            infoBox: false,
+            selectionIndicator: false,
+            navigationHelpButton: false,
+            timeline: false,
+            animation: false,
+            geocoder: false,
+            homeButton: false,
+            sceneModePicker: false,
+        });
+        
+        viewer.imageryLayers.addImageryProvider(
+            new Cesium.ArcGisMapServerImageryProvider({
+                url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer'
+            })
+        );
+        
+        fetch(GEOJSON_URL)
+            .then(response => response.json())
+            .then(data => {
+                const features = data.features || [];
+                const filtered = features.filter(f => (f.properties?.frp || 0) > 10);
+                const limited = filtered.slice(0, 500);
+                
+                limited.forEach(f => {
+                    const coords = f.geometry.coordinates;
+                    const props = f.properties;
+                    const size = Math.max(5, Math.min(20, (props.frp || 10) / 10));
+                    
+                    viewer.entities.add({
+                        position: Cesium.Cartesian3.fromDegrees(coords[0], coords[1], 0),
+                        point: {
+                            pixelSize: size,
+                            color: Cesium.Color.RED,
+                            outlineColor: Cesium.Color.YELLOW,
+                            outlineWidth: 2,
+                            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                        },
+                        properties: {
+                            frp: props.frp || 0,
+                            date: props.acq_date || 'N/A'
+                        }
+                    });
+                });
+                
+                document.getElementById('info').textContent =
+                    '🌍 Visor 3D | ' + limited.length + ' incendios | FRP > 10 MW';
+                
+                viewer.camera.flyTo({
+                    destination: Cesium.Cartesian3.fromDegrees(32.0, 48.5, 500000),
+                    duration: 2
+                });
+            })
+            .catch(error => console.error('Error:', error));
+    </script>
+</body>
+</html>
