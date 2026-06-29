@@ -30,10 +30,6 @@
             z-index: 1000;
             pointer-events: none;
         }
-        .maplibregl-popup {
-            max-width: 200px;
-        }
-        /* Leyenda para el control territorial */
         #legend {
             position: absolute;
             bottom: 30px;
@@ -70,11 +66,15 @@
     </div>
 
     <script>
-        // --- CONFIGURACIÓN ---
+        // ============================================================
+        // 1. CONFIGURACIÓN
+        // ============================================================
         const FIRMS_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires.geojson';
         const DEEPSTATE_URL = 'https://raw.githubusercontent.com/cyterat/deepstate-map-data/main/deepstate-map-data.geojson.gz';
 
-        // --- INICIALIZAR MAPA CON IMAGEN SATÉLITE ---
+        // ============================================================
+        // 2. CREAR MAPA CON IMAGEN SATÉLITE
+        // ============================================================
         const map = new maplibregl.Map({
             container: 'map',
             style: {
@@ -93,18 +93,19 @@
             },
             center: [31.0, 48.5],
             zoom: 6,
-            pitch: 60,
+            pitch: 65,
             maxPitch: 85
         });
 
-        // --- CONTROLES ---
         map.addControl(new maplibregl.NavigationControl(), 'top-right');
         map.addControl(new maplibregl.ScaleControl(), 'bottom-right');
 
-        // --- INYECTAR TERRENO 3D ---
+        // ============================================================
+        // 3. INYECTAR TERRENO 3D (MÉTODO QUE FUNCIONA)
+        // ============================================================
         map.on('load', function() {
 
-            // 1. Terreno 3D (con CORS permitido)
+            // --- TERRENO 3D (SIRVE PARA TODA LA TIERRA) ---
             map.addSource('terrainSource', {
                 type: 'raster-dem',
                 tiles: ['https://maplibre.org/terrain/v1/terrain-rgb/{z}/{x}/{y}.png'],
@@ -115,12 +116,14 @@
 
             map.setTerrain({
                 source: 'terrainSource',
-                exaggeration: 1.8
+                exaggeration: 2.0
             });
 
             console.log('✅ Terreno 3D activado');
 
-            // 2. Cargar datos de incendios (FIRMS)
+            // ============================================================
+            // 4. CARGAR INCENDIOS (FIRMS)
+            // ============================================================
             fetch(FIRMS_URL)
                 .then(response => response.json())
                 .then(data => {
@@ -163,7 +166,7 @@
                             }
                         });
 
-                        // Popup para incendios
+                        // Popup incendios
                         const popup = new maplibregl.Popup({
                             closeButton: true,
                             closeOnClick: false
@@ -194,22 +197,10 @@
                 })
                 .catch(error => console.error('❌ Error FIRMS:', error));
 
-            // 3. Cargar línea del frente (DeepStateUA)
-            // Usamos un proxy CORS para poder descargar el archivo comprimido
-            // y lo procesamos con la librería pako (descompresión gzip)
-            // NOTA: Como es complejo, usamos un enfoque alternativo:
-            // Cargamos el GeoJSON ya procesado desde GitHub (si existe)
-            // o usamos una URL alternativa.
-            // Para simplificar, cargamos la línea del frente desde una URL
-            // que ya esté en formato GeoJSON (sin comprimir).
-
-            // INTENTO 1: Usar el archivo comprimido con proxy CORS
-            // Esta parte es avanzada, pero la incluimos para que tengas la funcionalidad.
-            // Como el archivo está comprimido en gz, necesitamos descomprimirlo.
-            // Usamos fetch para obtener el archivo, y pako para descomprimirlo.
-            // Si no funciona, se cargará un fallback.
-
-            // Cargar pako desde CDN (para descomprimir gzip)
+            // ============================================================
+            // 5. CARGAR DEEPSTATE (CONTROL TERRITORIAL)
+            // ============================================================
+            // Cargar pako desde CDN para descomprimir gzip
             const script = document.createElement('script');
             script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js';
             script.onload = function() {
@@ -218,7 +209,7 @@
             document.head.appendChild(script);
 
             function cargarDeepState() {
-                // Usamos un proxy CORS para evitar bloqueos
+                // Usar proxy CORS para evitar bloqueos
                 const proxyUrl = 'https://corsproxy.io/?';
                 const deepStateUrl = 'https://raw.githubusercontent.com/cyterat/deepstate-map-data/main/deepstate-map-data.geojson.gz';
 
@@ -232,7 +223,6 @@
                         const data = pako.ungzip(new Uint8Array(buffer), { to: 'string' });
                         const geojson = JSON.parse(data);
 
-                        // Filtrar la fecha más reciente (la última)
                         const features = geojson.features || [];
                         if (features.length === 0) throw new Error('Sin features');
 
@@ -259,7 +249,6 @@
                         });
 
                         // Capa de control territorial (polígonos)
-                        // Asignamos color según el control: Rusia (rojo), Ucrania (azul), disputado (naranja)
                         map.addLayer({
                             id: 'deepstate-layer',
                             type: 'fill',
@@ -277,7 +266,7 @@
                             }
                         });
 
-                        // Líneas de borde (más finas)
+                        // Líneas de borde
                         map.addLayer({
                             id: 'deepstate-line',
                             type: 'line',
@@ -295,14 +284,12 @@
                     })
                     .catch(error => {
                         console.warn('⚠️ Error cargando DeepState:', error);
-                        // Intentar cargar desde URL alternativa (sin comprimir)
+                        // Fallback: intentar cargar desde archivo descomprimido en tu repo
                         cargarDeepStateFallback();
                     });
             }
 
             function cargarDeepStateFallback() {
-                // Fallback: intentar cargar un GeoJSON ya descomprimido
-                // (puedes subir tú mismo un archivo descomprimido a tu repositorio)
                 const fallbackUrl = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/deepstate-fallback.geojson';
                 fetch(fallbackUrl)
                     .then(response => {
@@ -334,6 +321,11 @@
                     })
                     .catch(error => console.warn('⚠️ Fallback también falló:', error));
             }
+
+            // ============================================================
+            // 6. BOTÓN PARA VOLVER A UCRANIA
+            // ============================================================
+            // (opcional, puedes añadirlo si quieres)
         });
     </script>
 </body>
