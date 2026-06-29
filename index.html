@@ -30,6 +30,9 @@
             z-index: 1000;
             pointer-events: none;
         }
+        .maplibregl-popup {
+            max-width: 200px;
+        }
         #legend {
             position: absolute;
             bottom: 30px;
@@ -73,7 +76,7 @@
         const DEEPSTATE_URL = 'https://raw.githubusercontent.com/cyterat/deepstate-map-data/main/deepstate-map-data.geojson.gz';
 
         // ============================================================
-        // 2. CREAR MAPA CON IMAGEN SATÉLITE
+        // 2. MAPA CON SATÉLITE
         // ============================================================
         const map = new maplibregl.Map({
             container: 'map',
@@ -101,11 +104,11 @@
         map.addControl(new maplibregl.ScaleControl(), 'bottom-right');
 
         // ============================================================
-        // 3. INYECTAR TERRENO 3D (MÉTODO QUE FUNCIONA)
+        // 3. TERRENO 3D + INCENDIOS + DEEPSTATE
         // ============================================================
         map.on('load', function() {
 
-            // --- TERRENO 3D (SIRVE PARA TODA LA TIERRA) ---
+            // --- 3.1 TERRENO 3D ---
             map.addSource('terrainSource', {
                 type: 'raster-dem',
                 tiles: ['https://maplibre.org/terrain/v1/terrain-rgb/{z}/{x}/{y}.png'],
@@ -122,12 +125,13 @@
             console.log('✅ Terreno 3D activado');
 
             // ============================================================
-            // 4. CARGAR INCENDIOS (FIRMS)
+            // 3.2 INCENDIOS (FIRMS)
             // ============================================================
             fetch(FIRMS_URL)
                 .then(response => response.json())
                 .then(data => {
                     const features = data.features || [];
+                    // Filtrar FRP > 10
                     const filtered = features.filter(f => (f.properties?.frp || 0) > 10);
                     const limited = filtered.slice(0, 500);
 
@@ -198,9 +202,9 @@
                 .catch(error => console.error('❌ Error FIRMS:', error));
 
             // ============================================================
-            // 5. CARGAR DEEPSTATE (CONTROL TERRITORIAL)
+            // 3.3 DEEPSTATE (control territorial)
             // ============================================================
-            // Cargar pako desde CDN para descomprimir gzip
+            // Cargar pako para descomprimir
             const script = document.createElement('script');
             script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js';
             script.onload = function() {
@@ -209,7 +213,6 @@
             document.head.appendChild(script);
 
             function cargarDeepState() {
-                // Usar proxy CORS para evitar bloqueos
                 const proxyUrl = 'https://corsproxy.io/?';
                 const deepStateUrl = 'https://raw.githubusercontent.com/cyterat/deepstate-map-data/main/deepstate-map-data.geojson.gz';
 
@@ -219,14 +222,13 @@
                         return response.arrayBuffer();
                     })
                     .then(buffer => {
-                        // Descomprimir con pako
                         const data = pako.ungzip(new Uint8Array(buffer), { to: 'string' });
                         const geojson = JSON.parse(data);
 
                         const features = geojson.features || [];
                         if (features.length === 0) throw new Error('Sin features');
 
-                        // Obtener la fecha más reciente
+                        // Fecha más reciente
                         const fechas = features.map(f => f.properties?.date || '');
                         const fechaMax = fechas.sort().pop();
 
@@ -234,12 +236,8 @@
                             (f.properties?.date || '') === fechaMax
                         );
 
-                        if (filteredFeatures.length === 0) {
-                            console.warn('No hay features para la fecha más reciente');
-                            return;
-                        }
+                        if (filteredFeatures.length === 0) return;
 
-                        // Añadir capa de DeepState
                         map.addSource('deepstate', {
                             type: 'geojson',
                             data: {
@@ -248,7 +246,6 @@
                             }
                         });
 
-                        // Capa de control territorial (polígonos)
                         map.addLayer({
                             id: 'deepstate-layer',
                             type: 'fill',
@@ -257,7 +254,7 @@
                                 'fill-color': [
                                     'case',
                                     ['==', ['get', 'control'], 'Rusia'], '#FF0000',
-                                    ['==', ['get', 'control'], 'Ucrania'], '#2B7FFF',
+                                    ['==', ['get', 'control'], 'Ukraine'], '#2B7FFF',
                                     '#FFA500'
                                 ],
                                 'fill-opacity': 0.5,
@@ -266,7 +263,6 @@
                             }
                         });
 
-                        // Líneas de borde
                         map.addLayer({
                             id: 'deepstate-line',
                             type: 'line',
@@ -278,13 +274,12 @@
                             }
                         });
 
-                        console.log('✅ DeepState cargado: ' + filteredFeatures.length + ' polígonos');
+                        console.log('✅ DeepState cargado');
                         document.getElementById('info').textContent += ' | DeepState activo';
 
                     })
                     .catch(error => {
-                        console.warn('⚠️ Error cargando DeepState:', error);
-                        // Fallback: intentar cargar desde archivo descomprimido en tu repo
+                        console.warn('⚠️ Error DeepState:', error);
                         cargarDeepStateFallback();
                     });
             }
@@ -292,10 +287,7 @@
             function cargarDeepStateFallback() {
                 const fallbackUrl = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/deepstate-fallback.geojson';
                 fetch(fallbackUrl)
-                    .then(response => {
-                        if (!response.ok) throw new Error('HTTP ' + response.status);
-                        return response.json();
-                    })
+                    .then(response => response.json())
                     .then(geojson => {
                         const features = geojson.features || [];
                         if (features.length === 0) return;
@@ -319,13 +311,8 @@
 
                         console.log('✅ DeepState fallback cargado');
                     })
-                    .catch(error => console.warn('⚠️ Fallback también falló:', error));
+                    .catch(error => console.warn('⚠️ Fallback falló:', error));
             }
-
-            // ============================================================
-            // 6. BOTÓN PARA VOLVER A UCRANIA
-            // ============================================================
-            // (opcional, puedes añadirlo si quieres)
         });
     </script>
 </body>
