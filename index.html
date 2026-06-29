@@ -1,23 +1,27 @@
-
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8" />
     <title>Visor 3D - Ucrania</title>
+    <script src="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.js">
+    </script>
+    <link href="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.css" rel="stylesheet" />
     <style>
-        html, body, #cesiumContainer {
-            width: 100%;
-            height: 100%;
+        body {
             margin: 0;
             padding: 0;
-            overflow: hidden;
-            background: #000;
+        }
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
         }
         #info {
             position: absolute;
             top: 10px;
             left: 10px;
-            background: rgba(0,0,0,0.7);
+            background: rgba(0, 0, 0, 0.7);
             color: white;
             padding: 8px 14px;
             border-radius: 5px;
@@ -26,83 +30,150 @@
             z-index: 1000;
             pointer-events: none;
         }
+        .mapboxgl-popup {
+            max-width: 200px;
+        }
     </style>
 </head>
 <body>
-    <div id="info">🌍 Visor 3D - Ucrania</div>
-    <div id="cesiumContainer"></div>
-
-    <script src="https://cesium.com/downloads/cesiumjs/releases/1.128/Build/Cesium/Cesium.js">
-    </script>
-    <link href="https://cesium.com/downloads/cesiumjs/releases/1.128/Build/Cesium/Widgets/widgets.css" 
-          rel="stylesheet">
+    <div id="info">🌍 Visor 3D - Ucrania (cargando...)</div>
+    <div id="map"></div>
 
     <script>
-        (function() {
-            const GEOJSON_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires.geojson';
+        // --- CONFIGURACIÓN ---
+        const GEOJSON_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires.geojson';
 
-            // --- CREAR VISOR CON TERRENO GRATUITO DE OPENFREEMAP ---
-            const viewer = new Cesium.Viewer('cesiumContainer', {
-                terrainProvider: new Cesium.CesiumTerrainProvider({
-                    url: 'https://openfreemap.org/terrain/v1/quantized-mesh'
-                }),
-                baseLayerPicker: false,
-                infoBox: false,
-                selectionIndicator: false,
-                navigationHelpButton: false,
-                timeline: false,
-                animation: false,
-                geocoder: false,
-                homeButton: false,
-                sceneModePicker: false,
+        // --- CREAR MAPA CON TERRENO 3D ---
+        const map = new maplibregl.Map({
+            container: 'map',
+            style: {
+                version: 8,
+                sources: {
+                    // Mapa base (OpenStreetMap)
+                    'osm': {
+                        type: 'raster',
+                        tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+                        tileSize: 256,
+                        attribution: '© OpenStreetMap'
+                    },
+                    // Terreno 3D (elevaciones)
+                    'terrainSource': {
+                        type: 'raster-dem',
+                        tiles: ['https://maplibre.org/terrain/v1/terrain-rgb/{z}/{x}/{y}.png'],
+                        tileSize: 256,
+                        maxzoom: 14
+                    }
+                },
+                layers: [
+                    { id: 'osm-layer', type: 'raster', source: 'osm' }
+                ],
+                terrain: {
+                    source: 'terrainSource',
+                    exaggeration: 1.5
+                }
+            },
+            center: [32.0, 48.5],
+            zoom: 6,
+            pitch: 60,
+            bearing: 0,
+        });
+
+        // --- CARGAR DATOS DE INCENDIOS ---
+        fetch(GEOJSON_URL)
+            .then(response => response.json())
+            .then(data => {
+                const features = data.features || [];
+
+                // Filtrar FRP > 10 MW
+                const filtered = features.filter(f => (f.properties?.frp || 0) > 10);
+                const limited = filtered.slice(0, 500);
+
+                console.log(`🔥 Mostrando ${limited.length} incendios`);
+
+                // Actualizar info
+                document.getElementById('info').textContent =
+                    `🌍 Visor 3D | ${limited.length} incendios | FRP > 10 MW`;
+
+                // --- AÑADIR PUNTOS COMO CAPA GEOJSON ---
+                map.on('load', function() {
+                    // Crear fuente GeoJSON
+                    map.addSource('fires', {
+                        type: 'geojson',
+                        data: {
+                            type: 'FeatureCollection',
+                            features: limited
+                        }
+                    });
+
+                    // Crear capa de puntos (círculos)
+                    map.addLayer({
+                        id: 'fires-layer',
+                        type: 'circle',
+                        source: 'fires',
+                        paint: {
+                            'circle-radius': [
+                                'interpolate',
+                                ['linear'],
+                                ['get', 'frp'],
+                                10, 5,
+                                50, 15,
+                                100, 25
+                            ],
+                            'circle-color': [
+                                'interpolate',
+                                ['linear'],
+                                ['get', 'frp'],
+                                10, '#ff6600',
+                                50, '#ff0000',
+                                100, '#cc0000'
+                            ],
+                            'circle-stroke-color': '#ffff00',
+                            'circle-stroke-width': 1,
+                            'circle-opacity': 0.8,
+                            'circle-stroke-opacity': 0.8
+                        }
+                    });
+
+                    // --- POPUP AL HACER CLIC ---
+                    const popup = new maplibregl.Popup({
+                        closeButton: true,
+                        closeOnClick: false
+                    });
+
+                    map.on('click', 'fires-layer', function(e) {
+                        const props = e.features[0].properties;
+                        popup
+                            .setLngLat(e.lngLat)
+                            .setHTML(`
+                                <strong>🔥 FRP:</strong> ${props.frp || 0} MW<br>
+                                <strong>📅 Fecha:</strong> ${props.acq_date || 'N/A'}<br>
+                                <strong>🛰️ Satélite:</strong> ${props.satellite || 'N/A'}
+                            `)
+                            .addTo(map);
+                    });
+
+                    // Cambiar cursor al pasar por encima
+                    map.on('mouseenter', 'fires-layer', function() {
+                        map.getCanvas().style.cursor = 'pointer';
+                    });
+
+                    map.on('mouseleave', 'fires-layer', function() {
+                        map.getCanvas().style.cursor = '';
+                    });
+                });
+
+            })
+            .catch(error => {
+                console.error('❌ Error cargando datos:', error);
+                document.getElementById('info').textContent = '❌ Error cargando datos';
             });
 
-            // --- IMAGEN SATÉLITE (ArcGIS, gratuita) ---
-            viewer.imageryLayers.addImageryProvider(
-                new Cesium.ArcGisMapServerImageryProvider({
-                    url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer'
-                })
-            );
+        // --- AÑADIR CONTROLES DE NAVEGACIÓN ---
+        map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
-            // --- CARGAR DATOS DE INCENDIOS ---
-            fetch(GEOJSON_URL)
-                .then(response => response.json())
-                .then(data => {
-                    const features = data.features || [];
-                    const filtered = features.filter(f => (f.properties?.frp || 0) > 10);
-                    const limited = filtered.slice(0, 500);
-
-                    limited.forEach(f => {
-                        const coords = f.geometry.coordinates;
-                        const props = f.properties;
-                        const size = Math.max(5, Math.min(20, (props.frp || 10) / 10));
-
-                        viewer.entities.add({
-                            position: Cesium.Cartesian3.fromDegrees(coords[0], coords[1], 0),
-                            point: {
-                                pixelSize: size,
-                                color: Cesium.Color.RED,
-                                outlineColor: Cesium.Color.YELLOW,
-                                outlineWidth: 2,
-                                heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-                            },
-                            properties: {
-                                frp: props.frp || 0,
-                                date: props.acq_date || 'N/A'
-                            }
-                        });
-                    });
-
-                    document.getElementById('info').textContent =
-                        '🌍 Visor 3D | ' + limited.length + ' incendios | FRP > 10 MW';
-
-                    viewer.camera.flyTo({
-                        destination: Cesium.Cartesian3.fromDegrees(32.0, 48.5, 500000),
-                        duration: 2
-                    });
-                })
-                .catch(error => console.error('Error:', error));
-        })();
+        // --- ESCALAR EL TERRENO (opcional) ---
+        // Puedes ajustar la exageración del terreno en tiempo real
+        // map.setTerrain({ source: 'terrainSource', exaggeration: 2.0 });
     </script>
 </body>
 </html>
