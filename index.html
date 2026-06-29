@@ -73,10 +73,10 @@
         // 1. CONFIGURACIÓN
         // ============================================================
         const FIRMS_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires.geojson';
-        const DEEPSTATE_URL = 'https://raw.githubusercontent.com/cyterat/deepstate-map-data/main/deepstate-map-data.geojson.gz';
+        const DEEPSTATE_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/deepstate-fallback.geojson';
 
         // ============================================================
-        // 2. MAPA CON SATÉLITE
+        // 2. MAPA CON SATÉLITE (COPIADO DE 90d2a73)
         // ============================================================
         const map = new maplibregl.Map({
             container: 'map',
@@ -104,11 +104,11 @@
         map.addControl(new maplibregl.ScaleControl(), 'bottom-right');
 
         // ============================================================
-        // 3. TERRENO 3D + INCENDIOS + DEEPSTATE
+        // 3. INYECTAR TERRENO 3D (MÉTODO DE f682de9 QUE FUNCIONA)
         // ============================================================
         map.on('load', function() {
 
-            // --- 3.1 TERRENO 3D ---
+            // --- TERRENO 3D (el que funciona en f682de9) ---
             map.addSource('terrainSource', {
                 type: 'raster-dem',
                 tiles: ['https://maplibre.org/terrain/v1/terrain-rgb/{z}/{x}/{y}.png'],
@@ -125,13 +125,12 @@
             console.log('✅ Terreno 3D activado');
 
             // ============================================================
-            // 3.2 INCENDIOS (FIRMS)
+            // 4. INCENDIOS (FIRMS) - COPIADO DE 90d2a73
             // ============================================================
             fetch(FIRMS_URL)
                 .then(response => response.json())
                 .then(data => {
                     const features = data.features || [];
-                    // Filtrar FRP > 10
                     const filtered = features.filter(f => (f.properties?.frp || 0) > 10);
                     const limited = filtered.slice(0, 500);
 
@@ -170,7 +169,6 @@
                             }
                         });
 
-                        // Popup incendios
                         const popup = new maplibregl.Popup({
                             closeButton: true,
                             closeOnClick: false
@@ -202,117 +200,69 @@
                 .catch(error => console.error('❌ Error FIRMS:', error));
 
             // ============================================================
-            // 3.3 DEEPSTATE (control territorial)
+            // 5. DEEPSTATE - COPIADO DE 90d2a73 (CON FALLBACK)
             // ============================================================
-            // Cargar pako para descomprimir
-            const script = document.createElement('script');
-            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js';
-            script.onload = function() {
-                cargarDeepState();
-            };
-            document.head.appendChild(script);
+            fetch(DEEPSTATE_URL)
+                .then(response => {
+                    if (!response.ok) throw new Error('HTTP ' + response.status);
+                    return response.json();
+                })
+                .then(geojson => {
+                    const features = geojson.features || [];
+                    if (features.length === 0) return;
 
-            function cargarDeepState() {
-                const proxyUrl = 'https://corsproxy.io/?';
-                const deepStateUrl = 'https://raw.githubusercontent.com/cyterat/deepstate-map-data/main/deepstate-map-data.geojson.gz';
+                    // Tomar la fecha más reciente
+                    const fechas = features.map(f => f.properties?.date || '');
+                    const fechaMax = fechas.sort().pop();
+                    const filteredFeatures = features.filter(f =>
+                        (f.properties?.date || '') === fechaMax
+                    );
 
-                fetch(proxyUrl + encodeURIComponent(deepStateUrl))
-                    .then(response => {
-                        if (!response.ok) throw new Error('HTTP ' + response.status);
-                        return response.arrayBuffer();
-                    })
-                    .then(buffer => {
-                        const data = pako.ungzip(new Uint8Array(buffer), { to: 'string' });
-                        const geojson = JSON.parse(data);
+                    if (filteredFeatures.length === 0) return;
 
-                        const features = geojson.features || [];
-                        if (features.length === 0) throw new Error('Sin features');
-
-                        // Fecha más reciente
-                        const fechas = features.map(f => f.properties?.date || '');
-                        const fechaMax = fechas.sort().pop();
-
-                        const filteredFeatures = features.filter(f =>
-                            (f.properties?.date || '') === fechaMax
-                        );
-
-                        if (filteredFeatures.length === 0) return;
-
-                        map.addSource('deepstate', {
-                            type: 'geojson',
-                            data: {
-                                type: 'FeatureCollection',
-                                features: filteredFeatures
-                            }
-                        });
-
-                        map.addLayer({
-                            id: 'deepstate-layer',
-                            type: 'fill',
-                            source: 'deepstate',
-                            paint: {
-                                'fill-color': [
-                                    'case',
-                                    ['==', ['get', 'control'], 'Rusia'], '#FF0000',
-                                    ['==', ['get', 'control'], 'Ukraine'], '#2B7FFF',
-                                    '#FFA500'
-                                ],
-                                'fill-opacity': 0.5,
-                                'fill-outline-color': '#FFFFFF',
-                                'fill-outline-width': 1
-                            }
-                        });
-
-                        map.addLayer({
-                            id: 'deepstate-line',
-                            type: 'line',
-                            source: 'deepstate',
-                            paint: {
-                                'line-color': '#FFFFFF',
-                                'line-width': 1.5,
-                                'line-opacity': 0.7
-                            }
-                        });
-
-                        console.log('✅ DeepState cargado');
-                        document.getElementById('info').textContent += ' | DeepState activo';
-
-                    })
-                    .catch(error => {
-                        console.warn('⚠️ Error DeepState:', error);
-                        cargarDeepStateFallback();
+                    map.addSource('deepstate', {
+                        type: 'geojson',
+                        data: {
+                            type: 'FeatureCollection',
+                            features: filteredFeatures
+                        }
                     });
-            }
 
-            function cargarDeepStateFallback() {
-                const fallbackUrl = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/deepstate-fallback.geojson';
-                fetch(fallbackUrl)
-                    .then(response => response.json())
-                    .then(geojson => {
-                        const features = geojson.features || [];
-                        if (features.length === 0) return;
+                    map.addLayer({
+                        id: 'deepstate-layer',
+                        type: 'fill',
+                        source: 'deepstate',
+                        paint: {
+                            'fill-color': [
+                                'case',
+                                ['==', ['get', 'control'], 'Rusia'], '#FF0000',
+                                ['==', ['get', 'control'], 'Ukraine'], '#2B7FFF',
+                                '#FFA500'
+                            ],
+                            'fill-opacity': 0.5,
+                            'fill-outline-color': '#FFFFFF',
+                            'fill-outline-width': 1
+                        }
+                    });
 
-                        map.addSource('deepstate-fallback', {
-                            type: 'geojson',
-                            data: geojson
-                        });
+                    map.addLayer({
+                        id: 'deepstate-line',
+                        type: 'line',
+                        source: 'deepstate',
+                        paint: {
+                            'line-color': '#FFFFFF',
+                            'line-width': 1.5,
+                            'line-opacity': 0.7
+                        }
+                    });
 
-                        map.addLayer({
-                            id: 'deepstate-layer-fallback',
-                            type: 'fill',
-                            source: 'deepstate-fallback',
-                            paint: {
-                                'fill-color': '#FFA500',
-                                'fill-opacity': 0.3,
-                                'fill-outline-color': '#FFFFFF',
-                                'fill-outline-width': 1
-                            }
-                        });
-
-                        console.log('✅ DeepState fallback cargado');
-                    })
-                    .catch(error => console.warn('⚠️ Fallback falló:', error));
-            }
+                    console.log('✅ DeepState cargado');
+                    document.getElementById('info').textContent += ' | DeepState activo';
+                })
+                .catch(error => {
+                    console.warn('⚠️ Error DeepState (usa fallback local):', error);
+                    document.getElementById('info').textContent += ' | Sin DeepState';
+                });
         });
     </script>
 </body>
