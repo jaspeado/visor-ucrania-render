@@ -256,16 +256,20 @@
 
         <!-- Mapa base -->
         <div class="control-group">
-            <div class="checkbox-group">
-                <input type="checkbox" id="chk-satellite" checked>
-                <label for="chk-satellite">🛰️ Mapa satélite</label>
+            <label>🗺️ Mapa base</label>
+            <select id="map-style-selector">
+                <option value="satellite">🛰️ Satélite (ArcGIS)</option>
+                <option value="osm" selected>🌍 Callejero (OpenStreetMap)</option>
+                <option value="topo">🗺️ Topográfico (OpenTopoMap)</option>
+            </select>
+            <div style="margin-top:6px;">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="chk-terrain" checked>
+                    <label for="chk-terrain">🏔️ Terreno 3D</label>
+                </div>
+                <label>Inclinación <span class="slider-value" id="val-pitch">65</span></label>
+                <input type="range" id="pitch-control" min="0" max="85" value="65">
             </div>
-            <div class="checkbox-group">
-                <input type="checkbox" id="chk-terrain" checked>
-                <label for="chk-terrain">🏔️ Terreno 3D</label>
-            </div>
-            <label>Inclinación <span class="slider-value" id="val-pitch">65</span></label>
-            <input type="range" id="pitch-control" min="0" max="85" value="65">
         </div>
 
         <!-- Stats -->
@@ -299,6 +303,7 @@
         let allDeepstateData = {};
         let deepstateDates = [];
         let currentDeepstateDate = '';
+        let baseLayerId = 'base-layer';
 
         // ============================================================
         // 2. INICIALIZAR MAPA
@@ -322,7 +327,6 @@
         // 3. CARGAR DATOS
         // ============================================================
 
-        // --- 3.1 Cargar FIRMS ---
         function loadFires() {
             fetch(FIRMS_URL)
                 .then(r => r.json())
@@ -335,7 +339,6 @@
                 .catch(e => console.error('Error FIRMS:', e));
         }
 
-        // --- 3.2 Cargar DeepState (comprimido) ---
         function loadDeepstate() {
             const script = document.createElement('script');
             script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js';
@@ -379,7 +382,6 @@
         // 4. ACTUALIZAR CAPAS
         // ============================================================
 
-        // --- 4.1 Actualizar incendios ---
         function updateFires() {
             const enabled = document.getElementById('chk-fires').checked;
             const opacity = parseInt(document.getElementById('opacity-fires').value) / 100;
@@ -447,7 +449,6 @@
             });
         }
 
-        // --- 4.2 Actualizar DeepState ---
         function updateDeepstate() {
             const enabled = document.getElementById('chk-deepstate').checked;
             const fillColor = document.getElementById('color-deepstate-fill').value;
@@ -504,35 +505,65 @@
         }
 
         // ============================================================
-        // 5. CONTROLES DE MAPA
+        // 5. MAPA BASE (con OpenStreetMap y otros)
         // ============================================================
 
-        function updateMapStyle() {
-            const satEnabled = document.getElementById('chk-satellite').checked;
-            const terrainEnabled = document.getElementById('chk-terrain').checked;
-            const pitch = parseInt(document.getElementById('pitch-control').value);
+        function updateBaseMap() {
+            const selected = document.getElementById('map-style-selector').value;
 
-            const satSource = 'satellite-source';
-            const satLayer = 'satellite-layer';
+            // Eliminar capa base anterior
+            if (map.getLayer(baseLayerId)) map.removeLayer(baseLayerId);
+            if (map.getSource(baseLayerId)) map.removeSource(baseLayerId);
 
-            if (map.getLayer(satLayer)) map.removeLayer(satLayer);
-            if (map.getSource(satSource)) map.removeSource(satSource);
+            let tiles = [];
+            let attribution = '';
 
-            if (satEnabled) {
-                map.addSource(satSource, {
-                    type: 'raster',
-                    tiles: ['https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
-                    tileSize: 256
-                });
-                map.addLayer({
-                    id: satLayer,
-                    type: 'raster',
-                    source: satSource,
-                    before: firesLayerId
-                });
+            switch(selected) {
+                case 'satellite':
+                    tiles = ['https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'];
+                    attribution = '© Esri, Maxar, Earthstar Geographics';
+                    break;
+                case 'osm':
+                    tiles = ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'];
+                    attribution = '© OpenStreetMap contributors';
+                    break;
+                case 'topo':
+                    tiles = ['https://tile.opentopomap.org/{z}/{x}/{y}.png'];
+                    attribution = '© OpenTopoMap';
+                    break;
+                default:
+                    tiles = ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'];
+                    attribution = '© OpenStreetMap contributors';
             }
 
-            if (terrainEnabled) {
+            map.addSource(baseLayerId, {
+                type: 'raster',
+                tiles: tiles,
+                tileSize: 256,
+                attribution: attribution
+            });
+
+            map.addLayer({
+                id: baseLayerId,
+                type: 'raster',
+                source: baseLayerId
+            });
+
+            // Reordenar para que la capa base esté detrás de todo
+            if (map.getLayer(firesLayerId)) {
+                map.moveLayer(baseLayerId, firesLayerId);
+            }
+        }
+
+        // ============================================================
+        // 6. TERRENO E INCLINACIÓN
+        // ============================================================
+
+        function updateTerrain() {
+            const enabled = document.getElementById('chk-terrain').checked;
+            const pitch = parseInt(document.getElementById('pitch-control').value);
+
+            if (enabled) {
                 if (!map.getSource('terrainSource')) {
                     map.addSource('terrainSource', {
                         type: 'raster-dem',
@@ -551,7 +582,7 @@
         }
 
         // ============================================================
-        // 6. CONECTAR CONTROLES
+        // 7. CONECTAR CONTROLES
         // ============================================================
 
         document.getElementById('chk-fires').addEventListener('change', updateFires);
@@ -573,21 +604,28 @@
             updateDeepstate();
         });
 
-        document.getElementById('chk-satellite').addEventListener('change', updateMapStyle);
-        document.getElementById('chk-terrain').addEventListener('change', updateMapStyle);
+        document.getElementById('map-style-selector').addEventListener('change', updateBaseMap);
+        document.getElementById('chk-terrain').addEventListener('change', updateTerrain);
         document.getElementById('pitch-control').addEventListener('input', function() {
             document.getElementById('val-pitch').textContent = this.value;
-            updateMapStyle();
+            updateTerrain();
         });
 
         // ============================================================
-        // 7. INICIAR
+        // 8. INICIAR
         // ============================================================
 
         map.on('load', function() {
+            // Inicializar mapa base (OpenStreetMap por defecto)
+            updateBaseMap();
+            
+            // Cargar datos
             loadFires();
             loadDeepstate();
-            updateMapStyle();
+            
+            // Terreno e inclinación
+            updateTerrain();
+            
             console.log('✅ Visor 3D con controles listo');
         });
     </script>
