@@ -7,33 +7,11 @@
     </script>
     <link href="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.css" rel="stylesheet" />
     <style>
-        /* Reset */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        html, body {
-            width: 100%;
-            height: 100%;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #0d1117;
-            color: #e6edf3;
-            overflow: hidden;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; font-family: 'Segoe UI', sans-serif; background: #0d1117; color: #e6edf3; overflow: hidden; }
 
-        #map {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
-        }
+        #map { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
 
-        /* ======================================== */
-        /* PANEL DE CONTROL                        */
-        /* ======================================== */
         #panel {
             position: absolute;
             top: 10px;
@@ -44,23 +22,16 @@
             border: 1px solid #30363d;
             border-radius: 8px;
             padding: 14px 16px;
-            width: 290px;
+            width: 280px;
             max-height: calc(100% - 20px);
             overflow-y: auto;
             font-size: 13px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.6);
             pointer-events: auto;
         }
-        #panel::-webkit-scrollbar {
-            width: 4px;
-        }
-        #panel::-webkit-scrollbar-thumb {
-            background: #30363d;
-            border-radius: 4px;
-        }
-        #panel::-webkit-scrollbar-track {
-            background: transparent;
-        }
+        #panel::-webkit-scrollbar { width: 4px; }
+        #panel::-webkit-scrollbar-thumb { background: #30363d; border-radius: 4px; }
+        #panel::-webkit-scrollbar-track { background: transparent; }
 
         #panel h2 {
             font-size: 16px;
@@ -69,18 +40,14 @@
             color: #f0f6fc;
             border-bottom: 1px solid #30363d;
             padding-bottom: 8px;
-            letter-spacing: 0.3px;
         }
 
         .control-group {
             margin-bottom: 10px;
-            padding-bottom: 8px;
+            padding-bottom: 10px;
             border-bottom: 1px solid #21262d;
         }
-        .control-group:last-child {
-            border-bottom: none;
-            margin-bottom: 0;
-        }
+        .control-group:last-child { border-bottom: none; margin-bottom: 0; }
 
         .control-group label {
             display: block;
@@ -131,10 +98,6 @@
             font-size: 12px;
             cursor: pointer;
         }
-        .control-group select:focus {
-            outline: none;
-            border-color: #58a6ff;
-        }
 
         .checkbox-group {
             display: flex;
@@ -162,42 +125,13 @@
             gap: 8px;
             margin-top: 2px;
         }
-        .color-row span {
-            font-size: 11px;
-            color: #8b949e;
-        }
+        .color-row span { font-size: 11px; color: #8b949e; }
 
         .slider-value {
             float: right;
             font-size: 11px;
             color: #58a6ff;
             font-weight: 500;
-        }
-
-        .layer-order {
-            display: flex;
-            gap: 6px;
-            margin-top: 4px;
-            flex-wrap: wrap;
-        }
-        .layer-order button {
-            background: #21262d;
-            border: 1px solid #30363d;
-            color: #e6edf3;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .layer-order button:hover {
-            background: #30363d;
-            border-color: #58a6ff;
-        }
-        .layer-order button.active {
-            background: #58a6ff;
-            border-color: #58a6ff;
-            color: #0d1117;
         }
 
         #map-info {
@@ -207,7 +141,6 @@
             transform: translateX(-50%);
             z-index: 1000;
             background: rgba(13, 17, 23, 0.85);
-            backdrop-filter: blur(4px);
             padding: 6px 16px;
             border-radius: 20px;
             border: 1px solid #30363d;
@@ -217,21 +150,27 @@
             white-space: nowrap;
         }
 
-        .layer-label {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        #debug {
+            position: absolute;
+            bottom: 60px;
+            right: 10px;
+            z-index: 1000;
+            background: rgba(0,0,0,0.9);
+            color: #0f0;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 11px;
+            max-width: 400px;
+            max-height: 200px;
+            overflow: auto;
+            border-radius: 4px;
+            border: 1px solid #30363d;
+            pointer-events: none;
         }
 
         @media (max-width: 640px) {
-            #panel {
-                width: 220px;
-                padding: 10px 12px;
-                font-size: 12px;
-                max-height: calc(100% - 80px);
-                top: 70px;
-                left: 6px;
-            }
+            #panel { width: 220px; padding: 10px 12px; font-size: 12px; max-height: calc(100% - 80px); top: 70px; left: 6px; }
+            #debug { max-width: 200px; font-size: 10px; bottom: 70px; }
         }
     </style>
 </head>
@@ -241,51 +180,6 @@
     <div id="panel">
         <h2>🎛️ Controles</h2>
 
-        <!-- ====================== -->
-        <!-- CAPA: INCENDIOS        -->
-        <!-- ====================== -->
-        <div class="control-group">
-            <div class="checkbox-group">
-                <input type="checkbox" id="chk-fires" checked>
-                <label for="chk-fires">🔥 Incendios (VIIRS)</label>
-            </div>
-            <div class="color-row">
-                <input type="color" id="color-fires" value="#FF3300">
-                <span>Color</span>
-                <span style="margin-left:auto; font-size:11px;">Opacidad <span class="slider-value" id="val-opacity-fires">0.85</span></span>
-            </div>
-            <input type="range" id="opacity-fires" min="0" max="100" value="85">
-        </div>
-
-        <!-- ====================== -->
-        <!-- CAPA: DEEPSTATE        -->
-        <!-- ====================== -->
-        <div class="control-group">
-            <div class="checkbox-group">
-                <input type="checkbox" id="chk-deepstate" checked>
-                <label for="chk-deepstate">🟥 Línea del frente</label>
-            </div>
-            <label>Fecha</label>
-            <select id="deepstate-date">
-                <option value="">Cargando fechas...</option>
-            </select>
-            <div class="color-row">
-                <input type="color" id="color-deepstate-fill" value="#FF0000">
-                <span>Relleno</span>
-                <span style="margin-left:auto; font-size:11px;">Opacidad <span class="slider-value" id="val-opacity-ds-fill">0.40</span></span>
-            </div>
-            <input type="range" id="opacity-ds-fill" min="0" max="100" value="40">
-            <div class="color-row" style="margin-top:4px;">
-                <input type="color" id="color-deepstate-line" value="#FFFFFF">
-                <span>Borde</span>
-                <span style="margin-left:auto; font-size:11px;">Opacidad <span class="slider-value" id="val-opacity-ds-line">0.80</span></span>
-            </div>
-            <input type="range" id="opacity-ds-line" min="0" max="100" value="80">
-        </div>
-
-        <!-- ====================== -->
-        <!-- MAPA BASE              -->
-        <!-- ====================== -->
         <div class="control-group">
             <label>🗺️ Mapa base</label>
             <select id="map-style-selector">
@@ -303,35 +197,53 @@
             </div>
         </div>
 
-        <!-- ====================== -->
-        <!-- ORDEN DE CAPAS         -->
-        <!-- ====================== -->
-        <div class="control-group" style="border-bottom: none; margin-bottom: 0;">
-            <label>📚 Orden de capas</label>
-            <div class="layer-order">
-                <button class="active" data-layer="base">Base</button>
-                <button data-layer="deepstate">Frente</button>
-                <button data-layer="fires">Incendios</button>
+        <div class="control-group">
+            <div class="checkbox-group">
+                <input type="checkbox" id="chk-deepstate" checked>
+                <label for="chk-deepstate">🟥 Línea del frente</label>
             </div>
-            <div style="font-size:11px; color:#8b949e; margin-top:4px;">
-                Haz clic para mover una capa al frente
+            <label>Fecha</label>
+            <select id="deepstate-date">
+                <option value="">Cargando fechas...</option>
+            </select>
+            <div class="color-row">
+                <input type="color" id="color-deepstate-fill" value="#FF0000">
+                <span>Relleno</span>
+                <span style="margin-left:auto; font-size:11px;">Opacidad <span class="slider-value" id="val-opacity-ds-fill">0.70</span></span>
             </div>
+            <input type="range" id="opacity-ds-fill" min="0" max="100" value="70">
+            <div class="color-row" style="margin-top:4px;">
+                <input type="color" id="color-deepstate-line" value="#FFFFFF">
+                <span>Borde</span>
+                <span style="margin-left:auto; font-size:11px;">Opacidad <span class="slider-value" id="val-opacity-ds-line">1.00</span></span>
+            </div>
+            <input type="range" id="opacity-ds-line" min="0" max="100" value="100">
         </div>
 
-        <!-- Stats -->
+        <div class="control-group">
+            <div class="checkbox-group">
+                <input type="checkbox" id="chk-fires" checked>
+                <label for="chk-fires">🔥 Incendios (VIIRS)</label>
+            </div>
+            <div class="color-row">
+                <input type="color" id="color-fires" value="#FF3300">
+                <span>Color</span>
+                <span style="margin-left:auto; font-size:11px;">Opacidad <span class="slider-value" id="val-opacity-fires">0.85</span></span>
+            </div>
+            <input type="range" id="opacity-fires" min="0" max="100" value="85">
+        </div>
+
         <div style="display:flex; justify-content:space-between; font-size:11px; color:#8b949e; margin-top:8px; padding-top:6px; border-top:1px solid #21262d;">
             <span id="stats-fires">🔥 0</span>
             <span id="stats-date">📅 --</span>
         </div>
     </div>
 
-    <!-- Info en el mapa -->
     <div id="map-info">🌍 Visor 3D Ucrania | Clic en un punto para ver detalles</div>
+    <div id="debug">🐛 Esperando datos...</div>
 
-    <!-- MAPA -->
     <div id="map"></div>
 
-    <!-- SCRIPTS -->
     <script>
         // ============================================================
         // 1. CONFIGURACIÓN
@@ -344,6 +256,13 @@
         let allDeepstateData = {};
         let deepstateDates = [];
         let currentDeepstateDate = '';
+        const debugEl = document.getElementById('debug');
+
+        function logDebug(msg) {
+            debugEl.textContent = msg + '\n' + debugEl.textContent;
+            debugEl.textContent = debugEl.textContent.split('\n').slice(0, 20).join('\n');
+            console.log(msg);
+        }
 
         // IDs de capas
         const LAYER_IDS = {
@@ -358,9 +277,6 @@
             DEEPSTATE: 'deepstate-source',
             FIRES: 'fires-source'
         };
-
-        // Orden de capas (de abajo a arriba)
-        let layerOrder = ['BASE', 'DEEPSTATE_FILL', 'DEEPSTATE_LINE', 'FIRES'];
 
         // ============================================================
         // 2. INICIALIZAR MAPA
@@ -380,28 +296,17 @@
 
         map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
-        // ============================================================
-        // 3. REORDENAR CAPAS
-        // ============================================================
         function reorderLayers() {
-            // Obtener todas las capas que están en el mapa
-            const mapLayers = map.getStyle().layers || [];
-            const layerIds = mapLayers.map(l => l.id);
+            const order = [
+                LAYER_IDS.BASE,
+                LAYER_IDS.DEEPSTATE_FILL,
+                LAYER_IDS.DEEPSTATE_LINE,
+                LAYER_IDS.FIRES
+            ];
 
-            // Orden inverso (de arriba a abajo)
-            const orderedIds = [];
-            for (let i = layerOrder.length - 1; i >= 0; i--) {
-                const key = layerOrder[i];
-                const id = LAYER_IDS[key];
-                if (layerIds.includes(id)) {
-                    orderedIds.push(id);
-                }
-            }
-
-            // Mover capas al orden correcto
             let beforeId = undefined;
-            for (let i = orderedIds.length - 1; i >= 0; i--) {
-                const id = orderedIds[i];
+            for (let i = order.length - 1; i >= 0; i--) {
+                const id = order[i];
                 if (map.getLayer(id)) {
                     map.moveLayer(id, beforeId);
                     beforeId = id;
@@ -410,22 +315,26 @@
         }
 
         // ============================================================
-        // 4. CARGAR DATOS
+        // 3. CARGAR DATOS
         // ============================================================
 
         function loadFires() {
+            logDebug('📡 Cargando FIRMS...');
             fetch(FIRMS_URL)
                 .then(r => r.json())
                 .then(data => {
                     allFiresData = data.features || [];
-                    console.log('🔥 FIRMS cargados:', allFiresData.length);
+                    logDebug('✅ FIRMS: ' + allFiresData.length + ' puntos');
                     updateFires();
                     document.getElementById('stats-fires').textContent = '🔥 ' + allFiresData.length;
                 })
-                .catch(e => console.error('Error FIRMS:', e));
+                .catch(e => {
+                    logDebug('❌ Error FIRMS: ' + e.message);
+                });
         }
 
         function loadDeepstate() {
+            logDebug('📡 Cargando DeepState...');
             const script = document.createElement('script');
             script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js';
             script.onload = function() {
@@ -436,6 +345,7 @@
                         const geojson = JSON.parse(data);
                         allDeepstateData = geojson;
                         const features = geojson.features || [];
+                        logDebug('✅ DeepState: ' + features.length + ' polígonos');
                         
                         const fechas = new Set();
                         features.forEach(f => {
@@ -443,7 +353,7 @@
                             if (d) fechas.add(d);
                         });
                         deepstateDates = Array.from(fechas).sort();
-                        console.log('🟥 DeepState cargado:', features.length, 'fechas:', deepstateDates.length);
+                        logDebug('📅 Fechas: ' + deepstateDates.length);
                         
                         const sel = document.getElementById('deepstate-date');
                         sel.innerHTML = '';
@@ -456,16 +366,19 @@
                         if (deepstateDates.length > 0) {
                             sel.value = deepstateDates[deepstateDates.length - 1];
                             currentDeepstateDate = sel.value;
+                            logDebug('📅 Fecha seleccionada: ' + currentDeepstateDate);
                             updateDeepstate();
                         }
                     })
-                    .catch(e => console.error('Error DeepState:', e));
+                    .catch(e => {
+                        logDebug('❌ Error DeepState: ' + e.message);
+                    });
             };
             document.head.appendChild(script);
         }
 
         // ============================================================
-        // 5. ACTUALIZAR CAPAS
+        // 4. ACTUALIZAR CAPAS
         // ============================================================
 
         function updateFires() {
@@ -512,7 +425,6 @@
                 }
             });
 
-            // Popup
             const popup = new maplibregl.Popup({ closeButton: true, closeOnClick: false });
             map.on('click', layerId, function(e) {
                 const props = e.features[0].properties;
@@ -554,13 +466,29 @@
             if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId);
             if (map.getSource(sourceId)) map.removeSource(sourceId);
 
-            if (!enabled || !date || !allDeepstateData.features) return;
+            logDebug('🔄 Actualizando DeepState: fecha=' + date + ', enabled=' + enabled);
+
+            if (!enabled || !date || !allDeepstateData.features) {
+                logDebug('⚠️ DeepState no disponible o desactivado');
+                return;
+            }
 
             const features = allDeepstateData.features.filter(f =>
                 (f.properties?.date || '') === date
             );
 
-            if (features.length === 0) return;
+            logDebug('📊 Polígonos para ' + date + ': ' + features.length);
+
+            if (features.length === 0) {
+                logDebug('⚠️ No hay polígonos para esta fecha');
+                return;
+            }
+
+            // DEBUG: Mostrar el primer polígono
+            if (features.length > 0) {
+                const first = features[0];
+                logDebug('🔍 Primer polígono: ' + JSON.stringify(first.properties).substring(0, 100));
+            }
 
             map.addSource(sourceId, {
                 type: 'geojson',
@@ -570,15 +498,15 @@
                 }
             });
 
-            // Capa de relleno
+            // Capa de relleno CON UN COLOR FIJO Y OPACO PARA PRUEBA
             map.addLayer({
                 id: fillLayerId,
                 type: 'fill',
                 source: sourceId,
                 paint: {
-                    'fill-color': fillColor,
-                    'fill-opacity': fillOpacity,
-                    'fill-outline-color': lineColor,
+                    'fill-color': '#FF0000',  // ROJO FIJO
+                    'fill-opacity': 0.7,       // OPACIDAD FIJA
+                    'fill-outline-color': '#FFFFFF',
                     'fill-outline-width': 1
                 }
             });
@@ -589,17 +517,18 @@
                 type: 'line',
                 source: sourceId,
                 paint: {
-                    'line-color': lineColor,
-                    'line-width': 1.5,
-                    'line-opacity': lineOpacity
+                    'line-color': '#FFFFFF',
+                    'line-width': 2,
+                    'line-opacity': 1.0
                 }
             });
 
+            logDebug('✅ Capa DeepState añadida con ' + features.length + ' polígonos');
             reorderLayers();
         }
 
         // ============================================================
-        // 6. MAPA BASE
+        // 5. MAPA BASE
         // ============================================================
 
         function updateBaseMap() {
@@ -646,7 +575,7 @@
         }
 
         // ============================================================
-        // 7. TERRENO E INCLINACIÓN
+        // 6. TERRENO E INCLINACIÓN
         // ============================================================
 
         function updateTerrain() {
@@ -672,18 +601,19 @@
         }
 
         // ============================================================
-        // 8. CONECTAR CONTROLES
+        // 7. CONECTAR CONTROLES
         // ============================================================
 
-        // Incendios
-        document.getElementById('chk-fires').addEventListener('change', updateFires);
-        document.getElementById('opacity-fires').addEventListener('input', function() {
-            document.getElementById('val-opacity-fires').textContent = (this.value / 100).toFixed(2);
-            updateFires();
+        document.getElementById('map-style-selector').addEventListener('change', function() {
+            updateBaseMap();
+            setTimeout(reorderLayers, 100);
         });
-        document.getElementById('color-fires').addEventListener('input', updateFires);
+        document.getElementById('chk-terrain').addEventListener('change', updateTerrain);
+        document.getElementById('pitch-control').addEventListener('input', function() {
+            document.getElementById('val-pitch').textContent = this.value;
+            updateTerrain();
+        });
 
-        // DeepState
         document.getElementById('chk-deepstate').addEventListener('change', updateDeepstate);
         document.getElementById('deepstate-date').addEventListener('change', function() {
             currentDeepstateDate = this.value;
@@ -700,63 +630,24 @@
             updateDeepstate();
         });
 
-        // Mapa base
-        document.getElementById('map-style-selector').addEventListener('change', function() {
-            updateBaseMap();
-            // Reaplicar orden después de cambiar el mapa base
-            setTimeout(reorderLayers, 100);
+        document.getElementById('chk-fires').addEventListener('change', updateFires);
+        document.getElementById('opacity-fires').addEventListener('input', function() {
+            document.getElementById('val-opacity-fires').textContent = (this.value / 100).toFixed(2);
+            updateFires();
         });
-        document.getElementById('chk-terrain').addEventListener('change', updateTerrain);
-        document.getElementById('pitch-control').addEventListener('input', function() {
-            document.getElementById('val-pitch').textContent = this.value;
-            updateTerrain();
-        });
-
-        // Orden de capas
-        document.querySelectorAll('.layer-order button').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const layer = this.dataset.layer;
-                // Mover esta capa al frente
-                const orderMap = {
-                    'base': 'BASE',
-                    'deepstate': 'DEEPSTATE_FILL',
-                    'fires': 'FIRES'
-                };
-                const key = orderMap[layer];
-                if (!key) return;
-
-                // Eliminar de la lista y poner al final
-                const index = layerOrder.indexOf(key);
-                if (index > -1) {
-                    layerOrder.splice(index, 1);
-                }
-                layerOrder.push(key);
-
-                // Actualizar botones
-                document.querySelectorAll('.layer-order button').forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
-
-                // Reordenar capas
-                reorderLayers();
-            });
-        });
+        document.getElementById('color-fires').addEventListener('input', updateFires);
 
         // ============================================================
-        // 9. INICIAR
+        // 8. INICIAR
         // ============================================================
 
         map.on('load', function() {
-            // Mapa base por defecto (OSM)
+            logDebug('✅ Mapa cargado');
             updateBaseMap();
-            
-            // Cargar datos
             loadFires();
             loadDeepstate();
-            
-            // Terreno e inclinación
             updateTerrain();
-            
-            console.log('✅ Visor 3D con controles listo');
+            logDebug('🚀 Visor listo');
         });
     </script>
 
