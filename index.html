@@ -43,7 +43,7 @@
         // --- CONFIGURACIÓN ---
         const FIRMS_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires.geojson';
 
-        // --- 1. CREAR MAPA CON SATÉLITE (ArcGIS) ---
+        // --- 1. CREAR MAPA CON MAPTILER SATELLITE (COMPATIBLE CON TERRENO 3D) ---
         const map = new maplibregl.Map({
             container: 'map',
             style: {
@@ -51,9 +51,11 @@
                 sources: {
                     'satelite': {
                         type: 'raster',
-                        tiles: ['https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+                        tiles: [
+                            'https://api.maptiler.com/tiles/satellite/{z}/{x}/{y}.jpg?key=YOUR_MAPTILER_KEY'
+                        ],
                         tileSize: 256,
-                        attribution: '© Esri, Maxar, Earthstar Geographics'
+                        attribution: '© MapTiler'
                     }
                 },
                 layers: [
@@ -68,10 +70,9 @@
 
         map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
-        // --- 2. INYECTAR TERRENO 3D (PATRÓN DEL COMMIT f682de9) ---
+        // --- 2. INYECTAR TERRENO 3D (PATRÓN QUE FUNCIONA) ---
         map.on('load', function() {
 
-            // Terreno 3D
             map.addSource('terrainSource', {
                 type: 'raster-dem',
                 tiles: ['https://maplibre.org/terrain/v1/terrain-rgb/{z}/{x}/{y}.png'],
@@ -87,7 +88,7 @@
 
             console.log('✅ Terreno 3D activado');
 
-            // --- 3. CARGAR INCENDIOS (FIRMS) ---
+            // --- 3. CARGAR INCENDIOS ---
             fetch(FIRMS_URL)
                 .then(response => response.json())
                 .then(data => {
@@ -130,7 +131,6 @@
                             }
                         });
 
-                        // Popup
                         const popup = new maplibregl.Popup({
                             closeButton: true,
                             closeOnClick: false
@@ -157,7 +157,7 @@
                     }
 
                     document.getElementById('info').textContent =
-                        `🌍 Visor 3D | ${limited.length} incendios | Terreno activo | Satélite Esri`;
+                        `🌍 Visor 3D | ${limited.length} incendios | Terreno activo | MapTiler Satellite`;
                 })
                 .catch(error => console.error('❌ Error FIRMS:', error));
         });
