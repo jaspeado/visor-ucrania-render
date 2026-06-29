@@ -43,60 +43,60 @@
         // --- CONFIGURACIÓN ---
         const GEOJSON_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires.geojson';
 
-        // --- CREAR MAPA CON TERRENO 3D (AWS TERRARIUM) ---
+        // --- 1. INICIALIZAR MAPA PLANO CON INCLINACIÓN ---
         const map = new maplibregl.Map({
             container: 'map',
             style: {
                 version: 8,
                 sources: {
-                    // Mapa base (OpenStreetMap)
                     'osm': {
                         type: 'raster',
                         tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-                        tileSize: 256,
-                        attribution: '© OpenStreetMap'
-                    },
-                    // ✅ TERRENO 3D GLOBAL (AWS Terrarium) - CORRECCIÓN DE GEMINI
-                    'terrainSource': {
-                        type: 'raster-dem',
-                        tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
-                        encoding: 'terrarium', // ← OBLIGATORIO
-                        tileSize: 256,
-                        maxzoom: 15
+                        tileSize: 256
                     }
                 },
                 layers: [
                     { id: 'osm-layer', type: 'raster', source: 'osm' }
-                ],
-                terrain: {
-                    source: 'terrainSource',
-                    exaggeration: 2.0 // Exageración para notar el relieve
-                }
+                ]
             },
-            center: [31.0, 48.5], // Ucrania
-            zoom: 6,
-            pitch: 60, // ← CLAVE: Inclinación para ver el 3D
-            bearing: 0,
+            center: [24.5, 48.2], // Montes Cárpatos (Oeste de Ucrania)
+            zoom: 9,
+            pitch: 65,
+            bearing: -20
         });
 
-        // --- CARGAR DATOS DE INCENDIOS ---
-        fetch(GEOJSON_URL)
-            .then(response => response.json())
-            .then(data => {
-                const features = data.features || [];
+        // --- 2. SECRETO: INYECTAR TERRENO DESPUÉS DE QUE EL MAPA CARGUE ---
+        map.on('load', function() {
 
-                // Filtrar FRP > 10 MW
-                const filtered = features.filter(f => (f.properties?.frp || 0) > 10);
-                const limited = filtered.slice(0, 500);
+            // Añadir fuente de elevación (AWS Terrarium)
+            map.addSource('terrainSource', {
+                type: 'raster-dem',
+                tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
+                encoding: 'terrarium',
+                tileSize: 256,
+                maxzoom: 15
+            });
 
-                console.log(`🔥 Mostrando ${limited.length} incendios`);
+            // Activar relieve 3D
+            map.setTerrain({
+                source: 'terrainSource',
+                exaggeration: 2.5
+            });
 
-                // Actualizar info
-                document.getElementById('info').textContent =
-                    `🌍 Visor 3D | ${limited.length} incendios | FRP > 10 MW | Terreno AWS`;
+            console.log('✅ Terreno 3D activado');
 
-                // --- AÑADIR PUNTOS COMO CAPA GEOJSON ---
-                map.on('load', function() {
+            // --- CARGAR DATOS DE INCENDIOS ---
+            fetch(GEOJSON_URL)
+                .then(response => response.json())
+                .then(data => {
+                    const features = data.features || [];
+                    const filtered = features.filter(f => (f.properties?.frp || 0) > 10);
+                    const limited = filtered.slice(0, 500);
+
+                    console.log(`🔥 Mostrando ${limited.length} incendios`);
+                    document.getElementById('info').textContent =
+                        `🌍 Visor 3D | ${limited.length} incendios | Terreno AWS`;
+
                     // Crear fuente GeoJSON
                     map.addSource('fires', {
                         type: 'geojson',
@@ -106,7 +106,7 @@
                         }
                     });
 
-                    // Crear capa de puntos (círculos)
+                    // Capa de puntos
                     map.addLayer({
                         id: 'fires-layer',
                         type: 'circle',
@@ -135,7 +135,7 @@
                         }
                     });
 
-                    // --- POPUP AL HACER CLIC ---
+                    // Popup al hacer clic
                     const popup = new maplibregl.Popup({
                         closeButton: true,
                         closeOnClick: false
@@ -153,7 +153,6 @@
                             .addTo(map);
                     });
 
-                    // Cambiar cursor al pasar por encima
                     map.on('mouseenter', 'fires-layer', function() {
                         map.getCanvas().style.cursor = 'pointer';
                     });
@@ -161,18 +160,15 @@
                     map.on('mouseleave', 'fires-layer', function() {
                         map.getCanvas().style.cursor = '';
                     });
+                })
+                .catch(error => {
+                    console.error('❌ Error:', error);
+                    document.getElementById('info').textContent = '❌ Error cargando datos';
                 });
+        });
 
-            })
-            .catch(error => {
-                console.error('❌ Error cargando datos:', error);
-                document.getElementById('info').textContent = '❌ Error cargando datos';
-            });
-
-        // --- AÑADIR CONTROLES DE NAVEGACIÓN ---
+        // --- CONTROLES ---
         map.addControl(new maplibregl.NavigationControl(), 'top-right');
-
-        // --- MOSTRAR ESCALA ---
         map.addControl(new maplibregl.ScaleControl(), 'bottom-right');
     </script>
 </body>
