@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Visor 3D con Controles</title>
+    <script src="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.js">
+    </script>
+    <link href="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.css" rel="stylesheet" />
+    <style>
+        /* Reset */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        html, body {
+            width: 100%;
+            height: 100%;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0d1117;
+            color: #e6edf3;
+            overflow: hidden;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* ======================================== */
+        /* PANEL DE CONTROL                        */
+        /* ======================================== */
+        #panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            background: rgba(13, 17, 23, 0.92);
+            backdrop-filter: blur(8px);
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 14px 16px;
+            width: 280px;
+            max-height: calc(100% - 20px);
+            overflow-y: auto;
+            font-size: 13px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+            pointer-events: auto;
+        }
+        #panel::-webkit-scrollbar {
+            width: 4px;
+        }
+        #panel::-webkit-scrollbar-thumb {
+            background: #30363d;
+            border-radius: 4px;
+        }
+        #panel::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        #panel h2 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #f0f6fc;
+            border-bottom: 1px solid #30363d;
+            padding-bottom: 8px;
+            letter-spacing: 0.3px;
+        }
+
+        .control-group {
+            margin-bottom: 12px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #21262d;
+        }
+        .control-group:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .control-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 500;
+            color: #8b949e;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .control-group input[type="range"] {
+            width: 100%;
+            margin: 4px 0 6px;
+            accent-color: #58a6ff;
+            background: #30363d;
+            height: 4px;
+            border-radius: 4px;
+            -webkit-appearance: none;
+        }
+        .control-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #58a6ff;
+            cursor: pointer;
+        }
+
+        .control-group input[type="color"] {
+            width: 32px;
+            height: 32px;
+            border: 2px solid #30363d;
+            border-radius: 4px;
+            padding: 0;
+            cursor: pointer;
+            background: transparent;
+        }
+
+        .control-group select {
+            width: 100%;
+            padding: 4px 8px;
+            background: #0d1117;
+            color: #e6edf3;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .control-group select:focus {
+            outline: none;
+            border-color: #58a6ff;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 4px 0;
+        }
+        .checkbox-group input[type="checkbox"] {
+            accent-color: #58a6ff;
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+        .checkbox-group label {
+            font-size: 13px;
+            color: #e6edf3;
+            text-transform: none;
+            font-weight: 400;
+            cursor: pointer;
+        }
+
+        .color-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 4px;
+        }
+        .color-row input[type="color"] {
+            flex-shrink: 0;
+        }
+        .color-row span {
+            font-size: 12px;
+            color: #8b949e;
+        }
+
+        .slider-value {
+            float: right;
+            font-size: 12px;
+            color: #58a6ff;
+            font-weight: 500;
+        }
+
+        #map-info {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: rgba(13, 17, 23, 0.85);
+            backdrop-filter: blur(4px);
+            padding: 6px 16px;
+            border-radius: 20px;
+            border: 1px solid #30363d;
+            color: #8b949e;
+            font-size: 12px;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
+        @media (max-width: 640px) {
+            #panel {
+                width: 220px;
+                padding: 10px 12px;
+                font-size: 12px;
+                max-height: calc(100% - 80px);
+                top: 70px;
+                left: 6px;
+            }
+            #panel h2 {
+                font-size: 14px;
+            }
+            .control-group {
+                margin-bottom: 8px;
+                padding-bottom: 6px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- PANEL DE CONTROL -->
+    <div id="panel">
+        <h2>🎛️ Controles</h2>
+
+        <!-- Capa: Incendios -->
+        <div class="control-group">
+            <div class="checkbox-group">
+                <input type="checkbox" id="chk-fires" checked>
+                <label for="chk-fires">🔥 Incendios (VIIRS)</label>
+            </div>
+            <div class="color-row">
+                <input type="color" id="color-fires" value="#FF3300">
+                <span>Color</span>
+            </div>
+            <label>Opacidad <span class="slider-value" id="val-opacity-fires">0.85</span></label>
+            <input type="range" id="opacity-fires" min="0" max="100" value="85">
+        </div>
+
+        <!-- Capa: DeepState -->
+        <div class="control-group">
+            <div class="checkbox-group">
+                <input type="checkbox" id="chk-deepstate" checked>
+                <label for="chk-deepstate">🟥 Línea del frente</label>
+            </div>
+            <label>Fecha</label>
+            <select id="deepstate-date">
+                <option value="">Cargando fechas...</option>
+            </select>
+            <div class="color-row">
+                <input type="color" id="color-deepstate-fill" value="#FF0000">
+                <span>Relleno</span>
+            </div>
+            <div class="color-row">
+                <input type="color" id="color-deepstate-line" value="#FFFFFF">
+                <span>Borde</span>
+            </div>
+            <label>Opacidad relleno <span class="slider-value" id="val-opacity-ds-fill">0.30</span></label>
+            <input type="range" id="opacity-ds-fill" min="0" max="100" value="30">
+        </div>
+
+        <!-- Mapa base -->
+        <div class="control-group">
+            <div class="checkbox-group">
+                <input type="checkbox" id="chk-satellite" checked>
+                <label for="chk-satellite">🛰️ Mapa satélite</label>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="chk-terrain" checked>
+                <label for="chk-terrain">🏔️ Terreno 3D</label>
+            </div>
+            <label>Inclinación <span class="slider-value" id="val-pitch">65</span></label>
+            <input type="range" id="pitch-control" min="0" max="85" value="65">
+        </div>
+
+        <!-- Stats -->
+        <div class="control-group" style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;">
+            <div style="display:flex; justify-content:space-between; font-size:12px; color:#8b949e;">
+                <span id="stats-fires">🔥 0</span>
+                <span id="stats-date">📅 --</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info en el mapa -->
+    <div id="map-info">🌍 Visor 3D Ucrania | Clic en un punto para ver detalles</div>
+
+    <!-- MAPA -->
+    <div id="map"></div>
+
+    <!-- SCRIPTS -->
+    <script>
+        // ============================================================
+        // 1. CONFIGURACIÓN
+        // ============================================================
+        const FIRMS_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires.geojson';
+        const DEEPSTATE_URL = 'https://raw.githubusercontent.com/cyterat/deepstate-map-data/main/deepstate-map-data.geojson.gz';
+
+        let map;
+        let firesLayerId = 'fires-layer';
+        let deepstateLayerId = 'deepstate-layer';
+        let deepstateLineId = 'deepstate-line';
+        let allFiresData = [];
+        let allDeepstateData = {};
+        let deepstateDates = [];
+        let currentDeepstateDate = '';
+
+        // ============================================================
+        // 2. INICIALIZAR MAPA
+        // ============================================================
+        map = new maplibregl.Map({
+            container: 'map',
+            style: {
+                version: 8,
+                sources: {},
+                layers: []
+            },
+            center: [31.0, 48.5],
+            zoom: 6,
+            pitch: 65,
+            maxPitch: 85
+        });
+
+        map.addControl(new maplibregl.NavigationControl(), 'top-right');
+
+        // ============================================================
+        // 3. CARGAR DATOS
+        // ============================================================
+
+        // --- 3.1 Cargar FIRMS ---
+        function loadFires() {
+            fetch(FIRMS_URL)
+                .then(r => r.json())
+                .then(data => {
+                    allFiresData = data.features || [];
+                    console.log('🔥 FIRMS cargados:', allFiresData.length);
+                    updateFires();
+                    document.getElementById('stats-fires').textContent = '🔥 ' + allFiresData.length;
+                })
+                .catch(e => console.error('Error FIRMS:', e));
+        }
+
+        // --- 3.2 Cargar DeepState (comprimido) ---
+        function loadDeepstate() {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js';
+            script.onload = function() {
+                fetch(DEEPSTATE_URL)
+                    .then(r => r.arrayBuffer())
+                    .then(buffer => {
+                        const data = pako.ungzip(new Uint8Array(buffer), { to: 'string' });
+                        const geojson = JSON.parse(data);
+                        allDeepstateData = geojson;
+                        const features = geojson.features || [];
+                        
+                        const fechas = new Set();
+                        features.forEach(f => {
+                            const d = f.properties?.date || '';
+                            if (d) fechas.add(d);
+                        });
+                        deepstateDates = Array.from(fechas).sort();
+                        console.log('🟥 DeepState cargado:', features.length, 'fechas:', deepstateDates.length);
+                        
+                        const sel = document.getElementById('deepstate-date');
+                        sel.innerHTML = '';
+                        deepstateDates.forEach(d => {
+                            const opt = document.createElement('option');
+                            opt.value = d;
+                            opt.textContent = d;
+                            sel.appendChild(opt);
+                        });
+                        if (deepstateDates.length > 0) {
+                            sel.value = deepstateDates[deepstateDates.length - 1];
+                            currentDeepstateDate = sel.value;
+                            updateDeepstate();
+                        }
+                    })
+                    .catch(e => console.error('Error DeepState:', e));
+            };
+            document.head.appendChild(script);
+        }
+
+        // ============================================================
+        // 4. ACTUALIZAR CAPAS
+        // ============================================================
+
+        // --- 4.1 Actualizar incendios ---
+        function updateFires() {
+            const enabled = document.getElementById('chk-fires').checked;
+            const opacity = parseInt(document.getElementById('opacity-fires').value) / 100;
+            const color = document.getElementById('color-fires').value;
+
+            const filtered = allFiresData
+                .filter(f => (f.properties?.frp || 0) > 10)
+                .slice(0, 500);
+
+            const sourceId = 'fires-source';
+            const layerId = firesLayerId;
+
+            if (map.getLayer(layerId)) map.removeLayer(layerId);
+            if (map.getSource(sourceId)) map.removeSource(sourceId);
+
+            if (!enabled || filtered.length === 0) return;
+
+            map.addSource(sourceId, {
+                type: 'geojson',
+                data: {
+                    type: 'FeatureCollection',
+                    features: filtered
+                }
+            });
+
+            map.addLayer({
+                id: layerId,
+                type: 'circle',
+                source: sourceId,
+                paint: {
+                    'circle-radius': [
+                        'interpolate', ['linear'], ['get', 'frp'],
+                        10, 4,
+                        50, 12,
+                        100, 20
+                    ],
+                    'circle-color': color,
+                    'circle-opacity': opacity,
+                    'circle-stroke-color': '#FFFF00',
+                    'circle-stroke-width': 1,
+                    'circle-stroke-opacity': 0.7
+                }
+            });
+
+            const popup = new maplibregl.Popup({ closeButton: true, closeOnClick: false });
+            map.on('click', layerId, function(e) {
+                const props = e.features[0].properties;
+                popup
+                    .setLngLat(e.lngLat)
+                    .setHTML(`
+                        <strong>🔥 FRP:</strong> ${props.frp || 0} MW<br>
+                        <strong>📅 Fecha:</strong> ${props.acq_date || 'N/A'}<br>
+                        <strong>🛰️ Satélite:</strong> ${props.satellite || 'N/A'}<br>
+                        <strong>📍 Localidad:</strong> ${props.locality || 'N/A'}<br>
+                        <strong>🗺️ Oblast:</strong> ${props.NAME_1 || 'N/A'}
+                    `)
+                    .addTo(map);
+            });
+
+            map.on('mouseenter', layerId, function() {
+                map.getCanvas().style.cursor = 'pointer';
+            });
+            map.on('mouseleave', layerId, function() {
+                map.getCanvas().style.cursor = '';
+            });
+        }
+
+        // --- 4.2 Actualizar DeepState ---
+        function updateDeepstate() {
+            const enabled = document.getElementById('chk-deepstate').checked;
+            const fillColor = document.getElementById('color-deepstate-fill').value;
+            const lineColor = document.getElementById('color-deepstate-line').value;
+            const fillOpacity = parseInt(document.getElementById('opacity-ds-fill').value) / 100;
+            const date = document.getElementById('deepstate-date').value;
+
+            const sourceId = 'deepstate-source';
+            const layerId = deepstateLayerId;
+            const lineId = deepstateLineId;
+
+            if (map.getLayer(layerId)) map.removeLayer(layerId);
+            if (map.getLayer(lineId)) map.removeLayer(lineId);
+            if (map.getSource(sourceId)) map.removeSource(sourceId);
+
+            if (!enabled || !date || !allDeepstateData.features) return;
+
+            const features = allDeepstateData.features.filter(f =>
+                (f.properties?.date || '') === date
+            );
+
+            if (features.length === 0) return;
+
+            map.addSource(sourceId, {
+                type: 'geojson',
+                data: {
+                    type: 'FeatureCollection',
+                    features: features
+                }
+            });
+
+            map.addLayer({
+                id: layerId,
+                type: 'fill',
+                source: sourceId,
+                paint: {
+                    'fill-color': fillColor,
+                    'fill-opacity': fillOpacity,
+                    'fill-outline-color': lineColor,
+                    'fill-outline-width': 1
+                }
+            });
+
+            map.addLayer({
+                id: lineId,
+                type: 'line',
+                source: sourceId,
+                paint: {
+                    'line-color': lineColor,
+                    'line-width': 1.5,
+                    'line-opacity': 0.7
+                }
+            });
+        }
+
+        // ============================================================
+        // 5. CONTROLES DE MAPA
+        // ============================================================
+
+        function updateMapStyle() {
+            const satEnabled = document.getElementById('chk-satellite').checked;
+            const terrainEnabled = document.getElementById('chk-terrain').checked;
+            const pitch = parseInt(document.getElementById('pitch-control').value);
+
+            const satSource = 'satellite-source';
+            const satLayer = 'satellite-layer';
+
+            if (map.getLayer(satLayer)) map.removeLayer(satLayer);
+            if (map.getSource(satSource)) map.removeSource(satSource);
+
+            if (satEnabled) {
+                map.addSource(satSource, {
+                    type: 'raster',
+                    tiles: ['https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+                    tileSize: 256
+                });
+                map.addLayer({
+                    id: satLayer,
+                    type: 'raster',
+                    source: satSource,
+                    before: firesLayerId
+                });
+            }
+
+            if (terrainEnabled) {
+                if (!map.getSource('terrainSource')) {
+                    map.addSource('terrainSource', {
+                        type: 'raster-dem',
+                        tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
+                        tileSize: 256,
+                        encoding: 'terrarium',
+                        maxzoom: 14
+                    });
+                }
+                map.setTerrain({ source: 'terrainSource', exaggeration: 2.0 });
+                map.setPitch(pitch);
+            } else {
+                map.setTerrain(null);
+                map.setPitch(0);
+            }
+        }
+
+        // ============================================================
+        // 6. CONECTAR CONTROLES
+        // ============================================================
+
+        document.getElementById('chk-fires').addEventListener('change', updateFires);
+        document.getElementById('opacity-fires').addEventListener('input', function() {
+            document.getElementById('val-opacity-fires').textContent = (this.value / 100).toFixed(2);
+            updateFires();
+        });
+        document.getElementById('color-fires').addEventListener('input', updateFires);
+
+        document.getElementById('chk-deepstate').addEventListener('change', updateDeepstate);
+        document.getElementById('deepstate-date').addEventListener('change', function() {
+            currentDeepstateDate = this.value;
+            updateDeepstate();
+        });
+        document.getElementById('color-deepstate-fill').addEventListener('input', updateDeepstate);
+        document.getElementById('color-deepstate-line').addEventListener('input', updateDeepstate);
+        document.getElementById('opacity-ds-fill').addEventListener('input', function() {
+            document.getElementById('val-opacity-ds-fill').textContent = (this.value / 100).toFixed(2);
+            updateDeepstate();
+        });
+
+        document.getElementById('chk-satellite').addEventListener('change', updateMapStyle);
+        document.getElementById('chk-terrain').addEventListener('change', updateMapStyle);
+        document.getElementById('pitch-control').addEventListener('input', function() {
+            document.getElementById('val-pitch').textContent = this.value;
+            updateMapStyle();
+        });
+
+        // ============================================================
+        // 7. INICIAR
+        // ============================================================
+
+        map.on('load', function() {
+            loadFires();
+            loadDeepstate();
+            updateMapStyle();
+            console.log('✅ Visor 3D con controles listo');
+        });
+    </script>
+
+</body>
+</html>
