@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -38,15 +39,13 @@
 
     <script>
         (function() {
-            // --- CONFIGURACIÓN ---
-            const CESIUM_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI2ZjNkNzFkMi00ZTFiLTQ4ZTktODMzMy0zMTYxZWIxNzMzZTgiLCJpZCI6NDUwMjY4LCJzdWIiOiJqYXZpZ2VvIiwiaXNzIjoiaHR0cHM6Ly9hcGkuY2VzaXVtLmNvbSIsImF1ZCI6IlZpc29ydG90YWwiLCJpYXQiOjE3ODI3NDg5MjF9.X0X1C3EcUJyzOIl76WQp_O_rYNa4bQ-0OPW9emnv2dE';
             const GEOJSON_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires.geojson';
 
-            // --- TOKEN DE CESIUM ---
-            Cesium.Ion.defaultAccessToken = CESIUM_TOKEN;
-
-            // --- CREAR VIEWER (sin terreno aún) ---
+            // --- CREAR VISOR CON TERRENO GRATUITO DE OPENFREEMAP ---
             const viewer = new Cesium.Viewer('cesiumContainer', {
+                terrainProvider: new Cesium.CesiumTerrainProvider({
+                    url: 'https://openfreemap.org/terrain/v1/quantized-mesh'
+                }),
                 baseLayerPicker: false,
                 infoBox: false,
                 selectionIndicator: false,
@@ -58,26 +57,14 @@
                 sceneModePicker: false,
             });
 
-            // --- ✅ TERRENO CORRECTO PARA CESIUM 1.128 ---
-            // Se usa Cesium.createWorldTerrainAsync() que devuelve una Promesa
-            Cesium.createWorldTerrainAsync({
-                requestVertexNormals: true,
-                requestWaterMask: false,
-            }).then(function(terrainProvider) {
-                viewer.terrainProvider = terrainProvider;
-                console.log('✅ Terreno 3D cargado correctamente');
-            }).catch(function(error) {
-                console.warn('⚠️ Error al cargar terreno:', error);
-            });
-
-            // --- IMAGEN SATÉLITE ---
+            // --- IMAGEN SATÉLITE (ArcGIS, gratuita) ---
             viewer.imageryLayers.addImageryProvider(
                 new Cesium.ArcGisMapServerImageryProvider({
                     url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer'
                 })
             );
 
-            // --- CARGAR DATOS ---
+            // --- CARGAR DATOS DE INCENDIOS ---
             fetch(GEOJSON_URL)
                 .then(response => response.json())
                 .then(data => {
