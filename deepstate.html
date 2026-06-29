@@ -37,6 +37,13 @@
             background: rgba(0,0,0,0.8);
             padding: 20px 40px;
             border-radius: 8px;
+            text-align: center;
+        }
+        #loading span {
+            display: block;
+            font-size: 14px;
+            color: #aaa;
+            margin-top: 8px;
         }
     </style>
 </head>
@@ -45,134 +52,121 @@
     <div id="info">🌍 Línea del Frente - DeepState</div>
     <div id="cesiumContainer"></div>
 
-    <!-- Cargar CesiumJS -->
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.128/Build/Cesium/Cesium.js">
     </script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.128/Build/Cesium/Widgets/widgets.css" 
           rel="stylesheet">
 
     <script>
-        (function() {
-            // ============================================================
-            // 1. CONFIGURACIÓN
-            // ============================================================
-            const CESIUM_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzMzVhMzc5NS02YmNjLTQwMTUtYjIyMC03YWQ5ZDJjYWY4M2QiLCJpZCI6NDUwMjY4LCJzdWIiOiJqYXZpZ2VvIiwiaXNzIjoiaHR0cHM6Ly9hcGkuY2VzaXVtLmNvbSIsImF1ZCI6IlZpc29yIEdpdEh1YiBQYWdlcyIsImlhdCI6MTc4Mjc0NTQwMH0.NzbI9bglV_dWgoFQLat_euWpVpJhRkOE8NQwcAaEek8';
-            const DEEPSTATE_URL = 'https://raw.githubusercontent.com/cyterat/deepstate-map-data/main/deepstate-map-data.geojson.gz';
+        // ============================================================
+        // CONFIGURACIÓN
+        // ============================================================
+        const CESIUM_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiIzMzVhMzc5NS02YmNjLTQwMTUtYjIyMC03YWQ5ZDJjYWY4M2QiLCJpZCI6NDUwMjY4LCJzdWIiOiJqYXZpZ2VvIiwiaXNzIjoiaHR0cHM6Ly9hcGkuY2VzaXVtLmNvbSIsImF1ZCI6IlZpc29yIEdpdEh1YiBQYWdlcyIsImlhdCI6MTc4Mjc0NTQwMH0.NzbI9bglV_dWgoFQLat_euWpVpJhRkOE8NQwcAaEek8';
+        const DEEPSTATE_URL = 'https://raw.githubusercontent.com/cyterat/deepstate-map-data/main/deepstate-map-data.geojson.gz';
 
-            // ============================================================
-            // 2. INICIALIZAR CESIUM
-            // ============================================================
-            Cesium.Ion.defaultAccessToken = CESIUM_TOKEN;
+        // ============================================================
+        // INICIALIZAR CESIUM
+        // ============================================================
+        Cesium.Ion.defaultAccessToken = CESIUM_TOKEN;
 
-            const viewer = new Cesium.Viewer('cesiumContainer', {
-                terrainProvider: Cesium.createWorldTerrain(),
-                baseLayerPicker: false,
-                infoBox: false,
-                selectionIndicator: false,
-                navigationHelpButton: false,
-                timeline: false,
-                animation: false,
-                geocoder: false,
-                homeButton: false,
-                sceneModePicker: false,
-            });
+        const viewer = new Cesium.Viewer('cesiumContainer', {
+            terrainProvider: Cesium.createWorldTerrain(),
+            baseLayerPicker: false,
+            infoBox: false,
+            selectionIndicator: false,
+            navigationHelpButton: false,
+            timeline: false,
+            animation: false,
+            geocoder: false,
+            homeButton: false,
+            sceneModePicker: false,
+        });
 
-            // Imagen de satélite
-            viewer.imageryLayers.addImageryProvider(
-                new Cesium.ArcGisMapServerImageryProvider({
-                    url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer'
-                })
-            );
+        viewer.imageryLayers.addImageryProvider(
+            new Cesium.ArcGisMapServerImageryProvider({
+                url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer'
+            })
+        );
 
-            // ============================================================
-            // 3. CARGAR Y DESCOMPRIMIR DEEPSTATE
-            // ============================================================
-            document.getElementById('loading').textContent = '⏳ Cargando DeepState...';
+        // ============================================================
+        // CARGAR DEEPSTATE
+        // ============================================================
+        document.getElementById('loading').textContent = '⏳ Cargando DeepState...';
 
-            // Cargar pako
-            const script = document.createElement('script');
-            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js';
-            script.onload = function() {
-                fetch(DEEPSTATE_URL)
-                    .then(r => r.arrayBuffer())
-                    .then(buffer => {
-                        const data = pako.ungzip(new Uint8Array(buffer), { to: 'string' });
-                        const geojson = JSON.parse(data);
-                        const features = geojson.features || [];
-                        console.log('📊 DeepState: ' + features.length + ' polígonos');
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js';
+        script.onload = function() {
+            fetch(DEEPSTATE_URL)
+                .then(r => r.arrayBuffer())
+                .then(buffer => {
+                    const data = pako.ungzip(new Uint8Array(buffer), { to: 'string' });
+                    const geojson = JSON.parse(data);
+                    const features = geojson.features || [];
+                    console.log('📊 DeepState:', features.length, 'polígonos');
 
-                        // Obtener la fecha más reciente
-                        const fechas = new Set();
-                        features.forEach(f => {
-                            const d = f.properties?.date || '';
-                            if (d) fechas.add(d);
-                        });
-                        const fechasOrdenadas = Array.from(fechas).sort();
-                        const ultimaFecha = fechasOrdenadas[fechasOrdenadas.length - 1] || '';
-                        console.log('📅 Última fecha: ' + ultimaFecha);
+                    const fechas = new Set();
+                    features.forEach(f => {
+                        const d = f.properties?.date || '';
+                        if (d) fechas.add(d);
+                    });
+                    const fechasOrdenadas = Array.from(fechas).sort();
+                    const ultimaFecha = fechasOrdenadas[fechasOrdenadas.length - 1] || '';
+                    console.log('📅 Última fecha:', ultimaFecha);
 
-                        // Filtrar por fecha
-                        const filtered = features.filter(f =>
-                            (f.properties?.date || '') === ultimaFecha
-                        );
-                        console.log('📊 Polígonos para ' + ultimaFecha + ': ' + filtered.length);
+                    const filtered = features.filter(f =>
+                        (f.properties?.date || '') === ultimaFecha
+                    );
+                    console.log('📊 Polígonos para', ultimaFecha, ':', filtered.length);
 
-                        // ============================================================
-                        // 4. AÑADIR AL MAPA CON COLUMNAS 3D
-                        // ============================================================
-                        document.getElementById('loading').textContent = '⏳ Dibujando polígonos...';
+                    document.getElementById('loading').textContent = '⏳ Dibujando polígonos...';
 
-                        // Crear entidades desde GeoJSON
-                        const dataSource = new Cesium.GeoJsonDataSource();
-                        dataSource.load({
-                            type: 'FeatureCollection',
-                            features: filtered
-                        }, {
-                            stroke: Cesium.Color.WHITE,
-                            fill: Cesium.Color.RED.withAlpha(0.5),
-                            strokeWidth: 3,
-                            clampToGround: true,
-                        }).then(function(ds) {
-                            viewer.dataSources.add(ds);
-                            document.getElementById('loading').style.display = 'none';
-                            document.getElementById('info').textContent =
-                                '🌍 Línea del Frente | ' + filtered.length + ' polígonos | ' + ultimaFecha;
+                    const dataSource = new Cesium.GeoJsonDataSource();
+                    dataSource.load({
+                        type: 'FeatureCollection',
+                        features: filtered
+                    }, {
+                        stroke: Cesium.Color.WHITE,
+                        fill: Cesium.Color.RED.withAlpha(0.5),
+                        strokeWidth: 3,
+                        clampToGround: true,
+                    }).then(function(ds) {
+                        viewer.dataSources.add(ds);
+                        document.getElementById('loading').style.display = 'none';
+                        document.getElementById('info').textContent =
+                            '🌍 Línea del Frente | ' + filtered.length + ' polígonos | ' + ultimaFecha;
 
-                            // Volar a Ucrania
-                            viewer.camera.flyTo({
-                                destination: Cesium.Cartesian3.fromDegrees(31.0, 48.5, 500000),
-                                duration: 2
-                            });
-
-                            console.log('✅ DeepState dibujado correctamente');
-                        }).catch(function(e) {
-                            console.error('❌ Error al dibujar:', e);
-                            document.getElementById('loading').textContent = '❌ Error: ' + e.message;
+                        viewer.camera.flyTo({
+                            destination: Cesium.Cartesian3.fromDegrees(31.0, 48.5, 500000),
+                            duration: 2
                         });
 
-                    })
-                    .catch(e => {
-                        console.error('❌ Error:', e);
+                        console.log('✅ DeepState dibujado correctamente');
+                    }).catch(function(e) {
+                        console.error('❌ Error al dibujar:', e);
                         document.getElementById('loading').textContent = '❌ Error: ' + e.message;
                     });
-            };
-            document.head.appendChild(script);
 
-            // ============================================================
-            // 5. CLIC PARA INFORMACIÓN
-            // ============================================================
-            const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
-            handler.setInputAction(function(e) {
-                const picked = viewer.scene.pick(e.position);
-                if (picked && picked.id && picked.id.properties) {
-                    const props = picked.id.properties;
-                    const control = props.control ? props.control.getValue() : 'desconocido';
-                    const date = props.date ? props.date.getValue() : 'N/A';
-                    alert('🟥 Control: ' + control + '\n📅 Fecha: ' + date);
-                }
-            }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+                })
+                .catch(e => {
+                    console.error('❌ Error:', e);
+                    document.getElementById('loading').textContent = '❌ Error: ' + e.message;
+                });
+        };
+        document.head.appendChild(script);
 
-        })();
+        // ============================================================
+        // CLIC PARA INFORMACIÓN
+        // ============================================================
+        const handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+        handler.setInputAction(function(e) {
+            const picked = viewer.scene.pick(e.position);
+            if (picked && picked.id && picked.id.properties) {
+                const props = picked.id.properties;
+                const control = props.control ? props.control.getValue() : 'desconocido';
+                const date = props.date ? props.date.getValue() : 'N/A';
+                alert('🟥 Control: ' + control + '\n📅 Fecha: ' + date);
+            }
+        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
     </script>
 </body>
 </html>
