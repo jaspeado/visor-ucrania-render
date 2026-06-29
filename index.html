@@ -25,17 +25,17 @@
     </style>
 </head>
 <body>
-    <div id="info">🌍 Visor 3D - Ucrania</div>
+    <div id="info">🌍 Visor 3D - Ucrania (cargando...)</div>
     <div id="map"></div>
 
     <script>
-        // --- MAPA CON BING MAPS SATÉLITE (GRATUITO) ---
+        // --- MAPA CON BING SATÉLITE (el mismo que usa Cesium, pero sin token) ---
         const map = new maplibregl.Map({
             container: 'map',
             style: {
                 version: 8,
                 sources: {
-                    'bing-sat': {
+                    'bing': {
                         type: 'raster',
                         tiles: [
                             'https://t0.ssl.ak.dynamic.tiles.virtualearth.net/comp/ch/{quadkey}?mkt=en-US&it=A&shading=hill&n=z',
@@ -48,7 +48,7 @@
                     }
                 },
                 layers: [
-                    { id: 'bing-sat-layer', type: 'raster', source: 'bing-sat' }
+                    { id: 'bing-layer', type: 'raster', source: 'bing' }
                 ]
             },
             center: [31.0, 48.5],
@@ -59,7 +59,7 @@
 
         map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
-        // --- INYECTAR TERRENO (EL MÉTODO QUE FUNCIONA) ---
+        // --- INYECTAR TERRENO (el método que funciona) ---
         map.on('load', function() {
             map.addSource('terrainSource', {
                 type: 'raster-dem',
