@@ -30,7 +30,7 @@
             z-index: 1000;
             pointer-events: none;
         }
-        .mapboxgl-popup {
+        .maplibregl-popup {
             max-width: 200px;
         }
     </style>
@@ -43,7 +43,7 @@
         // --- CONFIGURACIÓN ---
         const GEOJSON_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires.geojson';
 
-        // --- CREAR MAPA CON TERRENO 3D ---
+        // --- CREAR MAPA CON TERRENO 3D (AWS TERRARIUM) ---
         const map = new maplibregl.Map({
             container: 'map',
             style: {
@@ -56,12 +56,13 @@
                         tileSize: 256,
                         attribution: '© OpenStreetMap'
                     },
-                    // Terreno 3D (elevaciones)
+                    // ✅ TERRENO 3D GLOBAL (AWS Terrarium) - CORRECCIÓN DE GEMINI
                     'terrainSource': {
                         type: 'raster-dem',
-                        tiles: ['https://maplibre.org/terrain/v1/terrain-rgb/{z}/{x}/{y}.png'],
+                        tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
+                        encoding: 'terrarium', // ← OBLIGATORIO
                         tileSize: 256,
-                        maxzoom: 14
+                        maxzoom: 15
                     }
                 },
                 layers: [
@@ -69,12 +70,12 @@
                 ],
                 terrain: {
                     source: 'terrainSource',
-                    exaggeration: 1.5
+                    exaggeration: 2.0 // Exageración para notar el relieve
                 }
             },
-            center: [32.0, 48.5],
+            center: [31.0, 48.5], // Ucrania
             zoom: 6,
-            pitch: 60,
+            pitch: 60, // ← CLAVE: Inclinación para ver el 3D
             bearing: 0,
         });
 
@@ -92,7 +93,7 @@
 
                 // Actualizar info
                 document.getElementById('info').textContent =
-                    `🌍 Visor 3D | ${limited.length} incendios | FRP > 10 MW`;
+                    `🌍 Visor 3D | ${limited.length} incendios | FRP > 10 MW | Terreno AWS`;
 
                 // --- AÑADIR PUNTOS COMO CAPA GEOJSON ---
                 map.on('load', function() {
@@ -171,9 +172,8 @@
         // --- AÑADIR CONTROLES DE NAVEGACIÓN ---
         map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
-        // --- ESCALAR EL TERRENO (opcional) ---
-        // Puedes ajustar la exageración del terreno en tiempo real
-        // map.setTerrain({ source: 'terrainSource', exaggeration: 2.0 });
+        // --- MOSTRAR ESCALA ---
+        map.addControl(new maplibregl.ScaleControl(), 'bottom-right');
     </script>
 </body>
 </html>
