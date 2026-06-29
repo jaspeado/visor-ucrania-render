@@ -7,8 +7,16 @@
     </script>
     <link href="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.css" rel="stylesheet" />
     <style>
-        body { margin: 0; padding: 0; }
-        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+        body {
+            margin: 0;
+            padding: 0;
+        }
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
         #info {
             position: absolute;
             top: 10px;
@@ -29,6 +37,7 @@
     <div id="map"></div>
 
     <script>
+        // --- INICIALIZAR MAPA EN MONTE FUJI (relieve extremo) ---
         const map = new maplibregl.Map({
             container: 'map',
             style: {
@@ -47,18 +56,20 @@
             },
             center: [138.7275, 35.3606], // Monte Fuji
             zoom: 12,
-            pitch: 75,
+            pitch: 75, // Inclinación fuerte
             maxPitch: 85
         });
 
+        // --- CONTROLES ---
         map.addControl(new maplibregl.NavigationControl());
 
-        map.on('load', function() {
+        // --- INYECTAR TERRENO (CON SERVICIO QUE PERMITE CORS) ---
+        map.on('load', () => {
             map.addSource('terrainSource', {
                 type: 'raster-dem',
                 tiles: ['https://maplibre.org/terrain/v1/terrain-rgb/{z}/{x}/{y}.png'],
                 tileSize: 256,
-                encoding: 'mapbox',
+                encoding: 'mapbox', // ← OBLIGATORIO para este servidor
                 maxzoom: 14
             });
 
@@ -68,7 +79,9 @@
             });
 
             document.getElementById('info').textContent =
-                '🌍 Visor 3D - Monte Fuji | Terreno activo';
+                '🌍 Visor 3D - Monte Fuji | Terreno activo | Mueve el mapa con clic derecho';
+
+            console.log('✅ Terreno 3D activado');
         });
     </script>
 </body>
