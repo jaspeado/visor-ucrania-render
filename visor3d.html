@@ -15,16 +15,17 @@
             top: 10px;
             left: 10px;
             z-index: 1000;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.85);
             color: #0f0;
             padding: 10px;
             font-family: monospace;
             font-size: 12px;
             border-radius: 4px;
-            max-width: 400px;
-            max-height: 200px;
+            max-width: 450px;
+            max-height: 250px;
             overflow: auto;
             pointer-events: none;
+            border: 1px solid #30363d;
         }
         #info.error { color: #f00; }
     </style>
@@ -42,7 +43,7 @@
 
         function log(msg, isError = false) {
             infoEl.textContent = msg + '\n' + infoEl.textContent;
-            infoEl.textContent = infoEl.textContent.split('\n').slice(0, 15).join('\n');
+            infoEl.textContent = infoEl.textContent.split('\n').slice(0, 20).join('\n');
             if (isError) infoEl.className = 'error';
             console.log(msg);
         }
@@ -70,7 +71,6 @@
         map.on('load', function() {
             log('✅ Mapa cargado');
 
-            // Añadir OSM como fondo
             map.addSource('osm', {
                 type: 'raster',
                 tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
@@ -87,7 +87,6 @@
             // ============================================================
             log('📡 Cargando DeepState...');
             
-            // Cargar pako
             const script = document.createElement('script');
             script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js';
             script.onload = function() {
@@ -101,25 +100,20 @@
                     .then(buffer => {
                         log('📦 Descargado: ' + (buffer.byteLength / 1024).toFixed(1) + ' KB');
                         
-                        // Descomprimir
                         const data = pako.ungzip(new Uint8Array(buffer), { to: 'string' });
                         const geojson = JSON.parse(data);
                         const features = geojson.features || [];
                         log('✅ DeepState: ' + features.length + ' polígonos');
                         
-                        // Extraer fechas
                         const fechas = new Set();
                         features.forEach(f => {
                             const d = f.properties?.date || '';
                             if (d) fechas.add(d);
                         });
                         const fechasOrdenadas = Array.from(fechas).sort();
-                        const ultimaFecha = fechasOrdenadas[fechesOrdenadas.length - 1] || '';
+                        const ultimaFecha = fechasOrdenadas[fechasOrdenadas.length - 1] || '';
                         log('📅 Última fecha: ' + ultimaFecha);
                         
-                        // ============================================================
-                        // 3. FILTRAR POR LA FECHA MÁS RECIENTE
-                        // ============================================================
                         const filteredFeatures = features.filter(f =>
                             (f.properties?.date || '') === ultimaFecha
                         );
@@ -130,12 +124,16 @@
                             return;
                         }
                         
-                        // Verificar el primer polígono
+                        // Verificar geometría del primer polígono
                         const first = filteredFeatures[0];
-                        log('🔍 Primer polígono: ' + JSON.stringify(first.properties).substring(0, 80));
+                        const geomType = first.geometry?.type || 'desconocido';
+                        log('🔍 Geometría: ' + geomType);
+                        if (first.geometry?.coordinates) {
+                            log('🔍 Coordenadas (primeras): ' + JSON.stringify(first.geometry.coordinates[0]?.slice(0, 3)).substring(0, 60));
+                        }
                         
                         // ============================================================
-                        // 4. AÑADIR AL MAPA
+                        // 3. AÑADIR AL MAPA CON fill-extrusion
                         // ============================================================
                         try {
                             map.addSource('deepstate', {
@@ -147,21 +145,34 @@
                             });
                             log('✅ Fuente DeepState añadida');
                             
-                            // Capa de relleno ROJO OPACO
+                            // PRUEBA 1: fill-extrusion (más robusto para polígonos)
                             map.addLayer({
                                 id: 'deepstate-fill',
+                                type: 'fill-extrusion',
+                                source: 'deepstate',
+                                paint: {
+                                    'fill-extrusion-color': '#FF0000',
+                                    'fill-extrusion-opacity': 0.8,
+                                    'fill-extrusion-height': 0
+                                }
+                            });
+                            log('✅ Capa fill-extrusion añadida (rojo 80%)');
+                            
+                            // PRUEBA 2: fill normal como respaldo
+                            map.addLayer({
+                                id: 'deepstate-fill-2',
                                 type: 'fill',
                                 source: 'deepstate',
                                 paint: {
                                     'fill-color': '#FF0000',
-                                    'fill-opacity': 0.7,
+                                    'fill-opacity': 0.6,
                                     'fill-outline-color': '#FFFFFF',
                                     'fill-outline-width': 1
                                 }
                             });
-                            log('✅ Capa de relleno añadida (rojo 70%)');
+                            log('✅ Capa fill normal añadida (rojo 60%)');
                             
-                            // Capa de borde
+                            // Borde
                             map.addLayer({
                                 id: 'deepstate-line',
                                 type: 'line',
@@ -174,8 +185,9 @@
                             });
                             log('✅ Capa de borde añadida (blanco)');
                             
-                            // Mover la capa de DeepState por encima de OSM
+                            // Mover capas por encima de OSM
                             map.moveLayer('deepstate-fill', 'osm-layer');
+                            map.moveLayer('deepstate-fill-2', 'osm-layer');
                             map.moveLayer('deepstate-line', 'osm-layer');
                             
                             log('✅ DeepState dibujado correctamente');
