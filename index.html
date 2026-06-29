@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8" />
-    <title>Visor 3D - Ucrania</title>
+    <title>Visor 3D Real</title>
     <script src="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.js">
     </script>
     <link href="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.css" rel="stylesheet" />
@@ -30,146 +30,59 @@
             z-index: 1000;
             pointer-events: none;
         }
-        .maplibregl-popup {
-            max-width: 200px;
-        }
     </style>
 </head>
 <body>
-    <div id="info">🌍 Visor 3D - Ucrania (cargando...)</div>
+    <div id="info">🌍 Visor 3D - Monte Fuji (prueba de relieve)</div>
     <div id="map"></div>
 
     <script>
-        // --- CONFIGURACIÓN ---
-        const GEOJSON_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires.geojson';
-
-        // --- 1. INICIALIZAR MAPA PLANO CON INCLINACIÓN ---
+        // --- INICIALIZAR MAPA EN MONTE FUJI (relieve extremo) ---
         const map = new maplibregl.Map({
             container: 'map',
             style: {
                 version: 8,
                 sources: {
-                    'osm': {
+                    'mapa-base': {
                         type: 'raster',
                         tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-                        tileSize: 256
+                        tileSize: 256,
+                        attribution: '© OpenStreetMap'
                     }
                 },
                 layers: [
-                    { id: 'osm-layer', type: 'raster', source: 'osm' }
+                    { id: 'capa-base', type: 'raster', source: 'mapa-base' }
                 ]
             },
-            center: [24.5, 48.2], // Montes Cárpatos (Oeste de Ucrania)
-            zoom: 9,
-            pitch: 65,
-            bearing: -20
-        });
-
-        // --- 2. SECRETO: INYECTAR TERRENO DESPUÉS DE QUE EL MAPA CARGUE ---
-        map.on('load', function() {
-
-            // Añadir fuente de elevación (AWS Terrarium)
-            map.addSource('terrainSource', {
-                type: 'raster-dem',
-                tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
-                encoding: 'terrarium',
-                tileSize: 256,
-                maxzoom: 15
-            });
-
-            // Activar relieve 3D
-            map.setTerrain({
-                source: 'terrainSource',
-                exaggeration: 2.5
-            });
-
-            console.log('✅ Terreno 3D activado');
-
-            // --- CARGAR DATOS DE INCENDIOS ---
-            fetch(GEOJSON_URL)
-                .then(response => response.json())
-                .then(data => {
-                    const features = data.features || [];
-                    const filtered = features.filter(f => (f.properties?.frp || 0) > 10);
-                    const limited = filtered.slice(0, 500);
-
-                    console.log(`🔥 Mostrando ${limited.length} incendios`);
-                    document.getElementById('info').textContent =
-                        `🌍 Visor 3D | ${limited.length} incendios | Terreno AWS`;
-
-                    // Crear fuente GeoJSON
-                    map.addSource('fires', {
-                        type: 'geojson',
-                        data: {
-                            type: 'FeatureCollection',
-                            features: limited
-                        }
-                    });
-
-                    // Capa de puntos
-                    map.addLayer({
-                        id: 'fires-layer',
-                        type: 'circle',
-                        source: 'fires',
-                        paint: {
-                            'circle-radius': [
-                                'interpolate',
-                                ['linear'],
-                                ['get', 'frp'],
-                                10, 5,
-                                50, 15,
-                                100, 25
-                            ],
-                            'circle-color': [
-                                'interpolate',
-                                ['linear'],
-                                ['get', 'frp'],
-                                10, '#ff6600',
-                                50, '#ff0000',
-                                100, '#cc0000'
-                            ],
-                            'circle-stroke-color': '#ffff00',
-                            'circle-stroke-width': 1,
-                            'circle-opacity': 0.8,
-                            'circle-stroke-opacity': 0.8
-                        }
-                    });
-
-                    // Popup al hacer clic
-                    const popup = new maplibregl.Popup({
-                        closeButton: true,
-                        closeOnClick: false
-                    });
-
-                    map.on('click', 'fires-layer', function(e) {
-                        const props = e.features[0].properties;
-                        popup
-                            .setLngLat(e.lngLat)
-                            .setHTML(`
-                                <strong>🔥 FRP:</strong> ${props.frp || 0} MW<br>
-                                <strong>📅 Fecha:</strong> ${props.acq_date || 'N/A'}<br>
-                                <strong>🛰️ Satélite:</strong> ${props.satellite || 'N/A'}
-                            `)
-                            .addTo(map);
-                    });
-
-                    map.on('mouseenter', 'fires-layer', function() {
-                        map.getCanvas().style.cursor = 'pointer';
-                    });
-
-                    map.on('mouseleave', 'fires-layer', function() {
-                        map.getCanvas().style.cursor = '';
-                    });
-                })
-                .catch(error => {
-                    console.error('❌ Error:', error);
-                    document.getElementById('info').textContent = '❌ Error cargando datos';
-                });
+            center: [138.7275, 35.3606], // Monte Fuji
+            zoom: 12,
+            pitch: 75, // Inclinación fuerte
+            maxPitch: 85
         });
 
         // --- CONTROLES ---
-        map.addControl(new maplibregl.NavigationControl(), 'top-right');
-        map.addControl(new maplibregl.ScaleControl(), 'bottom-right');
+        map.addControl(new maplibregl.NavigationControl());
+
+        // --- INYECTAR TERRENO (CON SERVICIO QUE PERMITE CORS) ---
+        map.on('load', () => {
+            map.addSource('terrainSource', {
+                type: 'raster-dem',
+                tiles: ['https://maplibre.org/terrain/v1/terrain-rgb/{z}/{x}/{y}.png'],
+                tileSize: 256,
+                encoding: 'mapbox', // ← OBLIGATORIO para este servidor
+                maxzoom: 14
+            });
+
+            map.setTerrain({
+                source: 'terrainSource',
+                exaggeration: 2.0
+            });
+
+            document.getElementById('info').textContent =
+                '🌍 Visor 3D - Monte Fuji | Terreno activo | Mueve el mapa con clic derecho';
+
+            console.log('✅ Terreno 3D activado');
+        });
     </script>
 </body>
 </html>
