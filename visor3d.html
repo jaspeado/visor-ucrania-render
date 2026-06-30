@@ -31,24 +31,25 @@
   .color-row { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
   .slider-value { float: right; font-size: 10px; color: #58a6ff; }
 
-  /* ✅ Leyenda de regiones CORREGIDA */
+  /* ✅ Leyenda de regiones CORREGIDA - Título más pequeño */
   #legend-regions {
     position: absolute; bottom: 80px; right: 12px; z-index: 1000;
     background: rgba(13,17,23,0.9); backdrop-filter: blur(8px);
     border: 1px solid #30363d; border-radius: 8px;
-    padding: 10px 14px; color: #e6edf3;
-    font-size: 11px; 
+    padding: 6px 10px; /* ✅ Menos padding */
+    color: #e6edf3;
+    font-size: 10px; /* ✅ Más pequeño */
     max-height: 200px; 
     overflow-y: auto;
-    min-width: 140px; 
-    max-width: 200px;
-    pointer-events: auto;  /* ✅ AHORA SE PUEDE DESPLAZAR */
-    scroll-behavior: smooth; /* Scroll suave */
+    min-width: 120px; 
+    max-width: 180px;
+    pointer-events: auto;
+    scroll-behavior: smooth;
   }
   
-  /* ✅ Personalizar la barra de scroll */
+  /* ✅ Barra de scroll personalizada */
   #legend-regions::-webkit-scrollbar {
-    width: 4px;
+    width: 3px;
   }
   #legend-regions::-webkit-scrollbar-track {
     background: #21262d;
@@ -59,24 +60,24 @@
     border-radius: 4px;
   }
 
-  /* ✅ Título fijo mientras se hace scroll */
+  /* ✅ Título menos invasivo */
   #legend-regions h3 {
+    font-size: 10px;
+    font-weight: 600;
+    margin-bottom: 2px;
+    padding-bottom: 2px;
+    border-bottom: 1px solid #30363d;
+    text-align: center;
+    color: #8b949e;
     position: sticky;
     top: 0;
     background: rgba(13,17,23,0.95);
     z-index: 1;
-    font-size: 11px; 
-    font-weight: 600; 
-    margin-bottom: 4px;
-    border-bottom: 1px solid #30363d; 
-    padding-bottom: 4px;
-    text-align: center; 
-    color: #8b949e;
   }
 
   .legend-row {
-    display: flex; justify-content: space-between; padding: 2px 0;
-    border-bottom: 1px solid #21262d; font-size: 10px;
+    display: flex; justify-content: space-between; padding: 1px 0;
+    border-bottom: 1px solid #21262d; font-size: 9px; /* ✅ Más pequeño */
   }
   .legend-row:last-child { border-bottom: none; }
   .legend-row .count {
@@ -103,7 +104,9 @@
 
   @media (max-width: 640px) {
     #panel { width: 200px; padding: 10px; font-size: 11px; max-height: calc(100% - 80px); top: 60px; left: 6px; }
-    #legend-regions { bottom: 70px; right: 6px; min-width: 100px; font-size: 10px; max-height: 150px; max-width: 150px; padding: 8px 10px; }
+    #legend-regions { bottom: 70px; right: 6px; min-width: 90px; font-size: 9px; max-height: 150px; max-width: 130px; padding: 4px 8px; }
+    #legend-regions h3 { font-size: 9px; }
+    .legend-row { font-size: 8px; }
   }
 </style>
 </head>
@@ -336,7 +339,7 @@ function updateFires() {
 }
 
 // ============================================================
-// ✅ LEYENDA DE REGIONES
+// ✅ LEYENDA DE REGIONES (sin "Desconocida")
 // ============================================================
 function updateRegionLegend() {
   const regionList = document.getElementById('region-list');
@@ -346,10 +349,12 @@ function updateRegionLegend() {
     return;
   }
 
-  // Contar focos por región (NAME_1)
+  // Contar focos por región (NAME_1) - EXCLUYENDO "Desconocida"
   const regionCounts = {};
   currentFiresFiltered.forEach(f => {
-    const region = f.properties?.NAME_1 || 'Desconocida';
+    const region = f.properties?.NAME_1;
+    // ✅ Saltar regiones vacías o "Desconocida"
+    if (!region || region === '' || region === 'Desconocida') return;
     regionCounts[region] = (regionCounts[region] || 0) + 1;
   });
 
