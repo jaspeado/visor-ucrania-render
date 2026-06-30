@@ -386,7 +386,7 @@ const FIRMS_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-trac
 let deepstateData = null;
 let firesData = [];
 let currentFiresFiltered = [];
-let selectedRegion = null;  // null = mostrar todas, "Otras ubicaciones" = puntos sin región
+let selectedRegion = null;
 
 const map = new maplibregl.Map({
   container: 'map',
@@ -466,7 +466,6 @@ function updateFires() {
   const ahora = new Date();
   const limite = new Date(ahora.getTime() - (timeRange * 60 * 60 * 1000));
 
-  // ✅ Filtrar por FRP y fecha
   const filtered = firesData.filter(f => {
     if ((f.properties?.frp || 0) < frpMin) return false;
     if (timeRange === 24) {
