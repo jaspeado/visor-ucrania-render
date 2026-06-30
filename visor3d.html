@@ -8,7 +8,7 @@
 </script>
 <link href="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.css" rel="stylesheet">
 
-<!-- ✅ Fuente profesional: Inter (GitHub, Stripe, Vercel) -->
+<!-- ✅ Fuente profesional: Inter -->
 <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
 
 <style>
@@ -20,10 +20,10 @@
   }
   #map { width: 100%; height: 100vh; }
 
-  /* ✅ Panel de controles - Sin título, más limpio */
+  /* ✅ Panel de controles - Blur reducido */
   #panel {
     position: absolute; top: 12px; left: 12px; z-index: 1000;
-    background: rgba(13,17,23,0.92); backdrop-filter: blur(12px);
+    background: rgba(13,17,23,0.92); backdrop-filter: blur(4px); /* ✅ blur más suave */
     border: 1px solid #30363d; border-radius: 10px;
     padding: 14px 16px; width: 220px;
     max-height: calc(100% - 80px); overflow-y: auto;
@@ -31,12 +31,8 @@
     font-family: 'Inter', sans-serif;
   }
 
-  /* ✅ Ocultamos el título "Controles" */
-  #panel h2 {
-    display: none;
-  }
+  #panel h2 { display: none; }
 
-  /* ✅ Estilo de los grupos de control */
   .control-group { 
     margin-bottom: 10px; 
     padding-bottom: 10px; 
@@ -128,7 +124,6 @@
     font-weight: 500;
   }
 
-  /* ✅ Estadísticas en el panel */
   .stats-row {
     display: flex;
     justify-content: space-between;
@@ -145,10 +140,10 @@
     gap: 4px;
   }
 
-  /* ✅ Leyenda de regiones */
+  /* ✅ Leyenda de regiones - Blur reducido */
   #legend-regions {
     position: absolute; bottom: 80px; right: 12px; z-index: 1000;
-    background: rgba(13,17,23,0.92); backdrop-filter: blur(12px);
+    background: rgba(13,17,23,0.92); backdrop-filter: blur(4px); /* ✅ blur más suave */
     border: 1px solid #30363d; border-radius: 10px;
     padding: 8px 12px;
     color: #e6edf3;
@@ -207,6 +202,42 @@
     font-weight: 600;
   }
 
+  /* ✅ Popup - X más grande y blanca */
+  .maplibregl-popup {
+    font-family: 'Inter', sans-serif;
+  }
+  
+  .maplibregl-popup-content {
+    background: #0d1117 !important;
+    color: #e6edf3 !important;
+    border: 1px solid #30363d !important;
+    border-radius: 8px !important;
+    font-family: 'Inter', sans-serif !important;
+    font-size: 12px !important;
+    padding: 10px 14px !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5) !important;
+  }
+
+  /* ✅ Botón de cerrar (X) - Más grande y blanco */
+  .maplibregl-popup-close-button {
+    font-size: 18px !important;  /* ✅ Más grande */
+    color: #ffffff !important;   /* ✅ Blanco */
+    background: transparent !important;
+    border: none !important;
+    padding: 6px 8px !important; /* ✅ Más espacio para hacer clic */
+    cursor: pointer !important;
+    opacity: 0.7;
+    transition: opacity 0.15s ease;
+    font-weight: 300 !important;
+    line-height: 1 !important;
+  }
+  .maplibregl-popup-close-button:hover {
+    opacity: 1;
+    background: transparent !important;
+  }
+
+  .maplibregl-popup-tip { border-top-color: #30363d !important; }
+
   #info {
     position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
     z-index: 1000; background: rgba(13,17,23,0.85); padding: 6px 18px;
@@ -217,18 +248,6 @@
     letter-spacing: 0.02em;
   }
 
-  .maplibregl-popup-content {
-    background: #0d1117 !important;
-    color: #e6edf3 !important;
-    border: 1px solid #30363d !important;
-    border-radius: 8px !important;
-    font-family: 'Inter', sans-serif !important;
-    font-size: 12px !important;
-    padding: 10px 14px !important;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.4) !important;
-  }
-  .maplibregl-popup-tip { border-top-color: #30363d !important; }
-
   @media (max-width: 640px) {
     #panel { width: 200px; padding: 10px 12px; font-size: 11px; max-height: calc(100% - 80px); top: 60px; left: 6px; }
     #legend-regions { bottom: 70px; right: 6px; min-width: 90px; font-size: 9px; max-width: 130px; padding: 6px 8px; }
@@ -236,6 +255,10 @@
     #region-list { max-height: 120px; }
     .legend-row { font-size: 9px; }
     #info { font-size: 10px; padding: 4px 12px; }
+    .maplibregl-popup-close-button {
+      font-size: 20px !important;
+      padding: 8px 10px !important;
+    }
   }
 </style>
 </head>
@@ -294,7 +317,6 @@
   <!-- ✅ Estadísticas: solo mostramos incendios -->
   <div class="stats-row">
     <span id="stats-fires">🔥 0</span>
-    <!-- ✅ stats-deepstate ELIMINADO -->
   </div>
 </div>
 
