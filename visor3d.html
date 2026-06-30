@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Visor Ucrania 3D</title>
+<!-- ✅ Favicon para evitar error 404 -->
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>">
 <script src="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.js">
 </script>
 <link href="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.css" rel="stylesheet">
@@ -1020,7 +1022,7 @@ function updateTerrain() {
 }
 
 // ============================================================
-// MAPA BASE
+// ✅ MAPA BASE - CORREGIDO para evitar error "style diff"
 // ============================================================
 
 function updateBaseMap() {
@@ -1035,15 +1037,17 @@ function updateBaseMap() {
 
   updateAttribution(selected);
 
-  ['satellite-layer', 'osm-layer', 'topo-layer'].forEach(id => {
+  // ✅ Limpiar capas y fuentes antiguas
+  ['satellite-layer', 'osm-layer', 'topo-layer', 'deepstate-fill', 'deepstate-line', 'fires-layer'].forEach(id => {
     if (map.getLayer(id)) map.removeLayer(id);
   });
-  ['satellite-source', 'osm-source', 'topo-source'].forEach(id => {
+  ['satellite-source', 'osm-source', 'topo-source', 'deepstate', 'fires'].forEach(id => {
     if (map.getSource(id)) map.removeSource(id);
   });
 
+  // ✅ Si es el estilo oscuro de CartoDB, usar setStyle con diff: false
   if (selected === 'dark') {
-    map.setStyle('https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json');
+    map.setStyle('https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json', { diff: false });
     map.once('style.load', function() {
       setTimeout(() => {
         if (currentDeepstate) updateDeepstate();
@@ -1054,6 +1058,7 @@ function updateBaseMap() {
     return;
   }
 
+  // ✅ Para otros estilos, usar el método alternativo
   map.setStyle({ version: 8, sources: {}, layers: [] });
 
   let tiles = [];
