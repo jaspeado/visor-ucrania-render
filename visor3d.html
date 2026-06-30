@@ -223,16 +223,16 @@
     font-weight: 600;
   }
 
+  /* ✅ POPUP CON CABECERA ARRASTRABLE Y MINIMIZABLE */
   .maplibregl-popup-content {
+    padding: 0 !important;
+    overflow: hidden;
     background: #0d1117 !important;
-    color: #e6edf3 !important;
     border: 1px solid #30363d !important;
     border-radius: 8px !important;
-    font-family: 'Inter', sans-serif !important;
-    font-size: 11px !important;
-    padding: 8px 12px !important;
     box-shadow: 0 8px 24px rgba(0,0,0,0.6) !important;
-    min-width: 180px !important;
+    min-width: 200px !important;
+    font-family: 'Inter', sans-serif !important;
   }
 
   .maplibregl-popup-tip {
@@ -240,30 +240,62 @@
   }
 
   .maplibregl-popup-close-button {
-    font-size: 20px !important;
-    color: #ffffff !important;
-    background: transparent !important;
-    border: none !important;
-    padding: 4px 10px !important;
-    cursor: pointer !important;
-    opacity: 0.8 !important;
-    line-height: 1 !important;
-  }
-  .maplibregl-popup-close-button:hover {
-    opacity: 1 !important;
-    background: transparent !important;
+    display: none !important;
   }
 
-  .popup-link {
-    color: #58a6ff !important;
-    text-decoration: none !important;
-    font-weight: 500;
-    transition: color 0.2s ease;
-    font-size: 10px !important;
+  .popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #161b22;
+    padding: 6px 8px 6px 10px;
+    cursor: grab;
+    user-select: none;
+    border-bottom: 1px solid #21262d;
+    border-radius: 8px 8px 0 0;
   }
-  .popup-link:hover {
-    color: #79c0ff !important;
-    text-decoration: underline !important;
+  .popup-header:active {
+    cursor: grabbing;
+  }
+
+  .popup-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: #ff6600;
+  }
+
+  .popup-controls {
+    display: flex;
+    gap: 4px;
+  }
+
+  .popup-btn {
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #21262d;
+    border-radius: 4px;
+    color: #e6edf3;
+    font-size: 12px;
+    cursor: pointer;
+    line-height: 1;
+    border: none;
+    transition: background 0.15s ease;
+  }
+  .popup-btn:hover {
+    background: #30363d;
+  }
+
+  .popup-body {
+    padding: 8px 12px;
+    font-size: 11px;
+    line-height: 1.5;
+    color: #e6edf3;
+  }
+  .popup-body.minimized {
+    display: none;
   }
 
   #info {
@@ -304,17 +336,12 @@
     .region-item { font-size: 9px; padding: 1px 3px; }
     #info { font-size: 10px; padding: 4px 12px; }
     #attribution { bottom: 50px; left: 6px; font-size: 8px; padding: 2px 8px; }
-    .maplibregl-popup-close-button {
-      font-size: 20px !important;
-      padding: 8px 10px !important;
-    }
     .maplibregl-popup-content {
-      min-width: 150px !important;
-      font-size: 10px !important;
-      padding: 6px 8px !important;
+      min-width: 160px !important;
     }
-    .popup-link {
-      font-size: 9px !important;
+    .popup-body {
+      font-size: 10px !important;
+      padding: 6px 10px !important;
     }
   }
 </style>
@@ -424,7 +451,7 @@ const map = new maplibregl.Map({
 map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
 // ============================================================
-// ✅ FUNCIÓN AUXILIAR PARA ESPERAR A QUE EL MAPA ESTÉ CARGADO
+// ✅ FUNCIÓN PARA ESPERAR A QUE EL MAPA ESTÉ CARGADO
 // ============================================================
 function whenMapLoaded(callback) {
   if (map.loaded()) {
@@ -432,6 +459,54 @@ function whenMapLoaded(callback) {
   } else {
     map.on('load', callback);
   }
+}
+
+// ============================================================
+// ✅ FUNCIÓN PARA HACER ARRASTRABLE EL POPUP
+// ============================================================
+function makeDraggable(popupEl, handleEl) {
+  let offsetX = 0, offsetY = 0, isDragging = false;
+
+  function getXY(e) {
+    if (e.touches && e.touches.length) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    return { x: e.clientX, y: e.clientY };
+  }
+
+  function onStart(e) {
+    isDragging = true;
+    const rect = popupEl.getBoundingClientRect();
+    const pos = getXY(e);
+    offsetX = pos.x - rect.left;
+    offsetY = pos.y - rect.top;
+    popupEl.style.transform = 'none';
+    popupEl.style.position = 'fixed';
+    popupEl.style.left = rect.left + 'px';
+    popupEl.style.top = rect.top + 'px';
+    popupEl.style.margin = '0';
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onEnd);
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend', onEnd);
+  }
+
+  function onMove(e) {
+    if (!isDragging) return;
+    if (e.touches) e.preventDefault();
+    const pos = getXY(e);
+    popupEl.style.left = (pos.x - offsetX) + 'px';
+    popupEl.style.top = (pos.y - offsetY) + 'px';
+  }
+
+  function onEnd() {
+    isDragging = false;
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onEnd);
+    document.removeEventListener('touchmove', onMove);
+    document.removeEventListener('touchend', onEnd);
+  }
+
+  handleEl.addEventListener('mousedown', onStart);
+  handleEl.addEventListener('touchstart', onStart, { passive: true });
 }
 
 // ============================================================
@@ -596,14 +671,22 @@ function updateFires() {
     const googleEarthUrl = `https://earth.google.com/web/search/${lat},${lon}`;
     const yandexUrl = `https://yandex.com/maps/?pt=${lon},${lat}&z=15`;
 
+    // ✅ CREAR POPUP CON CABECERA ARRASTRABLE
     activePopup = new maplibregl.Popup({
-      closeButton: true,
+      closeButton: false,
       closeOnClick: false,
       className: 'custom-popup'
     })
       .setLngLat(e.lngLat)
       .setHTML(`
-        <div style="font-family:'Inter',sans-serif; font-size:11px; min-width:160px; line-height:1.5; color:#e6edf3;">
+        <div class="popup-header">
+          <span class="popup-title">🔥 Incendio</span>
+          <div class="popup-controls">
+            <span class="popup-btn" id="popup-min">─</span>
+            <span class="popup-btn" id="popup-close">✕</span>
+          </div>
+        </div>
+        <div class="popup-body" id="popup-body">
           <div><span style="color:#ff6600; font-weight:600;">🔥 FRP:</span> ${frp} MW</div>
           <div><span style="color:#8b949e;">LAT/LONG:</span> <span style="font-weight:500; font-family:'Courier New',monospace; color:#e6edf3;">${lat.toFixed(5)}, ${lon.toFixed(5)}</span></div>
           <div><span style="color:#8b949e;">Localidad:</span> <span style="font-weight:500; color:#e6edf3;">${localidad}</span></div>
@@ -620,6 +703,37 @@ function updateFires() {
     activePopup.on('close', () => {
       activePopup = null;
     });
+
+    // ✅ Configurar arrastre y botones
+    const popupEl = activePopup.getElement();
+    const headerEl = popupEl.querySelector('.popup-header');
+    makeDraggable(popupEl, headerEl);
+
+    // ✅ Botón cerrar
+    popupEl.querySelector('#popup-close').addEventListener('click', () => {
+      activePopup.remove();
+      activePopup = null;
+    });
+
+    // ✅ Botón minimizar
+    popupEl.querySelector('#popup-min').addEventListener('click', (ev) => {
+      const body = popupEl.querySelector('#popup-body');
+      body.classList.toggle('minimized');
+      ev.target.textContent = body.classList.contains('minimized') ? '▢' : '─';
+    });
+
+    // ✅ En móvil, reposicionar el popup para que no se salga de la pantalla
+    if (window.innerWidth < 640) {
+      setTimeout(() => {
+        const rect = popupEl.getBoundingClientRect();
+        if (rect.right > window.innerWidth) {
+          popupEl.style.left = (window.innerWidth - rect.width - 10) + 'px';
+        }
+        if (rect.bottom > window.innerHeight) {
+          popupEl.style.top = (window.innerHeight - rect.height - 10) + 'px';
+        }
+      }, 10);
+    }
   });
 
   map.on('mouseenter', 'fires-layer', () => map.getCanvas().style.cursor = 'pointer');
