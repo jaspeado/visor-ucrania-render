@@ -16,28 +16,20 @@
     position: absolute; top: 12px; left: 12px; z-index: 1000;
     background: rgba(13,17,23,0.92); backdrop-filter: blur(8px);
     border: 1px solid #30363d; border-radius: 8px;
-    padding: 14px 16px; width: 240px; max-height: calc(100% - 80px);
-    overflow-y: auto; font-size: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.6);
-    pointer-events: auto; color: #e6edf3;
+    padding: 12px 14px; width: 220px;
+    max-height: calc(100% - 80px); overflow-y: auto;
+    font-size: 12px; color: #e6edf3;
   }
-  #panel::-webkit-scrollbar { width: 4px; }
-  #panel::-webkit-scrollbar-thumb { background: #30363d; border-radius: 4px; }
-  #panel::-webkit-scrollbar-track { background: transparent; }
-
-  #panel h2 { font-size: 14px; font-weight: 600; margin-bottom: 10px; color: #f0f6fc; border-bottom: 1px solid #30363d; padding-bottom: 6px; }
-  .control-group { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #21262d; }
-  .control-group:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
-  .control-group label { display: block; font-size: 10px; font-weight: 500; color: #8b949e; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
-  .control-group input[type="range"] { width: 100%; margin: 2px 0 4px; accent-color: #58a6ff; background: #30363d; height: 3px; border-radius: 4px; -webkit-appearance: none; }
-  .control-group input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 10px; height: 10px; border-radius: 50%; background: #58a6ff; cursor: pointer; }
-  .control-group input[type="color"] { width: 24px; height: 24px; border: 2px solid #30363d; border-radius: 4px; padding: 0; cursor: pointer; background: transparent; flex-shrink: 0; }
-  .control-group select { width: 100%; padding: 3px 6px; background: #0d1117; color: #e6edf3; border: 1px solid #30363d; border-radius: 4px; font-size: 11px; cursor: pointer; }
+  #panel h2 { font-size: 14px; margin-bottom: 8px; border-bottom: 1px solid #30363d; padding-bottom: 6px; }
+  .control-group { margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #21262d; }
+  .control-group:last-child { border-bottom: none; }
+  .control-group label { display: block; font-size: 10px; color: #8b949e; text-transform: uppercase; }
+  .control-group input[type="range"] { width: 100%; margin: 2px 0; accent-color: #58a6ff; background: #30363d; height: 3px; }
+  .control-group input[type="color"] { width: 24px; height: 24px; border: 2px solid #30363d; border-radius: 4px; padding: 0; cursor: pointer; background: transparent; }
   .checkbox-group { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
   .checkbox-group input[type="checkbox"] { accent-color: #58a6ff; width: 14px; height: 14px; cursor: pointer; }
-  .checkbox-group label { font-size: 12px; color: #e6edf3; text-transform: none; font-weight: 400; cursor: pointer; }
   .color-row { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
-  .color-row span { font-size: 10px; color: #8b949e; }
-  .slider-value { float: right; font-size: 10px; color: #58a6ff; font-weight: 500; }
+  .slider-value { float: right; font-size: 10px; color: #58a6ff; }
 
   #info {
     position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
@@ -45,7 +37,6 @@
     border-radius: 20px; border: 1px solid #30363d; color: #8b949e;
     font-size: 11px; pointer-events: none; white-space: nowrap;
   }
-  @media (max-width: 640px) { #panel { width: 200px; padding: 10px; font-size: 11px; max-height: calc(100% - 80px); top: 60px; left: 6px; } }
 </style>
 </head>
 <body>
@@ -54,51 +45,44 @@
   <h2>🎛️ Controles</h2>
 
   <div class="control-group">
-    <label>🗺️ Mapa base</label>
-    <select id="map-style-selector">
-      <option value="dark">🌍 CartoDB Dark</option>
-      <option value="satellite">🛰️ Satélite (ArcGIS)</option>
-      <option value="osm">🌍 Callejero (OSM)</option>
-    </select>
-    <div class="checkbox-group" style="margin-top:4px;">
-      <input type="checkbox" id="chk-terrain" checked>
-      <label for="chk-terrain">🏔️ Terreno 3D</label>
-    </div>
-    <label>Inclinación <span class="slider-value" id="val-pitch">45</span></label>
-    <input type="range" id="pitch-control" min="0" max="85" value="45">
-  </div>
-
-  <div class="control-group">
     <div class="checkbox-group">
       <input type="checkbox" id="chk-deepstate" checked>
       <label for="chk-deepstate">🟥 Línea del frente</label>
     </div>
     <div class="color-row">
-      <input type="color" id="color-deepstate-fill" value="#cc2200">
+      <input type="color" id="color-fill" value="#cc2200">
       <span>Relleno</span>
-      <span style="margin-left:auto; font-size:10px;">Opacidad <span class="slider-value" id="val-opacity-ds-fill">0.45</span></span>
+      <span style="margin-left:auto;">Opacidad <span class="slider-value" id="val-opacity-fill">0.45</span></span>
     </div>
-    <input type="range" id="opacity-ds-fill" min="0" max="100" value="45">
-    <div class="color-row" style="margin-top:2px;">
-      <input type="color" id="color-deepstate-line" value="#ffffff">
+    <input type="range" id="opacity-fill" min="0" max="100" value="45">
+    <div class="color-row">
+      <input type="color" id="color-line" value="#ffffff">
       <span>Borde</span>
-      <span style="margin-left:auto; font-size:10px;">Opacidad <span class="slider-value" id="val-opacity-ds-line">0.90</span></span>
+      <span style="margin-left:auto;">Opacidad <span class="slider-value" id="val-opacity-line">0.90</span></span>
     </div>
-    <input type="range" id="opacity-ds-line" min="0" max="100" value="90">
+    <input type="range" id="opacity-line" min="0" max="100" value="90">
   </div>
 
   <div class="control-group">
     <div class="checkbox-group">
       <input type="checkbox" id="chk-fires" checked>
-      <label for="chk-fires">🔥 Incendios (VIIRS)</label>
+      <label for="chk-fires">🔥 Incendios</label>
     </div>
-    <label>FRP mínimo <span class="slider-value" id="val-frp-min">10</span></label>
-    <input type="range" id="frp-min" min="0" max="100" value="10">
+    <label>FRP mínimo <span class="slider-value" id="val-frp">10</span></label>
+    <input type="range" id="frp-slider" min="0" max="100" value="10">
   </div>
 
-  <div style="display:flex; justify-content:space-between; font-size:10px; color:#8b949e; margin-top:6px; padding-top:6px; border-top:1px solid #21262d;">
-    <span id="stats-fires">🔥 0</span>
-    <span id="stats-deepstate">📦 0</span>
+  <div class="control-group">
+    <div class="checkbox-group">
+      <input type="checkbox" id="chk-terrain" checked>
+      <label for="chk-terrain">🏔️ Terreno 3D</label>
+    </div>
+    <label>Inclinación <span class="slider-value" id="val-pitch">45</span></label>
+    <input type="range" id="pitch-slider" min="0" max="85" value="45">
+  </div>
+
+  <div style="display:flex; justify-content:space-between; font-size:10px; color:#8b949e; margin-top:4px;">
+    <span id="stats">🔥 0 | 📦 0</span>
   </div>
 </div>
 
@@ -112,41 +96,31 @@
 const DEEPSTATE_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/deepstate_actual.geojson';
 const FIRMS_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires.geojson';
 
-let map;
-let allFiresData = [];
 let deepstateData = null;
-let deepstateLoaded = false;
-let firesLoaded = false;
+let firesData = [];
 
-// ============================================================
-// MAPA
-// ============================================================
-map = new maplibregl.Map({
+const map = new maplibregl.Map({
   container: 'map',
   style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
   center: [32.0, 48.5],
   zoom: 5.5,
   pitch: 45,
-  bearing: 0,
-  antialias: true,
 });
 
 map.addControl(new maplibregl.NavigationControl(), 'top-right');
-map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-right');
 
 // ============================================================
-// FUNCIONES
+// FUNCIONES DE ACTUALIZACIÓN
 // ============================================================
 
 function updateDeepstate() {
   if (!deepstateData) return;
   const enabled = document.getElementById('chk-deepstate').checked;
-  const fillColor = document.getElementById('color-deepstate-fill').value;
-  const lineColor = document.getElementById('color-deepstate-line').value;
-  const fillOpacity = parseInt(document.getElementById('opacity-ds-fill').value) / 100;
-  const lineOpacity = parseInt(document.getElementById('opacity-ds-line').value) / 100;
+  const fillColor = document.getElementById('color-fill').value;
+  const lineColor = document.getElementById('color-line').value;
+  const fillOpacity = parseInt(document.getElementById('opacity-fill').value) / 100;
+  const lineOpacity = parseInt(document.getElementById('opacity-line').value) / 100;
 
-  // Eliminar capas anteriores
   ['deepstate-fill', 'deepstate-line'].forEach(id => {
     if (map.getLayer(id)) map.removeLayer(id);
   });
@@ -154,15 +128,11 @@ function updateDeepstate() {
 
   if (!enabled) return;
 
-  const features = deepstateData.features || [];
-  if (features.length === 0) return;
-
   map.addSource('deepstate', {
     type: 'geojson',
     data: deepstateData
   });
 
-  // Relleno
   map.addLayer({
     id: 'deepstate-fill',
     type: 'fill',
@@ -170,11 +140,9 @@ function updateDeepstate() {
     paint: {
       'fill-color': fillColor,
       'fill-opacity': fillOpacity,
-      'fill-outline-color': 'rgba(0,0,0,0)',
     }
   });
 
-  // Borde
   map.addLayer({
     id: 'deepstate-line',
     type: 'line',
@@ -186,19 +154,19 @@ function updateDeepstate() {
     }
   });
 
-  document.getElementById('stats-deepstate').textContent = '📦 ' + features.length;
+  updateStats();
 }
 
 function updateFires() {
   const enabled = document.getElementById('chk-fires').checked;
-  const frpMin = parseInt(document.getElementById('frp-min').value);
+  const frpMin = parseInt(document.getElementById('frp-slider').value);
 
-  if (map.getLayer('fires-circle')) map.removeLayer('fires-circle');
+  if (map.getLayer('fires-layer')) map.removeLayer('fires-layer');
   if (map.getSource('fires')) map.removeSource('fires');
 
-  if (!enabled || allFiresData.length === 0) return;
+  if (!enabled || firesData.length === 0) return;
 
-  const filtered = allFiresData.filter(f => (f.properties?.frp || 0) >= frpMin);
+  const filtered = firesData.filter(f => (f.properties?.frp || 0) >= frpMin);
   if (filtered.length === 0) return;
 
   map.addSource('fires', {
@@ -207,7 +175,7 @@ function updateFires() {
   });
 
   map.addLayer({
-    id: 'fires-circle',
+    id: 'fires-layer',
     type: 'circle',
     source: 'fires',
     paint: {
@@ -220,25 +188,20 @@ function updateFires() {
   });
 
   // Popup
-  const popup = new maplibregl.Popup({ closeButton: true, closeOnClick: false });
-  map.on('click', 'fires-circle', function(e) {
+  map.on('click', 'fires-layer', function(e) {
     const p = e.features[0].properties;
-    popup.setLngLat(e.lngLat).setHTML(`
-      <strong>🔥 Incendio</strong><br>
-      FRP: <b>${p.frp} MW</b><br>
-      Fecha: ${p.acq_date}<br>
-      Satélite: ${p.satellite || 'N/A'}
-    `).addTo(map);
+    new maplibregl.Popup()
+      .setLngLat(e.lngLat)
+      .setHTML(`🔥 FRP: ${p.frp} MW<br>📅 ${p.acq_date}`)
+      .addTo(map);
   });
-  map.on('mouseenter', 'fires-circle', () => map.getCanvas().style.cursor = 'pointer');
-  map.on('mouseleave', 'fires-circle', () => map.getCanvas().style.cursor = '');
 
-  document.getElementById('stats-fires').textContent = '🔥 ' + filtered.length;
+  updateStats();
 }
 
 function updateTerrain() {
   const enabled = document.getElementById('chk-terrain').checked;
-  const pitch = parseInt(document.getElementById('pitch-control').value);
+  const pitch = parseInt(document.getElementById('pitch-slider').value);
 
   if (enabled) {
     if (!map.getSource('terrainSource')) {
@@ -256,100 +219,70 @@ function updateTerrain() {
   }
 }
 
-function updateBaseMap() {
-  const selected = document.getElementById('map-style-selector').value;
-  let styleUrl;
-
-  switch(selected) {
-    case 'dark':
-      styleUrl = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
-      break;
-    case 'satellite':
-      styleUrl = 'https://basemaps.cartocdn.com/gl/gl-maps-gl-style/style.json';
-      break;
-    case 'osm':
-      styleUrl = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
-      break;
-    default:
-      styleUrl = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
-  }
-
-  map.setStyle(styleUrl);
-
-  // Esperar a que el estilo cargue y recargar datos
-  map.once('styledata', function() {
-    if (deepstateData) setTimeout(updateDeepstate, 200);
-    if (allFiresData.length > 0) setTimeout(updateFires, 200);
-    setTimeout(updateTerrain, 200);
-  });
+function updateStats() {
+  const n1 = firesData.filter(f => (f.properties?.frp || 0) >= parseInt(document.getElementById('frp-slider').value)).length;
+  const n2 = deepstateData?.features?.length || 0;
+  document.getElementById('stats').textContent = `🔥 ${n1} | 📦 ${n2}`;
 }
 
 // ============================================================
 // CARGAR DATOS
 // ============================================================
 
-function loadFires() {
-  fetch(FIRMS_URL)
-    .then(r => r.json())
-    .then(data => {
-      allFiresData = data.features || [];
-      console.log('🔥 FIRMS:', allFiresData.length);
-      firesLoaded = true;
-      updateFires();
-    })
-    .catch(e => console.error('Error FIRMS:', e));
-}
-
-function loadDeepstate() {
-  fetch(DEEPSTATE_URL)
-    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-    .then(data => {
-      deepstateData = data;
-      deepstateLoaded = true;
-      console.log('🟥 DeepState:', data.features?.length || 0);
+fetch(DEEPSTATE_URL)
+  .then(r => r.json())
+  .then(data => {
+    deepstateData = data;
+    map.on('load', function() {
       updateDeepstate();
-    })
-    .catch(e => console.error('❌ Error DeepState:', e));
-}
+      updateStats();
+    });
+  })
+  .catch(e => console.error('DeepState error:', e));
+
+fetch(FIRMS_URL)
+  .then(r => r.json())
+  .then(data => {
+    firesData = data.features || [];
+    map.on('load', function() {
+      updateFires();
+      updateStats();
+    });
+  })
+  .catch(e => console.error('FIRMS error:', e));
 
 // ============================================================
-// CONECTAR CONTROLES
+// CONTROLES
 // ============================================================
-
-document.getElementById('map-style-selector').addEventListener('change', updateBaseMap);
-document.getElementById('chk-terrain').addEventListener('change', updateTerrain);
-document.getElementById('pitch-control').addEventListener('input', function() {
-  document.getElementById('val-pitch').textContent = this.value;
-  updateTerrain();
-});
 
 document.getElementById('chk-deepstate').addEventListener('change', updateDeepstate);
-document.getElementById('color-deepstate-fill').addEventListener('input', updateDeepstate);
-document.getElementById('color-deepstate-line').addEventListener('input', updateDeepstate);
-document.getElementById('opacity-ds-fill').addEventListener('input', function() {
-  document.getElementById('val-opacity-ds-fill').textContent = (this.value / 100).toFixed(2);
+document.getElementById('color-fill').addEventListener('input', updateDeepstate);
+document.getElementById('color-line').addEventListener('input', updateDeepstate);
+document.getElementById('opacity-fill').addEventListener('input', function() {
+  document.getElementById('val-opacity-fill').textContent = (this.value / 100).toFixed(2);
   updateDeepstate();
 });
-document.getElementById('opacity-ds-line').addEventListener('input', function() {
-  document.getElementById('val-opacity-ds-line').textContent = (this.value / 100).toFixed(2);
+document.getElementById('opacity-line').addEventListener('input', function() {
+  document.getElementById('val-opacity-line').textContent = (this.value / 100).toFixed(2);
   updateDeepstate();
 });
 
 document.getElementById('chk-fires').addEventListener('change', updateFires);
-document.getElementById('frp-min').addEventListener('input', function() {
-  document.getElementById('val-frp-min').textContent = this.value;
+document.getElementById('frp-slider').addEventListener('input', function() {
+  document.getElementById('val-frp').textContent = this.value;
   updateFires();
 });
 
-// ============================================================
-// INICIAR
-// ============================================================
-
-map.on('load', function() {
-  loadDeepstate();
-  loadFires();
+document.getElementById('chk-terrain').addEventListener('change', updateTerrain);
+document.getElementById('pitch-slider').addEventListener('input', function() {
+  document.getElementById('val-pitch').textContent = this.value;
   updateTerrain();
-  console.log('✅ Visor 3D listo');
+});
+
+// Inicializar
+map.on('load', function() {
+  updateTerrain();
+  console.log('✅ Visor listo');
 });
 </script>
 </body>
