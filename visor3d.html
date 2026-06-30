@@ -186,7 +186,6 @@
     border-radius: 4px;
   }
 
-  /* ✅ Regiones clickeables */
   .region-item {
     display: flex;
     justify-content: space-between;
@@ -225,7 +224,6 @@
     font-weight: 600;
   }
 
-  /* ✅ Popup personalizado */
   .maplibregl-popup {
     font-family: 'Inter', sans-serif;
   }
@@ -390,7 +388,7 @@ const FIRMS_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-trac
 let deepstateData = null;
 let firesData = [];
 let currentFiresFiltered = [];
-let selectedRegion = null;  // null = mostrar todas las regiones
+let selectedRegion = null;
 
 const map = new maplibregl.Map({
   container: 'map',
@@ -402,10 +400,6 @@ const map = new maplibregl.Map({
 
 map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
-// ============================================================
-// FUNCIONES DE ESTILO
-// ============================================================
-
 function getStyleUrl(style) {
   switch(style) {
     case 'satellite': return null;
@@ -413,10 +407,6 @@ function getStyleUrl(style) {
     default: return 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
   }
 }
-
-// ============================================================
-// FUNCIONES DE ACTUALIZACIÓN
-// ============================================================
 
 function updateDeepstate() {
   if (!deepstateData) return;
@@ -460,9 +450,6 @@ function updateDeepstate() {
   });
 }
 
-// ============================================================
-// ✅ FUNCIÓN PRINCIPAL - CON FILTRO POR FECHA Y REGIÓN
-// ============================================================
 function updateFires() {
   const enabled = document.getElementById('chk-fires').checked;
   const frpMin = parseInt(document.getElementById('frp-slider').value) || 0;
@@ -478,30 +465,21 @@ function updateFires() {
     return;
   }
 
-  // ✅ Calcular fecha límite (hace 24 o 48 horas)
   const ahora = new Date();
   const limite = new Date(ahora.getTime() - (timeRange * 60 * 60 * 1000));
 
-  // ✅ Filtrar por FRP y por fecha
   const filtered = firesData.filter(f => {
-    // Filtrar por FRP
     if ((f.properties?.frp || 0) < frpMin) return false;
-    
-    // Filtrar por fecha (solo si es 24h)
     if (timeRange === 24) {
       const acqDate = f.properties?.acq_date;
       if (!acqDate) return false;
-      
       const parts = acqDate.split('-');
       const fechaPunto = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-      
       if (fechaPunto < limite) return false;
     }
-    
     return true;
   });
 
-  // ✅ Filtrar por región seleccionada
   const filteredByRegion = filtered.filter(f => {
     if (!selectedRegion) return true;
     const region = f.properties?.NAME_1 || '';
@@ -535,7 +513,6 @@ function updateFires() {
     }
   });
 
-  // ✅ POPUP CON COORDENADAS Y ENLACES
   map.off('click', 'fires-layer');
   map.on('click', 'fires-layer', function(e) {
     const p = e.features[0].properties;
@@ -578,13 +555,9 @@ function updateFires() {
   updateRegionLegend();
 }
 
-// ============================================================
-// ✅ LEYENDA DE REGIONES CON CLICK - CORREGIDA
-// ============================================================
 function updateRegionLegend() {
   const regionList = document.getElementById('region-list');
 
-  // ✅ 1. Si no hay datos filtrados, mostrar mensaje
   if (currentFiresFiltered.length === 0) {
     regionList.innerHTML = `
       <div class="region-item" style="color:#8b949e; text-align:center; padding:4px 0; font-size:10px;">
@@ -593,44 +566,43 @@ function updateRegionLegend() {
     return;
   }
 
-  // ✅ 2. Contar focos por región (excluyendo "Desconocida")
   const regionCounts = {};
-  let totalFires = 0;
+  let puntosSinRegion = 0;
 
   currentFiresFiltered.forEach(f => {
     const region = f.properties?.NAME_1;
-    // ✅ Solo contar regiones válidas (no vacías, no "Desconocida")
-    if (region && region !== '' && region !== 'Desconocida' && region.toLowerCase() !== 'desconocida' && region !== 'N/A') {
+    if (region && region !== '' && region !== 'N/A' && region.toLowerCase() !== 'desconocida') {
       regionCounts[region] = (regionCounts[region] || 0) + 1;
-      totalFires++;
+    } else {
+      puntosSinRegion++;
     }
   });
 
-  // ✅ 3. Ordenar de mayor a menor
+  if (puntosSinRegion > 0) {
+    regionCounts['Desconocida'] = puntosSinRegion;
+  }
+
   const sorted = Object.entries(regionCounts)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 15);
 
-  // ✅ 4. Construir HTML
   let html = '';
 
-  // ✅ Siempre mostrar "Ver todos" (con el total de incendios filtrados)
   html += `<div class="region-item all-regions ${!selectedRegion ? 'active' : ''}" data-region="all">
             <span class="region-name">⬅️ Ver todos</span>
             <span class="count">${currentFiresFiltered.length}</span>
           </div>`;
 
-  // ✅ Si hay regiones, mostrarlas
   if (sorted.length > 0) {
     sorted.forEach(([region, count]) => {
       const isActive = (selectedRegion === region);
+      const isDesconocida = (region === 'Desconocida');
       html += `<div class="region-item ${isActive ? 'active' : ''}" data-region="${region}">
-                <span class="region-name">${region}</span>
+                <span class="region-name" style="${isDesconocida ? 'color:#8b949e;' : ''}">${region}</span>
                 <span class="count">${count}</span>
               </div>`;
     });
   } else {
-    // ✅ Si no hay regiones, mostrar mensaje
     html += `<div class="region-item" style="color:#8b949e; text-align:center; padding:2px 0; font-size:9px;">
               (solo incendios sin región asignada)
             </div>`;
@@ -638,14 +610,12 @@ function updateRegionLegend() {
 
   regionList.innerHTML = html;
 
-  // ✅ 5. Añadir eventos de click
   document.querySelectorAll('.region-item[data-region]').forEach(el => {
     el.addEventListener('click', function() {
       const region = this.dataset.region;
       if (region === 'all') {
         selectedRegion = null;
       } else {
-        // ✅ Si ya estaba seleccionada, deseleccionar (toggle)
         if (selectedRegion === region) {
           selectedRegion = null;
         } else {
@@ -676,10 +646,6 @@ function updateTerrain() {
     map.setPitch(0);
   }
 }
-
-// ============================================================
-// MAPA BASE
-// ============================================================
 
 function updateBaseMap() {
   const selected = document.getElementById('map-style-selector').value;
@@ -749,10 +715,6 @@ function updateBaseMap() {
   });
 }
 
-// ============================================================
-// CARGAR DATOS
-// ============================================================
-
 fetch(DEEPSTATE_URL)
   .then(r => r.json())
   .then(data => {
@@ -774,14 +736,10 @@ fetch(FIRMS_URL)
   })
   .catch(e => console.error('FIRMS error:', e));
 
-// ============================================================
-// CONTROLES
-// ============================================================
-
 document.getElementById('map-style-selector').addEventListener('change', updateBaseMap);
 
 document.getElementById('time-range-selector').addEventListener('change', function() {
-  selectedRegion = null;  // Resetear filtro de región al cambiar el rango temporal
+  selectedRegion = null;
   updateFires();
 });
 
@@ -808,10 +766,6 @@ document.getElementById('pitch-slider').addEventListener('input', function() {
   document.getElementById('val-pitch').textContent = this.value;
   updateTerrain();
 });
-
-// ============================================================
-// INICIAR
-// ============================================================
 
 map.on('load', function() {
   updateTerrain();
