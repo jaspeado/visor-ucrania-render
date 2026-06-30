@@ -186,17 +186,43 @@
     border-radius: 4px;
   }
 
-  .legend-row {
-    display: flex; 
-    justify-content: space-between; 
-    padding: 2px 0;
-    border-bottom: 1px solid #21262d; 
+  /* ✅ Regiones clickeables */
+  .region-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 2px 4px;
+    border-bottom: 1px solid #21262d;
     font-size: 10px;
     font-weight: 400;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.15s ease;
   }
-  .legend-row:last-child { border-bottom: none; }
-  .legend-row .count {
-    color: #58a6ff; 
+  .region-item:last-child { border-bottom: none; }
+  .region-item:hover {
+    background: rgba(88, 166, 255, 0.1);
+  }
+  .region-item.active {
+    background: rgba(88, 166, 255, 0.15);
+    border-left: 2px solid #58a6ff;
+  }
+  .region-item .count {
+    color: #58a6ff;
+    font-weight: 600;
+  }
+  .region-item .region-name {
+    color: #e6edf3;
+  }
+  .region-item .region-name:hover {
+    color: #58a6ff;
+  }
+  /* ✅ Estilo para "Ver todos" */
+  .region-item.all-regions {
+    border-bottom: 1px solid #58a6ff !important;
+    margin-bottom: 2px;
+  }
+  .region-item.all-regions .region-name {
+    color: #58a6ff;
     font-weight: 600;
   }
 
@@ -217,7 +243,6 @@
     min-width: 180px !important;
   }
 
-  /* ✅ Botón de cerrar (X) - Más grande y blanco */
   .maplibregl-popup-close-button {
     font-size: 18px !important;
     color: #ffffff !important;
@@ -237,7 +262,6 @@
 
   .maplibregl-popup-tip { border-top-color: #30363d !important; }
 
-  /* ✅ Estilo para los enlaces del popup */
   .popup-link {
     color: #58a6ff !important;
     text-decoration: none !important;
@@ -265,7 +289,7 @@
     #legend-regions { bottom: 70px; right: 6px; min-width: 90px; font-size: 9px; max-width: 130px; padding: 6px 8px; }
     #legend-regions h3 { font-size: 9px; }
     #region-list { max-height: 120px; }
-    .legend-row { font-size: 9px; }
+    .region-item { font-size: 9px; padding: 1px 3px; }
     #info { font-size: 10px; padding: 4px 12px; }
     .maplibregl-popup-close-button {
       font-size: 20px !important;
@@ -350,7 +374,7 @@
 <div id="legend-regions">
   <h3>🔥 Focos por región</h3>
   <div id="region-list">
-    <div class="legend-row">Cargando...</div>
+    <div class="region-item">Cargando...</div>
   </div>
 </div>
 
@@ -367,6 +391,7 @@ const FIRMS_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-trac
 let deepstateData = null;
 let firesData = [];
 let currentFiresFiltered = [];
+let selectedRegion = null;  // null = mostrar todas las regiones
 
 const map = new maplibregl.Map({
   container: 'map',
@@ -437,7 +462,7 @@ function updateDeepstate() {
 }
 
 // ============================================================
-// ✅ FUNCIÓN PRINCIPAL - CON FILTRO POR FECHA
+// ✅ FUNCIÓN PRINCIPAL - CON FILTRO POR FECHA Y REGIÓN
 // ============================================================
 function updateFires() {
   const enabled = document.getElementById('chk-fires').checked;
@@ -468,20 +493,26 @@ function updateFires() {
       const acqDate = f.properties?.acq_date;
       if (!acqDate) return false;
       
-      // Parsear fecha (YYYY-MM-DD)
       const parts = acqDate.split('-');
       const fechaPunto = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
       
-      // Si el punto es anterior a la fecha límite, descartarlo
       if (fechaPunto < limite) return false;
     }
     
     return true;
   });
 
-  currentFiresFiltered = filtered;
+  // ✅ Filtrar por región seleccionada
+  const filteredByRegion = filtered.filter(f => {
+    if (!selectedRegion) return true;
+    const region = f.properties?.NAME_1 || '';
+    return region === selectedRegion;
+  });
 
-  if (filtered.length === 0) {
+  const finalFiltered = filteredByRegion;
+  currentFiresFiltered = finalFiltered;
+
+  if (finalFiltered.length === 0) {
     updateRegionLegend();
     document.getElementById('stats-fires').textContent = '🔥 0';
     return;
@@ -489,7 +520,7 @@ function updateFires() {
 
   map.addSource('fires', {
     type: 'geojson',
-    data: { type: 'FeatureCollection', features: filtered }
+    data: { type: 'FeatureCollection', features: finalFiltered }
   });
 
   map.addLayer({
@@ -544,50 +575,72 @@ function updateFires() {
   map.on('mouseenter', 'fires-layer', () => map.getCanvas().style.cursor = 'pointer');
   map.on('mouseleave', 'fires-layer', () => map.getCanvas().style.cursor = '');
 
-  document.getElementById('stats-fires').textContent = '🔥 ' + filtered.length;
+  document.getElementById('stats-fires').textContent = '🔥 ' + finalFiltered.length;
   updateRegionLegend();
 }
 
 // ============================================================
-// ✅ LEYENDA DE REGIONES
+// ✅ LEYENDA DE REGIONES CON CLICK
 // ============================================================
 function updateRegionLegend() {
   const regionList = document.getElementById('region-list');
 
   if (currentFiresFiltered.length === 0) {
-    regionList.innerHTML = '<div class="legend-row">Sin datos</div>';
+    regionList.innerHTML = '<div class="region-item">Sin datos</div>';
     return;
   }
 
+  // Contar focos por región (excluyendo "Desconocida")
   const regionCounts = {};
+  let totalFires = 0;
   currentFiresFiltered.forEach(f => {
     const region = f.properties?.NAME_1;
-    
-    if (!region || 
-        region === '' || 
-        region === 'Desconocida' || 
-        region.toLowerCase() === 'desconocida' ||
-        region === 'N/A') {
+    if (!region || region === '' || region === 'Desconocida' || region.toLowerCase() === 'desconocida' || region === 'N/A') {
       return;
     }
-    
     regionCounts[region] = (regionCounts[region] || 0) + 1;
+    totalFires++;
   });
 
   const sorted = Object.entries(regionCounts)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 15);
 
+  // ✅ Construir HTML con regiones clickeables
   let html = '';
+
+  // Opción "Ver todos"
+  html += `<div class="region-item all-regions ${!selectedRegion ? 'active' : ''}" data-region="all">
+            <span class="region-name">⬅️ Ver todos</span>
+            <span class="count">${totalFires}</span>
+          </div>`;
+
   sorted.forEach(([region, count]) => {
-    html += `<div class="legend-row"><span>${region}</span><span class="count">${count}</span></div>`;
+    const isActive = (selectedRegion === region);
+    html += `<div class="region-item ${isActive ? 'active' : ''}" data-region="${region}">
+              <span class="region-name">${region}</span>
+              <span class="count">${count}</span>
+            </div>`;
   });
 
   if (sorted.length === 0) {
-    html = '<div class="legend-row">Sin regiones</div>';
+    html = '<div class="region-item">Sin regiones</div>';
   }
 
   regionList.innerHTML = html;
+
+  // ✅ Añadir eventos de click
+  document.querySelectorAll('.region-item[data-region]').forEach(el => {
+    el.addEventListener('click', function() {
+      const region = this.dataset.region;
+      if (region === 'all') {
+        selectedRegion = null;
+      } else {
+        selectedRegion = region;
+      }
+      updateFires();
+    });
+  });
 }
 
 function updateTerrain() {
@@ -713,7 +766,10 @@ fetch(FIRMS_URL)
 
 document.getElementById('map-style-selector').addEventListener('change', updateBaseMap);
 
-document.getElementById('time-range-selector').addEventListener('change', updateFires);
+document.getElementById('time-range-selector').addEventListener('change', function() {
+  selectedRegion = null;  // Resetear filtro de región al cambiar el rango temporal
+  updateFires();
+});
 
 document.getElementById('chk-deepstate').addEventListener('change', updateDeepstate);
 document.getElementById('color-fill').addEventListener('input', updateDeepstate);
