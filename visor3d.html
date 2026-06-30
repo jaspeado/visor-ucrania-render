@@ -49,8 +49,8 @@
     <select id="map-style-selector">
       <option value="satellite">🛰️ Satélite</option>
       <option value="dark" selected>🌍 CartoDB Dark</option>
-      <option value="osm">🌍 Callejero (OSM)</option>
-      <option value="topo">🗺️ Topográfico (OpenTopoMap)</option>
+      <option value="osm">🌍 OpenStreetMap</option>
+      <option value="topo">🗺️ Topográfico</option>
     </select>
   </div>
 
@@ -125,10 +125,10 @@ map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
 function getStyleUrl(style) {
   switch(style) {
-    case 'satellite': return 'https://basemaps.cartocdn.com/gl/gl-maps-gl-style/style.json';
+    case 'satellite': return null;
     case 'dark': return 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
-    case 'osm': return 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
-    case 'topo': return 'https://tiles.opentopomap.org/styles/leisure/opentopomap.json';
+    case 'osm': return null; // Se maneja con raster
+    case 'topo': return null; // Se maneja con raster
     default: return 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
   }
 }
@@ -217,7 +217,6 @@ function updateFires() {
     }
   });
 
-  // Popup
   map.off('click', 'fires-layer');
   map.on('click', 'fires-layer', function(e) {
     const p = e.features[0].properties;
@@ -267,26 +266,18 @@ function updateBaseMap() {
   const currentDeepstate = deepstateData;
   const currentFires = firesData;
 
-  // Si es satélite, usar capa raster especial
-  if (selected === 'satellite') {
-    if (map.getLayer('satellite-layer')) map.removeLayer('satellite-layer');
-    if (map.getSource('satellite-source')) map.removeSource('satellite-source');
+  // Eliminar capas raster anteriores
+  ['satellite-layer', 'osm-layer', 'topo-layer'].forEach(id => {
+    if (map.getLayer(id)) map.removeLayer(id);
+  });
+  ['satellite-source', 'osm-source', 'topo-source'].forEach(id => {
+    if (map.getSource(id)) map.removeSource(id);
+  });
 
-    map.setStyle({ version: 8, sources: {}, layers: [] });
-
+  // Caso: estilos con setStyle (Dark, etc.)
+  if (selected === 'dark') {
+    map.setStyle('https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json');
     map.once('style.load', function() {
-      map.addSource('satellite-source', {
-        type: 'raster',
-        tiles: ['https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
-        tileSize: 256
-      });
-
-      map.addLayer({
-        id: 'satellite-layer',
-        type: 'raster',
-        source: 'satellite-source'
-      });
-
       setTimeout(() => {
         if (currentDeepstate) updateDeepstate();
         if (currentFires.length > 0) updateFires();
@@ -296,11 +287,43 @@ function updateBaseMap() {
     return;
   }
 
-  // Para el resto de estilos (incluyendo topo), usar setStyle
-  const styleUrl = getStyleUrl(selected);
-  map.setStyle(styleUrl);
+  // Para Satélite, OSM y Topo: usamos capas raster
+  map.setStyle({ version: 8, sources: {}, layers: [] });
+
+  let tiles = [];
+  let layerId = '';
+
+  switch(selected) {
+    case 'satellite':
+      tiles = ['https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'];
+      layerId = 'satellite-layer';
+      break;
+    case 'osm':
+      tiles = ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'];
+      layerId = 'osm-layer';
+      break;
+    case 'topo':
+      tiles = ['https://tile.opentopomap.org/{z}/{x}/{y}.png'];
+      layerId = 'topo-layer';
+      break;
+    default:
+      tiles = ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'];
+      layerId = 'osm-layer';
+  }
 
   map.once('style.load', function() {
+    map.addSource(layerId.replace('-layer', '-source'), {
+      type: 'raster',
+      tiles: tiles,
+      tileSize: 256
+    });
+
+    map.addLayer({
+      id: layerId,
+      type: 'raster',
+      source: layerId.replace('-layer', '-source')
+    });
+
     setTimeout(() => {
       if (currentDeepstate) updateDeepstate();
       if (currentFires.length > 0) updateFires();
