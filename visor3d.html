@@ -408,7 +408,7 @@ let deepstateData = null;
 let firesData = [];
 let currentFiresFiltered = [];
 let selectedRegion = null;
-let activePopup = null; // ✅ Variable global para el popup activo
+let activePopup = null;
 
 const map = new maplibregl.Map({
   container: 'map',
@@ -422,6 +422,17 @@ const map = new maplibregl.Map({
 });
 
 map.addControl(new maplibregl.NavigationControl(), 'top-right');
+
+// ============================================================
+// ✅ FUNCIÓN AUXILIAR PARA ESPERAR A QUE EL MAPA ESTÉ CARGADO
+// ============================================================
+function whenMapLoaded(callback) {
+  if (map.loaded()) {
+    callback();
+  } else {
+    map.on('load', callback);
+  }
+}
 
 // ============================================================
 // FUNCIONES DE ESTILO
@@ -496,7 +507,6 @@ function updateDeepstate() {
 }
 
 function updateFires() {
-  // ✅ Si hay un popup abierto, cerrarlo al actualizar
   if (activePopup) {
     activePopup.remove();
     activePopup = null;
@@ -568,10 +578,8 @@ function updateFires() {
     }
   });
 
-  // ✅ Registro del evento click con gestión de popup único
   map.off('click', 'fires-layer');
   map.on('click', 'fires-layer', function(e) {
-    // ✅ Cerrar popup anterior si existe
     if (activePopup) {
       activePopup.remove();
       activePopup = null;
@@ -588,7 +596,6 @@ function updateFires() {
     const googleEarthUrl = `https://earth.google.com/web/search/${lat},${lon}`;
     const yandexUrl = `https://yandex.com/maps/?pt=${lon},${lat}&z=15`;
 
-    // ✅ Crear y guardar referencia al nuevo popup
     activePopup = new maplibregl.Popup({
       closeButton: true,
       closeOnClick: false,
@@ -610,7 +617,6 @@ function updateFires() {
       `)
       .addTo(map);
 
-    // ✅ Limpiar referencia cuando el usuario cierra el popup
     activePopup.on('close', () => {
       activePopup = null;
     });
@@ -738,7 +744,6 @@ function updateTerrain() {
 // ============================================================
 
 function updateBaseMap() {
-  // ✅ Si hay un popup abierto, cerrarlo al cambiar de mapa
   if (activePopup) {
     activePopup.remove();
     activePopup = null;
@@ -814,14 +819,14 @@ function updateBaseMap() {
 }
 
 // ============================================================
-// CARGAR DATOS
+// ✅ CARGAR DATOS CON whenMapLoaded
 // ============================================================
 
 fetch(DEEPSTATE_URL)
   .then(r => r.json())
   .then(data => {
     deepstateData = data;
-    map.on('load', function() {
+    whenMapLoaded(function() {
       updateDeepstate();
       updateTerrain();
     });
@@ -832,7 +837,7 @@ fetch(FIRMS_URL)
   .then(r => r.json())
   .then(data => {
     firesData = data.features || [];
-    map.on('load', function() {
+    whenMapLoaded(function() {
       updateFires();
     });
   })
