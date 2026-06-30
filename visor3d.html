@@ -253,6 +253,7 @@
     user-select: none;
     border-bottom: 1px solid #21262d;
     border-radius: 8px 8px 0 0;
+    pointer-events: auto !important;
   }
   .popup-header:active {
     cursor: grabbing;
@@ -283,6 +284,7 @@
     line-height: 1;
     border: none;
     transition: background 0.15s ease;
+    pointer-events: auto !important;
   }
   .popup-btn:hover {
     background: #30363d;
@@ -296,6 +298,10 @@
   }
   .popup-body.minimized {
     display: none;
+  }
+
+  .maplibregl-popup {
+    pointer-events: auto !important;
   }
 
   #info {
@@ -462,9 +468,14 @@ function whenMapLoaded(callback) {
 }
 
 // ============================================================
-// ✅ FUNCIÓN PARA HACER ARRASTRABLE EL POPUP
+// ✅ FUNCIÓN PARA HACER ARRASTRABLE EL POPUP (VERSIÓN ROBUSTA)
 // ============================================================
 function makeDraggable(popupEl, handleEl) {
+  if (!handleEl) {
+    console.error('makeDraggable: no se encontró el elemento de cabecera (.popup-header)');
+    return;
+  }
+
   let offsetX = 0, offsetY = 0, isDragging = false;
 
   function getXY(e) {
@@ -473,16 +484,22 @@ function makeDraggable(popupEl, handleEl) {
   }
 
   function onStart(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
     isDragging = true;
     const rect = popupEl.getBoundingClientRect();
     const pos = getXY(e);
     offsetX = pos.x - rect.left;
     offsetY = pos.y - rect.top;
+
     popupEl.style.transform = 'none';
     popupEl.style.position = 'fixed';
     popupEl.style.left = rect.left + 'px';
     popupEl.style.top = rect.top + 'px';
     popupEl.style.margin = '0';
+    popupEl.style.zIndex = '3000';
+
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onEnd);
     document.addEventListener('touchmove', onMove, { passive: false });
@@ -491,13 +508,14 @@ function makeDraggable(popupEl, handleEl) {
 
   function onMove(e) {
     if (!isDragging) return;
-    if (e.touches) e.preventDefault();
+    e.preventDefault();
     const pos = getXY(e);
     popupEl.style.left = (pos.x - offsetX) + 'px';
     popupEl.style.top = (pos.y - offsetY) + 'px';
   }
 
-  function onEnd() {
+  function onEnd(e) {
+    if (!isDragging) return;
     isDragging = false;
     document.removeEventListener('mousemove', onMove);
     document.removeEventListener('mouseup', onEnd);
@@ -506,7 +524,7 @@ function makeDraggable(popupEl, handleEl) {
   }
 
   handleEl.addEventListener('mousedown', onStart);
-  handleEl.addEventListener('touchstart', onStart, { passive: true });
+  handleEl.addEventListener('touchstart', onStart, { passive: false });
 }
 
 // ============================================================
@@ -671,7 +689,6 @@ function updateFires() {
     const googleEarthUrl = `https://earth.google.com/web/search/${lat},${lon}`;
     const yandexUrl = `https://yandex.com/maps/?pt=${lon},${lat}&z=15`;
 
-    // ✅ CREAR POPUP CON CABECERA ARRASTRABLE
     activePopup = new maplibregl.Popup({
       closeButton: false,
       closeOnClick: false,
@@ -704,35 +721,49 @@ function updateFires() {
       activePopup = null;
     });
 
-    // ✅ Configurar arrastre y botones
+    // ✅ Configurar arrastre y botones (con comprobación de existencia)
     const popupEl = activePopup.getElement();
-    const headerEl = popupEl.querySelector('.popup-header');
-    makeDraggable(popupEl, headerEl);
 
-    // ✅ Botón cerrar
-    popupEl.querySelector('#popup-close').addEventListener('click', () => {
-      activePopup.remove();
-      activePopup = null;
-    });
+    if (popupEl) {
+      popupEl.style.pointerEvents = 'auto';
 
-    // ✅ Botón minimizar
-    popupEl.querySelector('#popup-min').addEventListener('click', (ev) => {
-      const body = popupEl.querySelector('#popup-body');
-      body.classList.toggle('minimized');
-      ev.target.textContent = body.classList.contains('minimized') ? '▢' : '─';
-    });
+      const headerEl = popupEl.querySelector('.popup-header');
+      makeDraggable(popupEl, headerEl);
 
-    // ✅ En móvil, reposicionar el popup para que no se salga de la pantalla
-    if (window.innerWidth < 640) {
-      setTimeout(() => {
-        const rect = popupEl.getBoundingClientRect();
-        if (rect.right > window.innerWidth) {
-          popupEl.style.left = (window.innerWidth - rect.width - 10) + 'px';
-        }
-        if (rect.bottom > window.innerHeight) {
-          popupEl.style.top = (window.innerHeight - rect.height - 10) + 'px';
-        }
-      }, 10);
+      const closeBtn = popupEl.querySelector('#popup-close');
+      const minBtn = popupEl.querySelector('#popup-min');
+
+      if (closeBtn) {
+        closeBtn.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          activePopup.remove();
+          activePopup = null;
+        });
+      }
+
+      if (minBtn) {
+        minBtn.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          const body = popupEl.querySelector('#popup-body');
+          body.classList.toggle('minimized');
+          ev.target.textContent = body.classList.contains('minimized') ? '▢' : '─';
+        });
+      }
+
+      // ✅ En móvil, reposicionar el popup para que no se salga de la pantalla
+      if (window.innerWidth < 640) {
+        setTimeout(() => {
+          const rect = popupEl.getBoundingClientRect();
+          if (rect.right > window.innerWidth) {
+            popupEl.style.left = (window.innerWidth - rect.width - 10) + 'px';
+          }
+          if (rect.bottom > window.innerHeight) {
+            popupEl.style.top = (window.innerHeight - rect.height - 10) + 'px';
+          }
+        }, 10);
+      }
+    } else {
+      console.error('No se pudo obtener el elemento del popup');
     }
   });
 
@@ -894,117 +925,3 @@ function updateBaseMap() {
   let layerId = '';
 
   switch(selected) {
-    case 'satellite':
-      tiles = ['https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'];
-      layerId = 'satellite-layer';
-      break;
-    case 'osm':
-      tiles = ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'];
-      layerId = 'osm-layer';
-      break;
-    case 'topo':
-      tiles = ['https://tile.opentopomap.org/{z}/{x}/{y}.png'];
-      layerId = 'topo-layer';
-      break;
-    default:
-      tiles = ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'];
-      layerId = 'osm-layer';
-  }
-
-  map.once('style.load', function() {
-    map.addSource(layerId.replace('-layer', '-source'), {
-      type: 'raster',
-      tiles: tiles,
-      tileSize: 256
-    });
-
-    map.addLayer({
-      id: layerId,
-      type: 'raster',
-      source: layerId.replace('-layer', '-source')
-    });
-
-    setTimeout(() => {
-      if (currentDeepstate) updateDeepstate();
-      if (currentFires.length > 0) updateFires();
-      updateTerrain();
-    }, 200);
-  });
-}
-
-// ============================================================
-// ✅ CARGAR DATOS CON whenMapLoaded
-// ============================================================
-
-fetch(DEEPSTATE_URL)
-  .then(r => r.json())
-  .then(data => {
-    deepstateData = data;
-    whenMapLoaded(function() {
-      updateDeepstate();
-      updateTerrain();
-    });
-  })
-  .catch(e => console.error('DeepState error:', e));
-
-fetch(FIRMS_URL)
-  .then(r => r.json())
-  .then(data => {
-    firesData = data.features || [];
-    whenMapLoaded(function() {
-      updateFires();
-    });
-  })
-  .catch(e => console.error('FIRMS error:', e));
-
-// ============================================================
-// CONTROLES
-// ============================================================
-
-document.getElementById('map-style-selector').addEventListener('change', updateBaseMap);
-
-document.getElementById('time-range-selector').addEventListener('change', function() {
-  if (activePopup) {
-    activePopup.remove();
-    activePopup = null;
-  }
-  selectedRegion = null;
-  updateFires();
-});
-
-document.getElementById('chk-deepstate').addEventListener('change', updateDeepstate);
-document.getElementById('color-fill').addEventListener('input', updateDeepstate);
-document.getElementById('color-line').addEventListener('input', updateDeepstate);
-document.getElementById('opacity-fill').addEventListener('input', function() {
-  document.getElementById('val-opacity-fill').textContent = (this.value / 100).toFixed(2);
-  updateDeepstate();
-});
-document.getElementById('opacity-line').addEventListener('input', function() {
-  document.getElementById('val-opacity-line').textContent = (this.value / 100).toFixed(2);
-  updateDeepstate();
-});
-
-document.getElementById('chk-fires').addEventListener('change', updateFires);
-document.getElementById('frp-slider').addEventListener('input', function() {
-  document.getElementById('val-frp').textContent = this.value;
-  updateFires();
-});
-
-document.getElementById('chk-terrain').addEventListener('change', updateTerrain);
-document.getElementById('pitch-slider').addEventListener('input', function() {
-  document.getElementById('val-pitch').textContent = this.value;
-  updateTerrain();
-});
-
-// ============================================================
-// INICIAR
-// ============================================================
-
-map.on('load', function() {
-  updateTerrain();
-  updateAttribution('dark');
-  console.log('✅ Visor listo');
-});
-</script>
-</body>
-</html>
