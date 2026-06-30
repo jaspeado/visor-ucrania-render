@@ -225,22 +225,13 @@
     font-weight: 600;
   }
 
-  /* ✅ POPUP SIN BLUR (FORZADO) */
+  /* ✅ POPUP CORRECTO - SIN BLUR, SIN TRUCOS */
   .maplibregl-popup {
     font-family: 'Inter', sans-serif;
   }
 
-  .maplibregl-popup-content,
-  .maplibregl-popup-tip,
-  .maplibregl-popup-close-button {
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    filter: none !important;
-    -webkit-filter: none !important;
-    background: #0d1117 !important;
-  }
-
   .maplibregl-popup-content {
+    background: #0d1117 !important;
     color: #e6edf3 !important;
     border: 1px solid #30363d !important;
     border-radius: 8px !important;
@@ -264,7 +255,6 @@
     cursor: pointer !important;
     opacity: 0.8 !important;
     line-height: 1 !important;
-    transition: opacity 0.15s ease;
   }
   .maplibregl-popup-close-button:hover {
     opacity: 1 !important;
@@ -436,8 +426,9 @@ const map = new maplibregl.Map({
   center: [32.0, 48.5],
   zoom: 5.5,
   pitch: 45,
+  renderWorldCopies: false,
   antialias: true,
-  fadeDuration: 0
+  preserveDrawingBuffer: true
 });
 
 map.addControl(new maplibregl.NavigationControl(), 'top-right');
@@ -466,16 +457,6 @@ function updateAttribution(style) {
     'topo': '🗺️ Fuente: OpenTopoMap (© OpenStreetMap contributors)'
   };
   attributionText.textContent = sources[style] || sources['dark'];
-}
-
-// ✅ Función para eliminar blur residual de los popups
-function removePopupBlur() {
-  document.querySelectorAll('.maplibregl-popup-content, .maplibregl-popup-tip, .maplibregl-popup-close-button').forEach(el => {
-    el.style.backdropFilter = 'none';
-    el.style.webkitBackdropFilter = 'none';
-    el.style.filter = 'none';
-    el.style.webkitFilter = 'none';
-  });
 }
 
 // ============================================================
@@ -625,9 +606,6 @@ function updateFires() {
         </div>
       `)
       .addTo(map);
-
-    // ✅ Eliminar blur residual después de abrir el popup
-    setTimeout(removePopupBlur, 10);
   });
 
   map.on('mouseenter', 'fires-layer', () => map.getCanvas().style.cursor = 'pointer');
@@ -635,9 +613,6 @@ function updateFires() {
 
   document.getElementById('stats-fires').textContent = '🔥 ' + finalFiltered.length;
   updateRegionLegend();
-
-  // ✅ Eliminar blur residual después de actualizar
-  setTimeout(removePopupBlur, 50);
 }
 
 // ============================================================
@@ -737,7 +712,9 @@ function updateTerrain() {
       map.addSource('terrainSource', {
         type: 'raster-dem',
         tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
-        tileSize: 256, encoding: 'terrarium', maxzoom: 14
+        tileSize: 256,
+        encoding: 'terrarium',
+        maxzoom: 14
       });
     }
     map.setTerrain({ source: 'terrainSource', exaggeration: 2.0 });
@@ -774,8 +751,6 @@ function updateBaseMap() {
         if (currentDeepstate) updateDeepstate();
         if (currentFires.length > 0) updateFires();
         updateTerrain();
-        // ✅ Eliminar blur después de cambiar el mapa
-        setTimeout(removePopupBlur, 100);
       }, 200);
     });
     return;
@@ -821,8 +796,6 @@ function updateBaseMap() {
       if (currentDeepstate) updateDeepstate();
       if (currentFires.length > 0) updateFires();
       updateTerrain();
-      // ✅ Eliminar blur después de cambiar el mapa
-      setTimeout(removePopupBlur, 100);
     }, 200);
   });
 }
@@ -838,7 +811,6 @@ fetch(DEEPSTATE_URL)
     map.on('load', function() {
       updateDeepstate();
       updateTerrain();
-      setTimeout(removePopupBlur, 50);
     });
   })
   .catch(e => console.error('DeepState error:', e));
@@ -849,7 +821,6 @@ fetch(FIRMS_URL)
     firesData = data.features || [];
     map.on('load', function() {
       updateFires();
-      setTimeout(removePopupBlur, 50);
     });
   })
   .catch(e => console.error('FIRMS error:', e));
@@ -896,12 +867,8 @@ document.getElementById('pitch-slider').addEventListener('input', function() {
 map.on('load', function() {
   updateTerrain();
   updateAttribution('dark');
-  setTimeout(removePopupBlur, 100);
   console.log('✅ Visor listo');
 });
-
-// ✅ Eliminar blur periódicamente (por si acaso)
-setInterval(removePopupBlur, 5000);
 </script>
 </body>
 </html>
