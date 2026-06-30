@@ -90,8 +90,6 @@
       <input type="checkbox" id="chk-terrain" checked>
       <label for="chk-terrain">🏔️ Terreno 3D</label>
     </div>
-    <label>Inclinación <span class="slider-value" id="val-pitch">45</span></label>
-    <input type="range" id="pitch-slider" min="0" max="85" value="45">
   </div>
 
   <div style="display:flex; justify-content:space-between; font-size:10px; color:#8b949e; margin-top:4px;">
@@ -111,11 +109,10 @@ const FIRMS_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-trac
 
 let deepstateData = null;
 let firesData = [];
-let currentStyle = 'dark';
 
 const map = new maplibregl.Map({
   container: 'map',
-  style: getStyleUrl('dark'),
+  style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
   center: [32.0, 48.5],
   zoom: 5.5,
   pitch: 45,
@@ -184,14 +181,10 @@ function updateDeepstate() {
   updateStats();
 }
 
-// ============================================================
-// ✅ FUNCIÓN CORREGIDA: updateFires()
-// ============================================================
 function updateFires() {
   const enabled = document.getElementById('chk-fires').checked;
   const frpMin = parseInt(document.getElementById('frp-slider').value) || 0;
 
-  // Eliminar capa y fuente anteriores
   if (map.getLayer('fires-layer')) map.removeLayer('fires-layer');
   if (map.getSource('fires')) map.removeSource('fires');
 
@@ -200,7 +193,6 @@ function updateFires() {
     return;
   }
 
-  // Filtrar por FRP mínimo
   const filtered = firesData.filter(f => (f.properties?.frp || 0) >= frpMin);
   if (filtered.length === 0) {
     updateStats();
@@ -225,7 +217,7 @@ function updateFires() {
     }
   });
 
-  // Popup (eliminar listeners anteriores para evitar duplicados)
+  // Popup
   map.off('click', 'fires-layer');
   map.on('click', 'fires-layer', function(e) {
     const p = e.features[0].properties;
@@ -240,7 +232,6 @@ function updateFires() {
 
 function updateTerrain() {
   const enabled = document.getElementById('chk-terrain').checked;
-  const pitch = parseInt(document.getElementById('pitch-slider').value);
 
   if (enabled) {
     if (!map.getSource('terrainSource')) {
@@ -251,7 +242,8 @@ function updateTerrain() {
       });
     }
     map.setTerrain({ source: 'terrainSource', exaggeration: 2.0 });
-    map.setPitch(pitch);
+    // Mantener inclinación fija en 45 grados (3D)
+    map.setPitch(45);
   } else {
     map.setTerrain(null);
     map.setPitch(0);
@@ -272,6 +264,10 @@ function updateStats() {
 function updateBaseMap() {
   const selected = document.getElementById('map-style-selector').value;
 
+  // Guardar datos actuales
+  const currentDeepstate = deepstateData;
+  const currentFires = firesData;
+
   if (selected === 'satellite') {
     if (map.getLayer('satellite-layer')) map.removeLayer('satellite-layer');
     if (map.getSource('satellite-source')) map.removeSource('satellite-source');
@@ -291,9 +287,11 @@ function updateBaseMap() {
         source: 'satellite-source'
       });
 
+      // Recargar capas de datos
       setTimeout(() => {
-        if (deepstateData) updateDeepstate();
-        if (firesData.length > 0) updateFires();
+        if (currentDeepstate) updateDeepstate();
+        if (currentFires.length > 0) updateFires();
+        updateTerrain();
       }, 200);
     });
 
@@ -303,13 +301,12 @@ function updateBaseMap() {
 
     map.once('style.load', function() {
       setTimeout(() => {
-        if (deepstateData) updateDeepstate();
-        if (firesData.length > 0) updateFires();
+        if (currentDeepstate) updateDeepstate();
+        if (currentFires.length > 0) updateFires();
+        updateTerrain();
       }, 200);
     });
   }
-
-  currentStyle = selected;
 }
 
 // ============================================================
@@ -323,6 +320,7 @@ fetch(DEEPSTATE_URL)
     map.on('load', function() {
       updateDeepstate();
       updateStats();
+      updateTerrain();
     });
   })
   .catch(e => console.error('DeepState error:', e));
@@ -357,15 +355,12 @@ document.getElementById('opacity-line').addEventListener('input', function() {
 });
 
 document.getElementById('chk-fires').addEventListener('change', updateFires);
-// ✅ EVENTO CORREGIDO: ahora llama a updateFires() y actualiza el valor mostrado
 document.getElementById('frp-slider').addEventListener('input', function() {
   document.getElementById('val-frp').textContent = this.value;
-  updateFires();  // <--- ESTA ES LA LÍNEA CLAVE
+  updateFires();
 });
 
-document.getElementById('chk-terrain').addEventListener('change', updateTerrain);
-document.getElementById('pitch-slider').addEventListener('input', function() {
-  document.getElementById('val-pitch').textContent = this.value;
+document.getElementById('chk-terrain').addEventListener('change', function() {
   updateTerrain();
 });
 
