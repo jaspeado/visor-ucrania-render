@@ -1,154 +1,199 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-    <meta charset="utf-8" />
-    <title>Visor 3D - Ucrania</title>
-    <script src="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.js">
-    </script>
-    <link href="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.css" rel="stylesheet" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IKUSIA | Geospatial Analytics & 3D Web Mapping</title>
+    
+    <!-- ✅ Tailwind CSS (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- ✅ FontAwesome 6 (CORREGIDO) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    
+    <!-- ✅ Fuente Inter (Google Fonts) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet" />
+
     <style>
-        body { margin: 0; padding: 0; }
-        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
-        #info {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(0,0,0,0.7);
-            color: white;
-            padding: 8px 14px;
-            border-radius: 5px;
-            font-family: Arial, sans-serif;
-            font-size: 12px;
-            z-index: 1000;
-            pointer-events: none;
+        * { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+        body { background-color: #0b0f14; color: #e2e8f0; }
+        .accent-orange { color: #ff5722; }
+        .bg-accent-orange { background-color: #ff5722; }
+        .bg-accent-orange:hover { background-color: #e65100; }
+        .border-sig { border-color: #00f0ff; }
+        .tech-tag { background-color: #161f2a; border: 1px solid #243447; }
+        
+        /* ✅ Scroll interno */
+        .custom-scroll::-webkit-scrollbar { width: 5px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #0f172a; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #ff5722; }
+
+        /* ✅ Efectos premium */
+        .tech-panel {
+            background: linear-gradient(145deg, #0f172a 0%, #111827 100%);
         }
-        .maplibregl-popup { max-width: 200px; }
+        .phase-box {
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+        .phase-box:hover {
+            border-left-color: #ff5722;
+            background-color: #1a2538;
+            transform: translateX(4px);
+        }
     </style>
 </head>
-<body>
-    <div id="info">🌍 Visor 3D - Ucrania (cargando...)</div>
-    <div id="map"></div>
+<body class="min-h-screen flex flex-col justify-between antialiased">
 
-    <script>
-        // --- CONFIGURACIÓN ---
-        const FIRMS_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires.geojson';
+    <!-- HEADER -->
+    <header class="border-b border-gray-800 bg-[#0f172a]/80 backdrop-blur-md sticky top-0 z-50 px-6 py-4 flex flex-wrap justify-between items-center shadow-xl">
+        <div class="flex items-center space-x-3">
+            <div class="bg-accent-orange text-white p-2 rounded-xl text-xl font-bold flex items-center justify-center w-10 h-10 shadow-lg shadow-orange-950/50">
+                <i class="fa-solid fa-satellite-dish animate-pulse"></i>
+            </div>
+            <span class="text-2xl font-black tracking-wider text-white">IKUSIA<span class="accent-orange">.COM</span></span>
+        </div>
+        <div class="flex items-center space-x-5 mt-2 sm:mt-0">
+            <a href="https://github.com/jaspeado" target="_blank" title="GitHub Project" class="text-gray-400 hover:text-white text-xl transition-all hover:scale-110"><i class="fa-brands fa-github"></i></a>
+            <a href="#" target="_blank" title="LinkedIn Profesional" class="text-gray-400 hover:text-cyan-400 text-xl transition-all hover:scale-110"><i class="fa-brands fa-linkedin"></i></a>
+            <a href="mailto:contacto@ikustia.com" title="Contacto Directo" class="text-gray-400 hover:text-accent-orange text-xl transition-all hover:scale-110"><i class="fa-solid fa-envelope"></i></a>
+        </div>
+    </header>
 
-        // --- 1. MAPA CON SATÉLITE (ARCGIS) ---
-        const map = new maplibregl.Map({
-            container: 'map',
-            style: {
-                version: 8,
-                sources: {
-                    'satelite': {
-                        type: 'raster',
-                        tiles: ['https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
-                        tileSize: 256,
-                        attribution: '© Esri, Maxar, Earthstar Geographics'
-                    }
-                },
-                layers: [
-                    { id: 'satelite-layer', type: 'raster', source: 'satelite' }
-                ]
-            },
-            center: [31.0, 48.5],
-            zoom: 6,
-            pitch: 65,
-            maxPitch: 85
-        });
+    <!-- MAIN -->
+    <main class="max-w-7xl mx-auto px-4 py-8 md:py-12 flex-grow grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+        
+        <!-- COLUMNA IZQUIERDA -->
+        <div class="lg:col-span-1 bg-[#111827] border border-gray-800 rounded-2xl p-6 shadow-2xl flex flex-col items-center sticky top-24">
+            
+            <div class="w-full flex justify-end mb-2">
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                    API Pipeline Active
+                </span>
+            </div>
 
-        map.addControl(new maplibregl.NavigationControl(), 'top-right');
+            <div class="w-28 h-28 rounded-2xl border-2 border-sig overflow-hidden mb-4 shadow-xl bg-[#1f2937] flex items-center justify-center relative group">
+                <i class="fa-solid fa-earth-europe text-5xl text-cyan-400 group-hover:rotate-12 transition-transform"></i>
+            </div>
+            
+            <h1 class="text-2xl font-bold text-white mb-1 tracking-tight">Desarrollador & Analista SIG</h1>
+            <p class="text-xs text-cyan-400 font-mono tracking-widest uppercase mb-4">Especialista en Web Mapping & Cloud</p>
+            
+            <p class="text-sm text-gray-400 mb-6 text-center leading-relaxed">
+                Soluciones geoespaciales avanzadas. Automatización de pipelines de datos satelitales (ETL), optimización de formatos vectoriales pesados y renderizado interactivo en 3D.
+            </p>
 
-        // --- 2. TERRENO 3D (AWS TERRARIUM - EL QUE FUNCIONA) ---
-        map.on('load', function() {
+            <!-- ✅ BOTÓN PRINCIPAL (CORREGIDO) -->
+            <a href="/visor3d.html" class="w-full bg-accent-orange text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-orange-950/40 transition-all transform hover:-translate-y-1 hover:brightness-110 flex items-center justify-center space-x-3 mb-4 group text-base">
+                <i class="fa-solid fa-map-location-dot text-lg group-hover:scale-110 transition-transform"></i>
+                <span>EXPLORAR VISOR 3D LIVE</span>
+            </a>
 
-            map.addSource('terrainSource', {
-                type: 'raster-dem',
-                tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
-                tileSize: 256,
-                encoding: 'terrarium',
-                maxzoom: 14
-            });
+            <a href="#" target="_blank" class="w-full bg-[#1f2937] hover:bg-gray-700 text-gray-300 font-medium py-2 px-4 rounded-xl border border-gray-700/60 transition-colors flex items-center justify-center space-x-2 text-xs">
+                <i class="fa-solid fa-heart text-red-500 animate-bounce"></i>
+                <span>Apoyar Infraestructura (Donate)</span>
+            </a>
 
-            map.setTerrain({
-                source: 'terrainSource',
-                exaggeration: 2.0
-            });
+            <div class="w-full mt-6 pt-6 border-t border-gray-800 text-left text-xs space-y-2.5 text-gray-400">
+                <div class="flex items-center gap-3"><i class="fa-solid fa-location-dot text-cyan-500 w-4"></i> <span>Disponible para Remoto / Presencial</span></div>
+                <div class="flex items-center gap-3"><i class="fa-solid fa-code text-orange-500 w-4"></i> <span>Especialidad: Python, PostGIS, MapLibre, Cloud</span></div>
+            </div>
+        </div>
 
-            console.log('✅ Terreno 3D activado');
+        <!-- COLUMNA DERECHA -->
+        <div class="lg:col-span-2 bg-[#111827] border border-gray-800 rounded-2xl p-6 md:p-8 shadow-2xl tech-panel">
+            <div class="flex items-center space-x-3 mb-6 border-b border-gray-800 pb-4">
+                <i class="fa-solid fa-gears text-2xl accent-orange"></i>
+                <div>
+                    <h2 class="text-xl font-bold text-white">Memoria de Ingeniería del Proyecto</h2>
+                    <p class="text-xs text-gray-500 mt-0.5">Arquitectura de datos para análisis táctico de incendios en zonas de conflicto (Ucrania)</p>
+                </div>
+            </div>
 
-            // --- 3. CARGAR INCENDIOS (FIRMS) ---
-            fetch(FIRMS_URL)
-                .then(response => response.json())
-                .then(data => {
-                    const features = data.features || [];
-                    const filtered = features.filter(f => (f.properties?.frp || 0) > 10);
-                    const limited = filtered.slice(0, 500);
+            <div class="space-y-6 text-gray-300 text-sm leading-relaxed max-h-[580px] overflow-y-auto pr-3 custom-scroll">
+                
+                <div>
+                    <h3 class="text-base font-semibold text-white flex items-center space-x-2 mb-2">
+                        <span class="text-cyan-400 font-mono">1.0</span> <span>Desafío Tecnológico</span>
+                    </h3>
+                    <p>
+                        Capturar, depurar y representar en un entorno 3D las <strong>anomalías térmicas en tiempo real</strong> causadas por impactos de artillería e incendios en la zona de conflicto de Ucrania. La plataforma cruza datos satelitales crudos (NASA FIRMS) con factores geopolíticos (línea del frente de DeepState) y capas de infraestructura crítica para generar inteligencia espacial accionable.
+                    </p>
+                </div>
 
-                    console.log(`🔥 ${limited.length} incendios cargados`);
+                <div>
+                    <h3 class="text-base font-semibold text-white flex items-center space-x-2 mb-2">
+                        <span class="text-cyan-400 font-mono">2.0</span> <span>Arquitectura del Pipeline de Datos (ETL)</span>
+                    </h3>
+                    <div class="space-y-3 pl-1 mt-2">
+                        <div class="bg-[#161f2a] p-3 rounded-xl border border-gray-800 phase-box">
+                            <span class="text-xs font-bold font-mono text-cyan-400 uppercase tracking-wider block mb-1">Fase 1: Ingesta Automatizada</span>
+                            Script en Python 3.12 que se ejecuta en Hugging Face Spaces. Conecta con la API FIRMS de la NASA y extrae datos de los satélites VIIRS (NOAA-20, NOAA-21, SNPP) en un bounding box de Europa del Este (22,44,41,53). Descarga en formato CSV cada 48 horas.
+                        </div>
+                        <div class="bg-[#161f2a] p-3 rounded-xl border border-gray-800 phase-box">
+                            <span class="text-xs font-bold font-mono text-orange-400 uppercase tracking-wider block mb-1">Fase 2: Geoprocesamiento & Enriquecimiento</span>
+                            Uso de GeoPandas (Python) para realizar una <strong>unión espacial (Spatial Join)</strong> entre los puntos de incendio y un archivo de 70 MB con 3.192 polígonos administrativos de Ucrania, Rusia y Bielorrusia. Se asignan a cada punto los campos <code>NAME_1</code> (región) y <code>locality</code> (localidad), eliminando el ruido de incendios en zonas industriales.
+                        </div>
+                        <div class="bg-[#161f2a] p-3 rounded-xl border border-gray-800 phase-box">
+                            <span class="text-xs font-bold font-mono text-emerald-400 uppercase tracking-wider block mb-1">Fase 3: Optimización & Despliegue Cloud-Native</span>
+                            Los datos procesados se convierten a GeoJSON y se almacenan en GitHub. El visor frontend (desplegado en Render) consume este archivo de forma nativa. Para mejorar la experiencia de usuario, se implementan <strong>ventanas flotantes arrastrables</strong> (panel de control y leyenda) y se optimiza la carga de mapas base mediante técnicas de caching y <code>renderWorldCopies: false</code> para evitar errores de renderizado 3D.
+                        </div>
+                    </div>
+                </div>
 
-                    if (limited.length > 0) {
-                        map.addSource('fires', {
-                            type: 'geojson',
-                            data: {
-                                type: 'FeatureCollection',
-                                features: limited
-                            }
-                        });
+                <div>
+                    <h3 class="text-base font-semibold text-white flex items-center space-x-2 mb-2">
+                        <span class="text-cyan-400 font-mono">3.0</span> <span>Stack Tecnológico</span>
+                    </h3>
+                    <div class="flex flex-wrap gap-1.5">
+                        <span class="tech-tag text-cyan-300 text-xs px-3 py-1 rounded-full">Python 3.12</span>
+                        <span class="tech-tag text-cyan-300 text-xs px-3 py-1 rounded-full">GeoPandas</span>
+                        <span class="tech-tag text-cyan-300 text-xs px-3 py-1 rounded-full">Shapely</span>
+                        <span class="tech-tag text-cyan-300 text-xs px-3 py-1 rounded-full">MapLibre GL JS 4.0</span>
+                        <span class="tech-tag text-cyan-300 text-xs px-3 py-1 rounded-full">Hugging Face</span>
+                        <span class="tech-tag text-cyan-300 text-xs px-3 py-1 rounded-full">Render</span>
+                        <span class="tech-tag text-cyan-300 text-xs px-3 py-1 rounded-full">GitHub API</span>
+                        <span class="tech-tag text-cyan-300 text-xs px-3 py-1 rounded-full">Tailwind CSS</span>
+                        <span class="tech-tag text-cyan-300 text-xs px-3 py-1 rounded-full">NASA FIRMS</span>
+                        <span class="tech-tag text-cyan-300 text-xs px-3 py-1 rounded-full">DeepState UA</span>
+                    </div>
+                </div>
 
-                        map.addLayer({
-                            id: 'fires-layer',
-                            type: 'circle',
-                            source: 'fires',
-                            paint: {
-                                'circle-radius': [
-                                    'interpolate', ['linear'], ['get', 'frp'],
-                                    10, 4,
-                                    50, 12,
-                                    100, 20
-                                ],
-                                'circle-color': [
-                                    'interpolate', ['linear'], ['get', 'frp'],
-                                    10, '#FF6600',
-                                    50, '#FF0000',
-                                    100, '#CC0000'
-                                ],
-                                'circle-stroke-color': '#FFFF00',
-                                'circle-stroke-width': 1,
-                                'circle-opacity': 0.85,
-                                'circle-stroke-opacity': 0.8
-                            }
-                        });
+                <div>
+                    <h3 class="text-base font-semibold text-white flex items-center space-x-2 mb-2">
+                        <span class="text-cyan-400 font-mono">4.0</span> <span>Métricas y Performance</span>
+                    </h3>
+                    <ul class="list-disc list-inside space-y-1 text-gray-400 text-xs">
+                        <li><span class="text-white font-medium">Volumen de datos:</span> Procesamiento de ~3.000 puntos de incendio por ejecución con un 95% de tasa de enriquecimiento exitoso.</li>
+                        <li><span class="text-white font-medium">Latencia:</span> Tiempo de carga de la aplicación en Render: 3-5 segundos. Actualización de datos cada 48h.</li>
+                        <li><span class="text-white font-medium">Cobertura:</span> Archivo base de 70 MB con 3.192 polígonos. Visualización en tiempo real con MapLibre GL.</li>
+                    </ul>
+                </div>
 
-                        const popup = new maplibregl.Popup({
-                            closeButton: true,
-                            closeOnClick: false
-                        });
+                <div>
+                    <h3 class="text-base font-semibold text-white flex items-center space-x-2 mb-2">
+                        <span class="text-cyan-400 font-mono">5.0</span> <span>Roadmap de Desarrollo</span>
+                    </h3>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="bg-[#161f2a] border border-gray-800 text-cyan-300 text-xs px-3 py-1 rounded-full">Alertas Telegram</span>
+                        <span class="bg-[#161f2a] border border-gray-800 text-cyan-300 text-xs px-3 py-1 rounded-full">Análisis histórico (áreas ocupadas)</span>
+                        <span class="bg-[#161f2a] border border-gray-800 text-cyan-300 text-xs px-3 py-1 rounded-full">Integración capa Liveuamap</span>
+                        <span class="bg-[#161f2a] border border-gray-800 text-cyan-300 text-xs px-3 py-1 rounded-full">Panel de estadísticas FRP por región</span>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2 italic">Colaboración y propuestas técnicas: <a href="mailto:contacto@ikustia.com" class="text-cyan-400 hover:underline">contacto@ikustia.com</a></p>
+                </div>
 
-                        map.on('click', 'fires-layer', function(e) {
-                            const props = e.features[0].properties;
-                            popup
-                                .setLngLat(e.lngLat)
-                                .setHTML(`
-                                    <strong>🔥 FRP:</strong> ${props.frp || 0} MW<br>
-                                    <strong>📅 Fecha:</strong> ${props.acq_date || 'N/A'}<br>
-                                    <strong>🛰️ Satélite:</strong> ${props.satellite || 'N/A'}
-                                `)
-                                .addTo(map);
-                        });
+            </div>
+        </div>
+    </main>
 
-                        map.on('mouseenter', 'fires-layer', function() {
-                            map.getCanvas().style.cursor = 'pointer';
-                        });
-                        map.on('mouseleave', 'fires-layer', function() {
-                            map.getCanvas().style.cursor = '';
-                        });
-                    }
+    <!-- FOOTER -->
+    <footer class="border-t border-gray-800 bg-[#0f172a] px-6 py-4 mt-12 text-center text-[10px] text-gray-600 flex flex-col sm:flex-row justify-between items-center">
+        <span>&copy; 2026 <span class="text-white font-medium">IKUSIA</span>. Todos los derechos reservados.</span>
+        <span class="mt-1 sm:mt-0">Geospatial Intelligence · v2.0 · Desarrollado con <i class="fa-solid fa-heart text-red-500/80"></i> para la comunidad OSINT</span>
+    </footer>
 
-                    document.getElementById('info').textContent =
-                        `🌍 Visor 3D | ${limited.length} incendios | Terreno activo | Satélite Esri`;
-                })
-                .catch(error => console.error('❌ Error FIRMS:', error));
-        });
-    </script>
 </body>
 </html>
