@@ -112,7 +112,6 @@ const FIRMS_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-trac
 let deepstateData = null;
 let firesData = [];
 let currentStyle = 'dark';
-let styleLoadTimeout = null;
 
 const map = new maplibregl.Map({
   container: 'map',
@@ -130,20 +129,11 @@ map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
 function getStyleUrl(style) {
   switch(style) {
-    case 'satellite':
-      return 'https://basemaps.cartocdn.com/gl/gl-maps-gl-style/style.json';
-    case 'dark':
-      return 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
-    case 'osm':
-      return 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
-    default:
-      return 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
+    case 'satellite': return 'https://basemaps.cartocdn.com/gl/gl-maps-gl-style/style.json';
+    case 'dark': return 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
+    case 'osm': return 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+    default: return 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
   }
-}
-
-function getSatelliteTiles() {
-  // ArcGIS Satellite (fuente directa, sin estilo)
-  return 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 }
 
 // ============================================================
@@ -194,17 +184,28 @@ function updateDeepstate() {
   updateStats();
 }
 
+// ============================================================
+// ✅ FUNCIÓN CORREGIDA: updateFires()
+// ============================================================
 function updateFires() {
   const enabled = document.getElementById('chk-fires').checked;
-  const frpMin = parseInt(document.getElementById('frp-slider').value);
+  const frpMin = parseInt(document.getElementById('frp-slider').value) || 0;
 
+  // Eliminar capa y fuente anteriores
   if (map.getLayer('fires-layer')) map.removeLayer('fires-layer');
   if (map.getSource('fires')) map.removeSource('fires');
 
-  if (!enabled || firesData.length === 0) return;
+  if (!enabled || firesData.length === 0) {
+    updateStats();
+    return;
+  }
 
+  // Filtrar por FRP mínimo
   const filtered = firesData.filter(f => (f.properties?.frp || 0) >= frpMin);
-  if (filtered.length === 0) return;
+  if (filtered.length === 0) {
+    updateStats();
+    return;
+  }
 
   map.addSource('fires', {
     type: 'geojson',
@@ -224,7 +225,8 @@ function updateFires() {
     }
   });
 
-  // Popup
+  // Popup (eliminar listeners anteriores para evitar duplicados)
+  map.off('click', 'fires-layer');
   map.on('click', 'fires-layer', function(e) {
     const p = e.features[0].properties;
     new maplibregl.Popup()
@@ -257,31 +259,25 @@ function updateTerrain() {
 }
 
 function updateStats() {
-  const n1 = firesData.filter(f => (f.properties?.frp || 0) >= parseInt(document.getElementById('frp-slider').value)).length;
+  const frpMin = parseInt(document.getElementById('frp-slider').value) || 0;
+  const n1 = firesData.filter(f => (f.properties?.frp || 0) >= frpMin).length;
   const n2 = deepstateData?.features?.length || 0;
   document.getElementById('stats').textContent = `🔥 ${n1} | 📦 ${n2}`;
 }
 
 // ============================================================
-// MAPA BASE (con cambio de estilo)
+// MAPA BASE
 // ============================================================
 
 function updateBaseMap() {
   const selected = document.getElementById('map-style-selector').value;
 
   if (selected === 'satellite') {
-    // Usar capa de satélite directa (ArcGIS)
     if (map.getLayer('satellite-layer')) map.removeLayer('satellite-layer');
     if (map.getSource('satellite-source')) map.removeSource('satellite-source');
 
-    // Establecer estilo base sin capa raster (solo fondo)
-    map.setStyle({
-      version: 8,
-      sources: {},
-      layers: []
-    });
+    map.setStyle({ version: 8, sources: {}, layers: [] });
 
-    // Esperar a que el estilo cargue y añadir satélite
     map.once('style.load', function() {
       map.addSource('satellite-source', {
         type: 'raster',
@@ -295,7 +291,6 @@ function updateBaseMap() {
         source: 'satellite-source'
       });
 
-      // Recargar capas de datos
       setTimeout(() => {
         if (deepstateData) updateDeepstate();
         if (firesData.length > 0) updateFires();
@@ -303,7 +298,6 @@ function updateBaseMap() {
     });
 
   } else {
-    // Usar estilo CartoDB
     const styleUrl = getStyleUrl(selected);
     map.setStyle(styleUrl);
 
@@ -348,10 +342,7 @@ fetch(FIRMS_URL)
 // CONTROLES
 // ============================================================
 
-document.getElementById('map-style-selector').addEventListener('change', function() {
-  // Guardar el estado actual de las capas antes de cambiar
-  updateBaseMap();
-});
+document.getElementById('map-style-selector').addEventListener('change', updateBaseMap);
 
 document.getElementById('chk-deepstate').addEventListener('change', updateDeepstate);
 document.getElementById('color-fill').addEventListener('input', updateDeepstate);
@@ -366,9 +357,10 @@ document.getElementById('opacity-line').addEventListener('input', function() {
 });
 
 document.getElementById('chk-fires').addEventListener('change', updateFires);
+// ✅ EVENTO CORREGIDO: ahora llama a updateFires() y actualiza el valor mostrado
 document.getElementById('frp-slider').addEventListener('input', function() {
   document.getElementById('val-frp').textContent = this.value;
-  updateFires();
+  updateFires();  // <--- ESTA ES LA LÍNEA CLAVE
 });
 
 document.getElementById('chk-terrain').addEventListener('change', updateTerrain);
