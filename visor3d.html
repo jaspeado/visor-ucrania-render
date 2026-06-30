@@ -49,7 +49,8 @@
     <select id="map-style-selector">
       <option value="satellite">🛰️ Satélite</option>
       <option value="dark" selected>🌍 CartoDB Dark</option>
-      <option value="osm">🌍 Callejero</option>
+      <option value="osm">🌍 Callejero (OSM)</option>
+      <option value="topo">🗺️ Topográfico (OpenTopoMap)</option>
     </select>
   </div>
 
@@ -127,6 +128,7 @@ function getStyleUrl(style) {
     case 'satellite': return 'https://basemaps.cartocdn.com/gl/gl-maps-gl-style/style.json';
     case 'dark': return 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
     case 'osm': return 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+    case 'topo': return 'https://tiles.opentopomap.org/styles/leisure/opentopomap.json';
     default: return 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
   }
 }
@@ -179,9 +181,6 @@ function updateDeepstate() {
   updateStats();
 }
 
-// ============================================================
-// ✅ FUNCIÓN CORREGIDA: updateFires()
-// ============================================================
 function updateFires() {
   const enabled = document.getElementById('chk-fires').checked;
   const frpMin = parseInt(document.getElementById('frp-slider').value) || 0;
@@ -265,10 +264,10 @@ function updateStats() {
 function updateBaseMap() {
   const selected = document.getElementById('map-style-selector').value;
 
-  // Guardar datos actuales
   const currentDeepstate = deepstateData;
   const currentFires = firesData;
 
+  // Si es satélite, usar capa raster especial
   if (selected === 'satellite') {
     if (map.getLayer('satellite-layer')) map.removeLayer('satellite-layer');
     if (map.getSource('satellite-source')) map.removeSource('satellite-source');
@@ -288,26 +287,26 @@ function updateBaseMap() {
         source: 'satellite-source'
       });
 
-      // Recargar capas de datos
       setTimeout(() => {
         if (currentDeepstate) updateDeepstate();
         if (currentFires.length > 0) updateFires();
         updateTerrain();
       }, 200);
     });
-
-  } else {
-    const styleUrl = getStyleUrl(selected);
-    map.setStyle(styleUrl);
-
-    map.once('style.load', function() {
-      setTimeout(() => {
-        if (currentDeepstate) updateDeepstate();
-        if (currentFires.length > 0) updateFires();
-        updateTerrain();
-      }, 200);
-    });
+    return;
   }
+
+  // Para el resto de estilos (incluyendo topo), usar setStyle
+  const styleUrl = getStyleUrl(selected);
+  map.setStyle(styleUrl);
+
+  map.once('style.load', function() {
+    setTimeout(() => {
+      if (currentDeepstate) updateDeepstate();
+      if (currentFires.length > 0) updateFires();
+      updateTerrain();
+    }, 200);
+  });
 }
 
 // ============================================================
@@ -358,7 +357,7 @@ document.getElementById('opacity-line').addEventListener('input', function() {
 document.getElementById('chk-fires').addEventListener('change', updateFires);
 document.getElementById('frp-slider').addEventListener('input', function() {
   document.getElementById('val-frp').textContent = this.value;
-  updateFires(); // <-- ESTA ES LA LÍNEA QUE ARREGLA EL FRP
+  updateFires();
 });
 
 document.getElementById('chk-terrain').addEventListener('change', updateTerrain);
