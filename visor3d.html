@@ -4,171 +4,594 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Visor Ucrania 3D</title>
-<script src="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.js">
+</script>
 <link href="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.css" rel="stylesheet">
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { width: 100%; height: 100%; }
-  #map { width: 100%; height: 100vh; }
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  html,
+  body {
+    width: 100%;
+    height: 100%;
+  }
+  #map {
+    width: 100%;
+    height: 100vh;
+  }
+
+  /* ======================================== */
+  /* PANEL DE CONTROL (lateral)              */
+  /* ======================================== */
+  #panel {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 1000;
+    background: rgba(13, 17, 23, 0.92);
+    backdrop-filter: blur(8px);
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 14px 16px;
+    width: 240px;
+    max-height: calc(100% - 80px);
+    overflow-y: auto;
+    font-size: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    pointer-events: auto;
+    color: #e6edf3;
+  }
+  #panel::-webkit-scrollbar {
+    width: 4px;
+  }
+  #panel::-webkit-scrollbar-thumb {
+    background: #30363d;
+    border-radius: 4px;
+  }
+  #panel::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  #panel h2 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #f0f6fc;
+    border-bottom: 1px solid #30363d;
+    padding-bottom: 6px;
+  }
+
+  .control-group {
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #21262d;
+  }
+  .control-group:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  .control-group label {
+    display: block;
+    font-size: 10px;
+    font-weight: 500;
+    color: #8b949e;
+    margin-bottom: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .control-group input[type="range"] {
+    width: 100%;
+    margin: 2px 0 4px;
+    accent-color: #58a6ff;
+    background: #30363d;
+    height: 3px;
+    border-radius: 4px;
+    -webkit-appearance: none;
+  }
+  .control-group input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #58a6ff;
+    cursor: pointer;
+  }
+
+  .control-group input[type="color"] {
+    width: 24px;
+    height: 24px;
+    border: 2px solid #30363d;
+    border-radius: 4px;
+    padding: 0;
+    cursor: pointer;
+    background: transparent;
+    flex-shrink: 0;
+  }
+
+  .control-group select {
+    width: 100%;
+    padding: 3px 6px;
+    background: #0d1117;
+    color: #e6edf3;
+    border: 1px solid #30363d;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+  }
+
+  .checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 2px 0;
+  }
+  .checkbox-group input[type="checkbox"] {
+    accent-color: #58a6ff;
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+  }
+  .checkbox-group label {
+    font-size: 12px;
+    color: #e6edf3;
+    text-transform: none;
+    font-weight: 400;
+    cursor: pointer;
+  }
+
+  .color-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+  }
+  .color-row span {
+    font-size: 10px;
+    color: #8b949e;
+  }
+
+  .slider-value {
+    float: right;
+    font-size: 10px;
+    color: #58a6ff;
+    font-weight: 500;
+  }
+
   #info {
-    position: absolute; top: 12px; left: 12px;
-    background: rgba(0,0,0,0.75); color: #fff;
-    padding: 10px 16px; border-radius: 8px;
-    font: 13px/1.5 Arial, sans-serif;
-    z-index: 10; pointer-events: none;
-    max-width: 260px;
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    background: rgba(13, 17, 23, 0.85);
+    padding: 4px 14px;
+    border-radius: 20px;
+    border: 1px solid #30363d;
+    color: #8b949e;
+    font-size: 11px;
+    pointer-events: none;
+    white-space: nowrap;
   }
+
   #legend {
-    position: absolute; bottom: 30px; left: 12px;
-    background: rgba(0,0,0,0.75); color: #fff;
-    padding: 10px 14px; border-radius: 8px;
-    font: 12px Arial, sans-serif; z-index: 10;
+    position: absolute;
+    bottom: 30px;
+    left: 12px;
+    background: rgba(0, 0, 0, 0.75);
+    color: #fff;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font: 12px Arial, sans-serif;
+    z-index: 10;
   }
-  .legend-item { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
-  .legend-color { width: 20px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 4px 0;
+  }
+  .legend-color {
+    width: 20px;
+    height: 14px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 640px) {
+    #panel {
+      width: 200px;
+      padding: 10px;
+      font-size: 11px;
+      max-height: calc(100% - 80px);
+      top: 60px;
+      left: 6px;
+    }
+  }
 </style>
 </head>
 <body>
-<div id="map"></div>
-<div id="info">
-  🌍 <strong>Visor Ucrania 3D</strong><br>
-  <span id="status">⏳ Cargando...</span>
-</div>
-<div id="legend">
-  <div class="legend-item"><div class="legend-color" style="background:#cc2200;opacity:0.7"></div> Territorio ocupado</div>
-  <div class="legend-item"><div class="legend-color" style="background:#FF6600"></div> 🔥 Incendios (FRP > 10 MW)</div>
-</div>
 
-<script>
-const DEEPSTATE_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/deepstate_actual.geojson';
-const FIRES_URL     = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires.geojson';
+  <!-- PANEL DE CONTROL -->
+  <div id="panel">
+    <h2>🎛️ Controles</h2>
 
-// ── MAPA ──────────────────────────────────────────────────────────────────
-const map = new maplibregl.Map({
-  container: 'map',
-  style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
-  center: [32.0, 48.5],
-  zoom: 5.5,
-  pitch: 0,        // SIN pitch para que fill sea siempre visible
-  bearing: 0,
-  antialias: true,
-});
+    <!-- Mapa base -->
+    <div class="control-group">
+      <label>🗺️ Mapa base</label>
+      <select id="map-style-selector">
+        <option value="satellite">🛰️ Satélite (ArcGIS)</option>
+        <option value="carto" selected>🌍 CartoDB (Dark)</option>
+        <option value="osm">🌍 Callejero (OSM)</option>
+        <option value="topo">🗺️ Topográfico</option>
+      </select>
+      <div class="checkbox-group" style="margin-top:4px;">
+        <input type="checkbox" id="chk-terrain" checked>
+        <label for="chk-terrain">🏔️ Terreno 3D</label>
+      </div>
+      <label>Inclinación <span class="slider-value" id="val-pitch">45</span></label>
+      <input type="range" id="pitch-control" min="0" max="85" value="45">
+    </div>
 
-map.addControl(new maplibregl.NavigationControl(), 'top-right');
-map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-right');
+    <!-- DeepState -->
+    <div class="control-group">
+      <div class="checkbox-group">
+        <input type="checkbox" id="chk-deepstate" checked>
+        <label for="chk-deepstate">🟥 Línea del frente</label>
+      </div>
+      <div class="color-row">
+        <input type="color" id="color-deepstate-fill" value="#cc2200">
+        <span>Relleno</span>
+        <span style="margin-left:auto; font-size:10px;">Opacidad <span class="slider-value" id="val-opacity-ds-fill">0.45</span></span>
+      </div>
+      <input type="range" id="opacity-ds-fill" min="0" max="100" value="45">
+      <div class="color-row" style="margin-top:2px;">
+        <input type="color" id="color-deepstate-line" value="#ffffff">
+        <span>Borde</span>
+        <span style="margin-left:auto; font-size:10px;">Opacidad <span class="slider-value" id="val-opacity-ds-line">0.90</span></span>
+      </div>
+      <input type="range" id="opacity-ds-line" min="0" max="100" value="90">
+    </div>
 
-function setStatus(msg) {
-  document.getElementById('status').textContent = msg;
-}
+    <!-- Incendios -->
+    <div class="control-group">
+      <div class="checkbox-group">
+        <input type="checkbox" id="chk-fires" checked>
+        <label for="chk-fires">🔥 Incendios (VIIRS)</label>
+      </div>
+      <label>FRP mínimo <span class="slider-value" id="val-frp-min">10</span></label>
+      <input type="range" id="frp-min" min="0" max="100" value="10">
+    </div>
 
-// ── CARGAR DATOS ──────────────────────────────────────────────────────────
-map.on('load', async function () {
+    <!-- Stats -->
+    <div style="display:flex; justify-content:space-between; font-size:10px; color:#8b949e; margin-top:6px; padding-top:6px; border-top:1px solid #21262d;">
+      <span id="stats-fires">🔥 0</span>
+      <span id="stats-deepstate">📦 0</span>
+    </div>
+  </div>
 
-  // 1. DEEPSTATE (territorios ocupados)
-  try {
-    const res = await fetch(DEEPSTATE_URL);
-    const geojson = await res.json();
+  <div id="info">🌍 Visor 3D Ucrania | Clic en punto para detalles</div>
 
-    map.addSource('deepstate', {
-      type: 'geojson',
-      data: geojson,
+  <div id="map"></div>
+
+  <!-- SCRIPTS -->
+  <script>
+    // ============================================================
+    // CONFIGURACIÓN
+    // ============================================================
+    const DEEPSTATE_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/deepstate_actual.geojson';
+    const FIRMS_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires.geojson';
+
+    let map;
+    let allFiresData = [];
+    let deepstateData = null;
+    let deepstateFeatures = [];
+    let fireFeatures = [];
+
+    const LAYER_IDS = {
+      BASE: 'base-layer',
+      DEEPSTATE_FILL: 'deepstate-fill',
+      DEEPSTATE_LINE: 'deepstate-line',
+      FIRES: 'fires-circle'
+    };
+
+    const SOURCE_IDS = {
+      BASE: 'base-source',
+      DEEPSTATE: 'deepstate-source',
+      FIRES: 'fires-source'
+    };
+
+    // ============================================================
+    // MAPA - CON INCLINACIÓN INICIAL
+    // ============================================================
+    map = new maplibregl.Map({
+      container: 'map',
+      style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+      center: [32.0, 48.5],
+      zoom: 5.5,
+      pitch: 45,
+      bearing: 0,
+      antialias: true,
     });
 
-    // ✅ RELLENO — sin fill-outline-width (no existe en MapLibre)
-    map.addLayer({
-      id: 'deepstate-fill',
-      type: 'fill',
-      source: 'deepstate',
-      paint: {
-        'fill-color': '#cc2200',
-        'fill-opacity': 0.45,
-        // fill-outline-color SÍ existe, fill-outline-width NO
-        'fill-outline-color': 'rgba(0,0,0,0)',
+    map.addControl(new maplibregl.NavigationControl(), 'top-right');
+    map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-right');
+
+    // ============================================================
+    // FUNCIONES DE ACTUALIZACIÓN
+    // ============================================================
+
+    function updateDeepstate() {
+      const enabled = document.getElementById('chk-deepstate').checked;
+      const fillColor = document.getElementById('color-deepstate-fill').value;
+      const lineColor = document.getElementById('color-deepstate-line').value;
+      const fillOpacity = parseInt(document.getElementById('opacity-ds-fill').value) / 100;
+      const lineOpacity = parseInt(document.getElementById('opacity-ds-line').value) / 100;
+
+      const sourceId = SOURCE_IDS.DEEPSTATE;
+      const fillLayerId = LAYER_IDS.DEEPSTATE_FILL;
+      const lineLayerId = LAYER_IDS.DEEPSTATE_LINE;
+
+      if (map.getLayer(fillLayerId)) map.removeLayer(fillLayerId);
+      if (map.getLayer(lineLayerId)) map.removeLayer(lineLayerId);
+      if (map.getSource(sourceId)) map.removeSource(sourceId);
+
+      if (!enabled || !deepstateData) return;
+
+      const features = deepstateData.features || [];
+      if (features.length === 0) return;
+
+      map.addSource(sourceId, {
+        type: 'geojson',
+        data: deepstateData
+      });
+
+      // Relleno (sin fill-outline-width)
+      map.addLayer({
+        id: fillLayerId,
+        type: 'fill',
+        source: sourceId,
+        paint: {
+          'fill-color': fillColor,
+          'fill-opacity': fillOpacity,
+          'fill-outline-color': 'rgba(0,0,0,0)',
+        }
+      });
+
+      // Borde
+      map.addLayer({
+        id: lineLayerId,
+        type: 'line',
+        source: sourceId,
+        paint: {
+          'line-color': lineColor,
+          'line-width': 2.5,
+          'line-opacity': lineOpacity,
+        }
+      });
+
+      // Forzar orden
+      map.moveLayer(fillLayerId, LAYER_IDS.BASE);
+      map.moveLayer(lineLayerId, LAYER_IDS.BASE);
+
+      document.getElementById('stats-deepstate').textContent = '📦 ' + features.length;
+    }
+
+    function updateFires() {
+      const enabled = document.getElementById('chk-fires').checked;
+      const frpMin = parseInt(document.getElementById('frp-min').value);
+
+      const sourceId = SOURCE_IDS.FIRES;
+      const layerId = LAYER_IDS.FIRES;
+
+      if (map.getLayer(layerId)) map.removeLayer(layerId);
+      if (map.getSource(sourceId)) map.removeSource(sourceId);
+
+      if (!enabled || allFiresData.length === 0) return;
+
+      // Filtrar por FRP
+      const filtered = allFiresData.filter(f => (f.properties?.frp || 0) >= frpMin);
+
+      if (filtered.length === 0) return;
+
+      map.addSource(sourceId, {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: filtered
+        }
+      });
+
+      map.addLayer({
+        id: layerId,
+        type: 'circle',
+        source: sourceId,
+        paint: {
+          'circle-radius': [
+            'interpolate', ['linear'], ['get', 'frp'],
+            10, 4,
+            100, 12,
+            500, 22
+          ],
+          'circle-color': [
+            'interpolate', ['linear'], ['get', 'frp'],
+            10, '#ffcc00',
+            100, '#ff6600',
+            500, '#ff0000'
+          ],
+          'circle-opacity': 0.85,
+          'circle-stroke-color': '#ffffff',
+          'circle-stroke-width': 1,
+        }
+      });
+
+      // Popup
+      const popup = new maplibregl.Popup({ closeButton: true, closeOnClick: false });
+      map.on('click', layerId, function(e) {
+        const p = e.features[0].properties;
+        popup
+          .setLngLat(e.lngLat)
+          .setHTML(`
+            <strong>🔥 Incendio FIRMS</strong><br>
+            FRP: <b>${p.frp} MW</b><br>
+            Fecha: ${p.acq_date}<br>
+            Satélite: ${p.satellite || 'N/A'}<br>
+            📍 ${p.locality || p.NAME_1 || 'N/A'}
+          `)
+          .addTo(map);
+      });
+
+      map.on('mouseenter', layerId, () => map.getCanvas().style.cursor = 'pointer');
+      map.on('mouseleave', layerId, () => map.getCanvas().style.cursor = '');
+
+      document.getElementById('stats-fires').textContent = '🔥 ' + filtered.length;
+    }
+
+    // ============================================================
+    // MAPA BASE
+    // ============================================================
+
+    function updateBaseMap() {
+      const selected = document.getElementById('map-style-selector').value;
+
+      if (map.getLayer(LAYER_IDS.BASE)) map.removeLayer(LAYER_IDS.BASE);
+      if (map.getSource(SOURCE_IDS.BASE)) map.removeSource(SOURCE_IDS.BASE);
+
+      let styleUrl;
+      switch (selected) {
+        case 'satellite':
+          styleUrl = 'https://basemaps.cartocdn.com/gl/gl-maps-gl-style/style.json';
+          break;
+        case 'carto':
+          styleUrl = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
+          break;
+        case 'osm':
+          styleUrl = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+          break;
+        case 'topo':
+          styleUrl = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+          break;
+        default:
+          styleUrl = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
       }
-    });
 
-    // ✅ BORDE GRUESO — capa separada de tipo 'line' (más control)
-    map.addLayer({
-      id: 'deepstate-line',
-      type: 'line',
-      source: 'deepstate',
-      paint: {
-        'line-color': '#ffffff',
-        'line-width': 2.5,
-        'line-opacity': 0.9,
+      map.setStyle(styleUrl);
+
+      // Re-añadir capas después de cambiar el estilo
+      map.once('style.load', function() {
+        // Re-cargar datos
+        if (deepstateData) {
+          setTimeout(updateDeepstate, 100);
+        }
+        if (allFiresData.length > 0) {
+          setTimeout(updateFires, 100);
+        }
+      });
+    }
+
+    // ============================================================
+    // TERRENO E INCLINACIÓN
+    // ============================================================
+
+    function updateTerrain() {
+      const enabled = document.getElementById('chk-terrain').checked;
+      const pitch = parseInt(document.getElementById('pitch-control').value);
+
+      if (enabled) {
+        if (!map.getSource('terrainSource')) {
+          map.addSource('terrainSource', {
+            type: 'raster-dem',
+            tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
+            tileSize: 256,
+            encoding: 'terrarium',
+            maxzoom: 14
+          });
+        }
+        map.setTerrain({ source: 'terrainSource', exaggeration: 2.0 });
+        map.setPitch(pitch);
+      } else {
+        map.setTerrain(null);
+        map.setPitch(0);
       }
+    }
+
+    // ============================================================
+    // CARGAR DATOS
+    // ============================================================
+
+    function loadFires() {
+      fetch(FIRMS_URL)
+        .then(r => r.json())
+        .then(data => {
+          allFiresData = data.features || [];
+          console.log('🔥 FIRMS:', allFiresData.length);
+          document.getElementById('stats-fires').textContent = '🔥 ' + allFiresData.length;
+          updateFires();
+        })
+        .catch(e => console.error('Error FIRMS:', e));
+    }
+
+    function loadDeepstate() {
+      fetch(DEEPSTATE_URL)
+        .then(r => {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        })
+        .then(data => {
+          deepstateData = data;
+          deepstateFeatures = data.features || [];
+          console.log('🟥 DeepState:', deepstateFeatures.length);
+          document.getElementById('stats-deepstate').textContent = '📦 ' + deepstateFeatures.length;
+          updateDeepstate();
+        })
+        .catch(e => console.error('❌ Error DeepState:', e));
+    }
+
+    // ============================================================
+    // CONECTAR CONTROLES
+    // ============================================================
+
+    document.getElementById('map-style-selector').addEventListener('change', updateBaseMap);
+    document.getElementById('chk-terrain').addEventListener('change', updateTerrain);
+    document.getElementById('pitch-control').addEventListener('input', function() {
+      document.getElementById('val-pitch').textContent = this.value;
+      updateTerrain();
     });
 
-    setStatus(`✅ Frente cargado`);
-  } catch (e) {
-    setStatus('❌ Error cargando frente: ' + e.message);
-    console.error(e);
-  }
-
-  // 2. INCENDIOS FIRMS
-  try {
-    const res2 = await fetch(FIRES_URL);
-    const fires = await res2.json();
-
-    // Filtrar: últimas 48h y FRP > 10
-    const ahora = Date.now();
-    const limite = ahora - 48 * 60 * 60 * 1000;
-    fires.features = fires.features.filter(f => {
-      const d = new Date(f.properties.acq_date).getTime();
-      return d >= limite && (f.properties.frp || 0) > 10;
+    document.getElementById('chk-deepstate').addEventListener('change', updateDeepstate);
+    document.getElementById('color-deepstate-fill').addEventListener('input', updateDeepstate);
+    document.getElementById('color-deepstate-line').addEventListener('input', updateDeepstate);
+    document.getElementById('opacity-ds-fill').addEventListener('input', function() {
+      document.getElementById('val-opacity-ds-fill').textContent = (this.value / 100).toFixed(2);
+      updateDeepstate();
+    });
+    document.getElementById('opacity-ds-line').addEventListener('input', function() {
+      document.getElementById('val-opacity-ds-line').textContent = (this.value / 100).toFixed(2);
+      updateDeepstate();
     });
 
-    map.addSource('fires', {
-      type: 'geojson',
-      data: fires,
+    document.getElementById('chk-fires').addEventListener('change', updateFires);
+    document.getElementById('frp-min').addEventListener('input', function() {
+      document.getElementById('val-frp-min').textContent = this.value;
+      updateFires();
     });
 
-    map.addLayer({
-      id: 'fires-circle',
-      type: 'circle',
-      source: 'fires',
-      paint: {
-        'circle-radius': [
-          'interpolate', ['linear'], ['get', 'frp'],
-          10, 4,
-          100, 12,
-          500, 22,
-        ],
-        'circle-color': [
-          'interpolate', ['linear'], ['get', 'frp'],
-          10,  '#ffcc00',
-          100, '#ff6600',
-          500, '#ff0000',
-        ],
-        'circle-opacity': 0.85,
-        'circle-stroke-color': '#ffffff',
-        'circle-stroke-width': 1,
-      }
+    // ============================================================
+    // INICIAR
+    // ============================================================
+
+    map.on('load', function() {
+      loadDeepstate();
+      loadFires();
+      updateTerrain();
+      console.log('✅ Visor 3D listo');
     });
+  </script>
 
-    const n = fires.features.length;
-    setStatus(`✅ ${n} incendios | Frente cargado`);
-  } catch (e) {
-    console.warn('Fires error:', e);
-  }
-
-  // 3. POPUP al hacer clic en incendio
-  map.on('click', 'fires-circle', function (e) {
-    const p = e.features[0].properties;
-    new maplibregl.Popup()
-      .setLngLat(e.lngLat)
-      .setHTML(`
-        <strong>🔥 Incendio FIRMS</strong><br>
-        FRP: <b>${p.frp} MW</b><br>
-        Fecha: ${p.acq_date}<br>
-        Satélite: ${p.satellite || 'N/A'}
-      `)
-      .addTo(map);
-  });
-
-  map.on('mouseenter', 'fires-circle', () => map.getCanvas().style.cursor = 'pointer');
-  map.on('mouseleave', 'fires-circle', () => map.getCanvas().style.cursor = '');
-});
-</script>
 </body>
 </html>
