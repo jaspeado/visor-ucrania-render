@@ -211,10 +211,10 @@
     border: 1px solid #30363d !important;
     border-radius: 8px !important;
     font-family: 'Inter', sans-serif !important;
-    font-size: 12px !important;
-    padding: 10px 14px !important;
+    font-size: 11px !important;
+    padding: 8px 12px !important;
     box-shadow: 0 8px 24px rgba(0,0,0,0.5) !important;
-    min-width: 200px !important;
+    min-width: 180px !important;
   }
 
   /* ✅ Botón de cerrar (X) - Más grande y blanco */
@@ -243,6 +243,7 @@
     text-decoration: none !important;
     font-weight: 500;
     transition: color 0.2s ease;
+    font-size: 10px !important;
   }
   .popup-link:hover {
     color: #79c0ff !important;
@@ -271,9 +272,12 @@
       padding: 8px 10px !important;
     }
     .maplibregl-popup-content {
-      min-width: 160px !important;
-      font-size: 11px !important;
-      padding: 8px 10px !important;
+      min-width: 150px !important;
+      font-size: 10px !important;
+      padding: 6px 8px !important;
+    }
+    .popup-link {
+      font-size: 9px !important;
     }
   }
 </style>
@@ -424,7 +428,7 @@ function updateDeepstate() {
 }
 
 // ============================================================
-// ✅ POPUP CON COORDENADAS Y ENLACES
+// ✅ POPUP CON COORDENADAS Y ENLACES - VERSIÓN FINAL
 // ============================================================
 function updateFires() {
   const enabled = document.getElementById('chk-fires').checked;
@@ -468,7 +472,7 @@ function updateFires() {
   });
 
   // ============================================================
-  // ✅ POPUP CON COORDENADAS Y ENLACES
+  // ✅ POPUP CON COORDENADAS Y ENLACES - VERSIÓN FINAL
   // ============================================================
   map.off('click', 'fires-layer');
   map.on('click', 'fires-layer', function(e) {
@@ -491,23 +495,15 @@ function updateFires() {
     })
       .setLngLat(e.lngLat)
       .setHTML(`
-        <div style="font-family:'Inter',sans-serif; font-size:13px; min-width:180px; line-height:1.6;">
-          <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
-            <span style="color:#ff6600; font-weight:600;">🔥 FRP:</span>
-            <span style="font-weight:600;">${frp} MW</span>
-          </div>
-          <div style="color:#8b949e; font-size:12px; margin-bottom:2px;">
-            📍 <span style="color:#e6edf3; font-weight:500; font-family:'Courier New',monospace;">${lat.toFixed(5)}, ${lon.toFixed(5)}</span>
-          </div>
-          <div style="margin-bottom:2px;">
-            📍 Localidad: <span style="color:#e6edf3; font-weight:500;">${localidad}</span>
-          </div>
-          <div style="margin-bottom:6px;">
-            🗺️ Región: <span style="color:#e6edf3; font-weight:500;">${oblast}</span>
-          </div>
-          <div style="display:flex; gap:8px; border-top:1px solid #21262d; padding-top:4px; font-size:11px;">
-            <a href="${googleEarthUrl}" target="_blank" class="popup-link">🌍 Google Earth</a>
-            <a href="${yandexUrl}" target="_blank" class="popup-link">🗺️ Yandex</a>
+        <div style="font-family:'Inter',sans-serif; font-size:11px; min-width:160px; line-height:1.5; color:#e6edf3;">
+          <div><span style="color:#ff6600; font-weight:600;">🔥 FRP:</span> ${frp} MW</div>
+          <div><span style="color:#8b949e;">LAT/LONG:</span> <span style="font-weight:500; font-family:'Courier New',monospace; color:#e6edf3;">${lat.toFixed(5)}, ${lon.toFixed(5)}</span></div>
+          <div><span style="color:#8b949e;">Localidad:</span> <span style="font-weight:500; color:#e6edf3;">${localidad}</span></div>
+          <div style="margin-bottom:4px;"><span style="color:#8b949e;">Región:</span> <span style="font-weight:500; color:#e6edf3;">${oblast}</span></div>
+          <div style="border-top:1px solid #21262d; padding-top:4px; display:flex; gap:6px; font-size:10px;">
+            <a href="${googleEarthUrl}" target="_blank" style="color:#58a6ff; text-decoration:none; font-weight:500;">🌍 Google Earth</a>
+            <span style="color:#30363d;">|</span>
+            <a href="${yandexUrl}" target="_blank" style="color:#58a6ff; text-decoration:none; font-weight:500;">🗺️ Yandex</a>
           </div>
         </div>
       `)
