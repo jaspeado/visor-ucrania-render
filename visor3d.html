@@ -31,7 +31,7 @@
   .color-row { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
   .slider-value { float: right; font-size: 10px; color: #58a6ff; }
 
-  /* ✅ Leyenda de regiones - SOLO CAMBIADO pointer-events */
+  /* Leyenda de regiones */
   #legend-regions {
     position: absolute; bottom: 80px; right: 12px; z-index: 1000;
     background: rgba(13,17,23,0.9); backdrop-filter: blur(8px);
@@ -39,22 +39,8 @@
     padding: 10px 14px; color: #e6edf3;
     font-size: 11px; max-height: 200px; overflow-y: auto;
     min-width: 140px; max-width: 200px;
-    pointer-events: auto;  /* ✅ AHORA SE PUEDE DESPLAZAR */
+    pointer-events: none;
   }
-  
-  /* ✅ Barra de scroll bonita (opcional) */
-  #legend-regions::-webkit-scrollbar {
-    width: 4px;
-  }
-  #legend-regions::-webkit-scrollbar-track {
-    background: #21262d;
-    border-radius: 4px;
-  }
-  #legend-regions::-webkit-scrollbar-thumb {
-    background: #58a6ff;
-    border-radius: 4px;
-  }
-
   #legend-regions h3 {
     font-size: 11px; font-weight: 600; margin-bottom: 4px;
     border-bottom: 1px solid #30363d; padding-bottom: 4px;
@@ -89,7 +75,7 @@
 
   @media (max-width: 640px) {
     #panel { width: 200px; padding: 10px; font-size: 11px; max-height: calc(100% - 80px); top: 60px; left: 6px; }
-    #legend-regions { bottom: 70px; right: 6px; min-width: 100px; font-size: 10px; max-height: 150px; max-width: 150px; padding: 8px 10px; }
+    #legend-regions { bottom: 70px; right: 6px; min-width: 100px; font-size: 10px; max-height: 150px; }
   }
 </style>
 </head>
