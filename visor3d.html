@@ -31,11 +31,51 @@
   .color-row { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
   .slider-value { float: right; font-size: 10px; color: #58a6ff; }
 
+  /* Leyenda de regiones */
+  #legend-regions {
+    position: absolute; bottom: 80px; right: 12px; z-index: 1000;
+    background: rgba(13,17,23,0.9); backdrop-filter: blur(8px);
+    border: 1px solid #30363d; border-radius: 8px;
+    padding: 10px 14px; color: #e6edf3;
+    font-size: 11px; max-height: 200px; overflow-y: auto;
+    min-width: 140px; max-width: 200px;
+    pointer-events: none;
+  }
+  #legend-regions h3 {
+    font-size: 11px; font-weight: 600; margin-bottom: 4px;
+    border-bottom: 1px solid #30363d; padding-bottom: 4px;
+    text-align: center; color: #8b949e;
+  }
+  .legend-row {
+    display: flex; justify-content: space-between; padding: 2px 0;
+    border-bottom: 1px solid #21262d; font-size: 10px;
+  }
+  .legend-row:last-child { border-bottom: none; }
+  .legend-row .count {
+    color: #58a6ff; font-weight: 500;
+  }
+
   #info {
     position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
     z-index: 1000; background: rgba(13,17,23,0.85); padding: 4px 14px;
     border-radius: 20px; border: 1px solid #30363d; color: #8b949e;
     font-size: 11px; pointer-events: none; white-space: nowrap;
+  }
+
+  .maplibregl-popup-content {
+    background: #0d1117 !important;
+    color: #e6edf3 !important;
+    border: 1px solid #30363d !important;
+    border-radius: 6px !important;
+    font-family: Arial, sans-serif !important;
+    font-size: 12px !important;
+    padding: 8px 12px !important;
+  }
+  .maplibregl-popup-tip { border-top-color: #30363d !important; }
+
+  @media (max-width: 640px) {
+    #panel { width: 200px; padding: 10px; font-size: 11px; max-height: calc(100% - 80px); top: 60px; left: 6px; }
+    #legend-regions { bottom: 70px; right: 6px; min-width: 100px; font-size: 10px; max-height: 150px; }
   }
 </style>
 </head>
@@ -92,11 +132,20 @@
   </div>
 
   <div style="display:flex; justify-content:space-between; font-size:10px; color:#8b949e; margin-top:4px;">
-    <span id="stats">🔥 0 | 📦 0</span>
+    <span id="stats-fires">🔥 0</span>
+    <span id="stats-deepstate">📦 0</span>
   </div>
 </div>
 
-<div id="info">🌍 Visor 3D Ucrania</div>
+<!-- Leyenda de regiones -->
+<div id="legend-regions">
+  <h3>🔥 Focos por región</h3>
+  <div id="region-list">
+    <div class="legend-row">Cargando...</div>
+  </div>
+</div>
+
+<div id="info">🌍 Visor 3D Ucrania | Clic en un incendio para detalles</div>
 <div id="map"></div>
 
 <script>
@@ -108,6 +157,7 @@ const FIRMS_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-trac
 
 let deepstateData = null;
 let firesData = [];
+let currentFiresFiltered = [];
 
 const map = new maplibregl.Map({
   container: 'map',
@@ -127,8 +177,6 @@ function getStyleUrl(style) {
   switch(style) {
     case 'satellite': return null;
     case 'dark': return 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
-    case 'osm': return null; // Se maneja con raster
-    case 'topo': return null; // Se maneja con raster
     default: return 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
   }
 }
@@ -178,9 +226,12 @@ function updateDeepstate() {
     }
   });
 
-  updateStats();
+  document.getElementById('stats-deepstate').textContent = '📦 ' + (deepstateData.features?.length || 0);
 }
 
+// ============================================================
+// ✅ POPUP SIMPLIFICADO: FRP, localidad, región
+// ============================================================
 function updateFires() {
   const enabled = document.getElementById('chk-fires').checked;
   const frpMin = parseInt(document.getElementById('frp-slider').value) || 0;
@@ -189,13 +240,18 @@ function updateFires() {
   if (map.getSource('fires')) map.removeSource('fires');
 
   if (!enabled || firesData.length === 0) {
-    updateStats();
+    currentFiresFiltered = [];
+    updateRegionLegend();
+    document.getElementById('stats-fires').textContent = '🔥 0';
     return;
   }
 
   const filtered = firesData.filter(f => (f.properties?.frp || 0) >= frpMin);
+  currentFiresFiltered = filtered;
+
   if (filtered.length === 0) {
-    updateStats();
+    updateRegionLegend();
+    document.getElementById('stats-fires').textContent = '🔥 0';
     return;
   }
 
@@ -217,16 +273,73 @@ function updateFires() {
     }
   });
 
+  // ============================================================
+  // ✅ POPUP SIMPLIFICADO (solo FRP, localidad, región)
+  // ============================================================
   map.off('click', 'fires-layer');
   map.on('click', 'fires-layer', function(e) {
     const p = e.features[0].properties;
-    new maplibregl.Popup()
+    const frp = p.frp || 0;
+    const localidad = p.locality || 'N/A';
+    const oblast = p.NAME_1 || 'N/A';
+
+    new maplibregl.Popup({
+      closeButton: true,
+      closeOnClick: false,
+      className: 'custom-popup'
+    })
       .setLngLat(e.lngLat)
-      .setHTML(`🔥 FRP: ${p.frp} MW<br>📅 ${p.acq_date}`)
+      .setHTML(`
+        <div style="font-family:Arial; font-size:13px; min-width:150px;">
+          <strong style="color:#ff6600;">🔥 Incendio</strong><br>
+          <b>FRP:</b> ${frp} MW<br>
+          <b>📍 Localidad:</b> ${localidad}<br>
+          <b>🗺️ Región:</b> ${oblast}
+        </div>
+      `)
       .addTo(map);
   });
 
-  updateStats();
+  map.on('mouseenter', 'fires-layer', () => map.getCanvas().style.cursor = 'pointer');
+  map.on('mouseleave', 'fires-layer', () => map.getCanvas().style.cursor = '');
+
+  document.getElementById('stats-fires').textContent = '🔥 ' + filtered.length;
+  updateRegionLegend();
+}
+
+// ============================================================
+// ✅ LEYENDA DE REGIONES
+// ============================================================
+function updateRegionLegend() {
+  const regionList = document.getElementById('region-list');
+
+  if (currentFiresFiltered.length === 0) {
+    regionList.innerHTML = '<div class="legend-row">Sin datos</div>';
+    return;
+  }
+
+  // Contar focos por región (NAME_1)
+  const regionCounts = {};
+  currentFiresFiltered.forEach(f => {
+    const region = f.properties?.NAME_1 || 'Desconocida';
+    regionCounts[region] = (regionCounts[region] || 0) + 1;
+  });
+
+  // Ordenar de mayor a menor
+  const sorted = Object.entries(regionCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 15); // Mostrar top 15
+
+  let html = '';
+  sorted.forEach(([region, count]) => {
+    html += `<div class="legend-row"><span>${region}</span><span class="count">${count}</span></div>`;
+  });
+
+  if (sorted.length === 0) {
+    html = '<div class="legend-row">Sin regiones</div>';
+  }
+
+  regionList.innerHTML = html;
 }
 
 function updateTerrain() {
@@ -249,24 +362,15 @@ function updateTerrain() {
   }
 }
 
-function updateStats() {
-  const frpMin = parseInt(document.getElementById('frp-slider').value) || 0;
-  const n1 = firesData.filter(f => (f.properties?.frp || 0) >= frpMin).length;
-  const n2 = deepstateData?.features?.length || 0;
-  document.getElementById('stats').textContent = `🔥 ${n1} | 📦 ${n2}`;
-}
-
 // ============================================================
 // MAPA BASE
 // ============================================================
 
 function updateBaseMap() {
   const selected = document.getElementById('map-style-selector').value;
-
   const currentDeepstate = deepstateData;
   const currentFires = firesData;
 
-  // Eliminar capas raster anteriores
   ['satellite-layer', 'osm-layer', 'topo-layer'].forEach(id => {
     if (map.getLayer(id)) map.removeLayer(id);
   });
@@ -274,7 +378,6 @@ function updateBaseMap() {
     if (map.getSource(id)) map.removeSource(id);
   });
 
-  // Caso: estilos con setStyle (Dark, etc.)
   if (selected === 'dark') {
     map.setStyle('https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json');
     map.once('style.load', function() {
@@ -287,7 +390,6 @@ function updateBaseMap() {
     return;
   }
 
-  // Para Satélite, OSM y Topo: usamos capas raster
   map.setStyle({ version: 8, sources: {}, layers: [] });
 
   let tiles = [];
@@ -342,7 +444,6 @@ fetch(DEEPSTATE_URL)
     deepstateData = data;
     map.on('load', function() {
       updateDeepstate();
-      updateStats();
       updateTerrain();
     });
   })
@@ -354,7 +455,6 @@ fetch(FIRMS_URL)
     firesData = data.features || [];
     map.on('load', function() {
       updateFires();
-      updateStats();
     });
   })
   .catch(e => console.error('FIRMS error:', e));
