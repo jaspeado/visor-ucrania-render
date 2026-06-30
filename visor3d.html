@@ -923,4 +923,263 @@ function updateRegionLegend() {
     return;
   }
 
-  const
+  const regionCounts = {};
+  let puntosSinRegion = 0;
+
+  currentFiresFiltered.forEach(f => {
+    const region = f.properties?.NAME_1;
+    if (region && region !== '' && region !== 'N/A' && region.toLowerCase() !== 'desconocida') {
+      regionCounts[region] = (regionCounts[region] || 0) + 1;
+    } else {
+      puntosSinRegion++;
+    }
+  });
+
+  const sortedRegions = Object.entries(regionCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 15);
+
+  let html = '';
+
+  html += `<div class="region-item all-regions ${!selectedRegion ? 'active' : ''}" data-region="all">
+            <span class="region-name">⬅️ Ver todos</span>
+            <span class="count">${currentFiresFiltered.length}</span>
+          </div>`;
+
+  if (sortedRegions.length > 0) {
+    sortedRegions.forEach(([region, count]) => {
+      const isActive = (selectedRegion === region);
+      html += `<div class="region-item ${isActive ? 'active' : ''}" data-region="${region}">
+                <span class="region-name">${region}</span>
+                <span class="count">${count}</span>
+              </div>`;
+    });
+  }
+
+  if (puntosSinRegion > 0) {
+    const isActive = (selectedRegion === 'Otras ubicaciones');
+    html += `<div class="region-item ${isActive ? 'active' : ''}" data-region="Otras ubicaciones" style="border-top:1px solid #30363d; margin-top:2px; padding-top:3px;">
+              <span class="region-name" style="color:#8b949e;">❓ Otras ubicaciones</span>
+              <span class="count">${puntosSinRegion}</span>
+            </div>`;
+  }
+
+  if (sortedRegions.length === 0 && puntosSinRegion === 0) {
+    html += `<div class="region-item" style="color:#8b949e; text-align:center; padding:2px 0; font-size:9px;">
+              (sin regiones disponibles)
+            </div>`;
+  }
+
+  regionList.innerHTML = html;
+
+  document.querySelectorAll('.region-item[data-region]').forEach(el => {
+    el.addEventListener('click', function() {
+      const region = this.dataset.region;
+      
+      if (region === 'all') {
+        selectedRegion = null;
+      } else if (region === 'Otras ubicaciones') {
+        if (selectedRegion === 'Otras ubicaciones') {
+          selectedRegion = null;
+        } else {
+          selectedRegion = 'Otras ubicaciones';
+        }
+      } else {
+        if (selectedRegion === region) {
+          selectedRegion = null;
+        } else {
+          selectedRegion = region;
+        }
+      }
+      
+      updateFires();
+    });
+  });
+}
+
+function updateTerrain() {
+  const enabled = document.getElementById('chk-terrain').checked;
+  const pitch = parseInt(document.getElementById('pitch-slider').value);
+
+  if (enabled) {
+    if (!map.getSource('terrainSource')) {
+      map.addSource('terrainSource', {
+        type: 'raster-dem',
+        tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
+        tileSize: 256,
+        encoding: 'terrarium',
+        maxzoom: 14
+      });
+    }
+    map.setTerrain({ source: 'terrainSource', exaggeration: 2.0 });
+    map.setPitch(pitch);
+  } else {
+    map.setTerrain(null);
+    map.setPitch(0);
+  }
+}
+
+// ============================================================
+// MAPA BASE
+// ============================================================
+
+function updateBaseMap() {
+  if (activePopup) {
+    activePopup.remove();
+    activePopup = null;
+  }
+
+  const selected = document.getElementById('map-style-selector').value;
+  const currentDeepstate = deepstateData;
+  const currentFires = firesData;
+
+  updateAttribution(selected);
+
+  ['satellite-layer', 'osm-layer', 'topo-layer'].forEach(id => {
+    if (map.getLayer(id)) map.removeLayer(id);
+  });
+  ['satellite-source', 'osm-source', 'topo-source'].forEach(id => {
+    if (map.getSource(id)) map.removeSource(id);
+  });
+
+  if (selected === 'dark') {
+    map.setStyle('https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json');
+    map.once('style.load', function() {
+      setTimeout(() => {
+        if (currentDeepstate) updateDeepstate();
+        if (currentFires.length > 0) updateFires();
+        updateTerrain();
+      }, 200);
+    });
+    return;
+  }
+
+  map.setStyle({ version: 8, sources: {}, layers: [] });
+
+  let tiles = [];
+  let layerId = '';
+
+  switch(selected) {
+    case 'satellite':
+      tiles = ['https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'];
+      layerId = 'satellite-layer';
+      break;
+    case 'osm':
+      tiles = ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'];
+      layerId = 'osm-layer';
+      break;
+    case 'topo':
+      tiles = ['https://tile.opentopomap.org/{z}/{x}/{y}.png'];
+      layerId = 'topo-layer';
+      break;
+    default:
+      tiles = ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'];
+      layerId = 'osm-layer';
+  }
+
+  map.once('style.load', function() {
+    map.addSource(layerId.replace('-layer', '-source'), {
+      type: 'raster',
+      tiles: tiles,
+      tileSize: 256
+    });
+
+    map.addLayer({
+      id: layerId,
+      type: 'raster',
+      source: layerId.replace('-layer', '-source')
+    });
+
+    setTimeout(() => {
+      if (currentDeepstate) updateDeepstate();
+      if (currentFires.length > 0) updateFires();
+      updateTerrain();
+    }, 200);
+  });
+}
+
+// ============================================================
+// ✅ CARGAR DATOS CON whenMapLoaded
+// ============================================================
+
+fetch(DEEPSTATE_URL)
+  .then(r => r.json())
+  .then(data => {
+    deepstateData = data;
+    whenMapLoaded(function() {
+      updateDeepstate();
+      updateTerrain();
+    });
+  })
+  .catch(e => console.error('DeepState error:', e));
+
+fetch(FIRMS_URL)
+  .then(r => r.json())
+  .then(data => {
+    firesData = data.features || [];
+    whenMapLoaded(function() {
+      updateFires();
+    });
+  })
+  .catch(e => console.error('FIRMS error:', e));
+
+// ============================================================
+// ✅ ACTIVAR ARRASTRE Y MINIMIZADO EN PANEL Y LEYENDA
+// ============================================================
+makeWindowDraggable(document.getElementById('panel'), document.getElementById('panel-header'));
+makeWindowMinimizable(document.getElementById('panel-body'), document.getElementById('panel-min'));
+
+makeWindowDraggable(document.getElementById('legend-regions'), document.getElementById('legend-header'));
+makeWindowMinimizable(document.getElementById('legend-body'), document.getElementById('legend-min'));
+
+// ============================================================
+// CONTROLES
+// ============================================================
+
+document.getElementById('map-style-selector').addEventListener('change', updateBaseMap);
+
+document.getElementById('time-range-selector').addEventListener('change', function() {
+  if (activePopup) {
+    activePopup.remove();
+    activePopup = null;
+  }
+  selectedRegion = null;
+  updateFires();
+});
+
+document.getElementById('chk-deepstate').addEventListener('change', updateDeepstate);
+document.getElementById('color-fill').addEventListener('input', updateDeepstate);
+document.getElementById('color-line').addEventListener('input', updateDeepstate);
+document.getElementById('opacity-fill').addEventListener('input', function() {
+  document.getElementById('val-opacity-fill').textContent = (this.value / 100).toFixed(2);
+  updateDeepstate();
+});
+document.getElementById('opacity-line').addEventListener('input', function() {
+  document.getElementById('val-opacity-line').textContent = (this.value / 100).toFixed(2);
+  updateDeepstate();
+});
+
+document.getElementById('chk-fires').addEventListener('change', updateFires);
+document.getElementById('frp-slider').addEventListener('input', function() {
+  document.getElementById('val-frp').textContent = this.value;
+  updateFires();
+});
+
+document.getElementById('chk-terrain').addEventListener('change', updateTerrain);
+document.getElementById('pitch-slider').addEventListener('input', function() {
+  document.getElementById('val-pitch').textContent = this.value;
+  updateTerrain();
+});
+
+// ============================================================
+// INICIAR
+// ============================================================
+
+map.on('load', function() {
+  updateTerrain();
+  updateAttribution('dark');
+  console.log('✅ Visor listo');
+});
+</script>
+</body>
+</html>
