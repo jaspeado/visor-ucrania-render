@@ -225,42 +225,51 @@
     font-weight: 600;
   }
 
-  /* ✅ Popup SIN BLUR */
+  /* ✅ POPUP SIN BLUR (FORZADO) */
   .maplibregl-popup {
     font-family: 'Inter', sans-serif;
   }
-  
-  .maplibregl-popup-content {
+
+  .maplibregl-popup-content,
+  .maplibregl-popup-tip,
+  .maplibregl-popup-close-button {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    filter: none !important;
+    -webkit-filter: none !important;
     background: #0d1117 !important;
+  }
+
+  .maplibregl-popup-content {
     color: #e6edf3 !important;
     border: 1px solid #30363d !important;
     border-radius: 8px !important;
     font-family: 'Inter', sans-serif !important;
     font-size: 11px !important;
     padding: 8px 12px !important;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.5) !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6) !important;
     min-width: 180px !important;
   }
 
-  /* ✅ Botón de cerrar (X) - Más grande y blanco */
+  .maplibregl-popup-tip {
+    border-top-color: #30363d !important;
+  }
+
   .maplibregl-popup-close-button {
-    font-size: 18px !important;
+    font-size: 20px !important;
     color: #ffffff !important;
     background: transparent !important;
     border: none !important;
-    padding: 6px 8px !important;
+    padding: 4px 10px !important;
     cursor: pointer !important;
-    opacity: 0.7;
-    transition: opacity 0.15s ease;
-    font-weight: 300 !important;
+    opacity: 0.8 !important;
     line-height: 1 !important;
+    transition: opacity 0.15s ease;
   }
   .maplibregl-popup-close-button:hover {
-    opacity: 1;
+    opacity: 1 !important;
     background: transparent !important;
   }
-
-  .maplibregl-popup-tip { border-top-color: #30363d !important; }
 
   .popup-link {
     color: #58a6ff !important;
@@ -427,6 +436,8 @@ const map = new maplibregl.Map({
   center: [32.0, 48.5],
   zoom: 5.5,
   pitch: 45,
+  antialias: true,
+  fadeDuration: 0
 });
 
 map.addControl(new maplibregl.NavigationControl(), 'top-right');
@@ -455,6 +466,16 @@ function updateAttribution(style) {
     'topo': '🗺️ Fuente: OpenTopoMap (© OpenStreetMap contributors)'
   };
   attributionText.textContent = sources[style] || sources['dark'];
+}
+
+// ✅ Función para eliminar blur residual de los popups
+function removePopupBlur() {
+  document.querySelectorAll('.maplibregl-popup-content, .maplibregl-popup-tip, .maplibregl-popup-close-button').forEach(el => {
+    el.style.backdropFilter = 'none';
+    el.style.webkitBackdropFilter = 'none';
+    el.style.filter = 'none';
+    el.style.webkitFilter = 'none';
+  });
 }
 
 // ============================================================
@@ -604,6 +625,9 @@ function updateFires() {
         </div>
       `)
       .addTo(map);
+
+    // ✅ Eliminar blur residual después de abrir el popup
+    setTimeout(removePopupBlur, 10);
   });
 
   map.on('mouseenter', 'fires-layer', () => map.getCanvas().style.cursor = 'pointer');
@@ -611,6 +635,9 @@ function updateFires() {
 
   document.getElementById('stats-fires').textContent = '🔥 ' + finalFiltered.length;
   updateRegionLegend();
+
+  // ✅ Eliminar blur residual después de actualizar
+  setTimeout(removePopupBlur, 50);
 }
 
 // ============================================================
@@ -747,6 +774,8 @@ function updateBaseMap() {
         if (currentDeepstate) updateDeepstate();
         if (currentFires.length > 0) updateFires();
         updateTerrain();
+        // ✅ Eliminar blur después de cambiar el mapa
+        setTimeout(removePopupBlur, 100);
       }, 200);
     });
     return;
@@ -792,6 +821,8 @@ function updateBaseMap() {
       if (currentDeepstate) updateDeepstate();
       if (currentFires.length > 0) updateFires();
       updateTerrain();
+      // ✅ Eliminar blur después de cambiar el mapa
+      setTimeout(removePopupBlur, 100);
     }, 200);
   });
 }
@@ -807,6 +838,7 @@ fetch(DEEPSTATE_URL)
     map.on('load', function() {
       updateDeepstate();
       updateTerrain();
+      setTimeout(removePopupBlur, 50);
     });
   })
   .catch(e => console.error('DeepState error:', e));
@@ -817,6 +849,7 @@ fetch(FIRMS_URL)
     firesData = data.features || [];
     map.on('load', function() {
       updateFires();
+      setTimeout(removePopupBlur, 50);
     });
   })
   .catch(e => console.error('FIRMS error:', e));
@@ -863,8 +896,12 @@ document.getElementById('pitch-slider').addEventListener('input', function() {
 map.on('load', function() {
   updateTerrain();
   updateAttribution('dark');
+  setTimeout(removePopupBlur, 100);
   console.log('✅ Visor listo');
 });
+
+// ✅ Eliminar blur periódicamente (por si acaso)
+setInterval(removePopupBlur, 5000);
 </script>
 </body>
 </html>
