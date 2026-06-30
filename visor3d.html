@@ -44,6 +44,17 @@
 <div id="panel">
   <h2>🎛️ Controles</h2>
 
+  <!-- MAPA BASE -->
+  <div class="control-group">
+    <label>🗺️ Mapa base</label>
+    <select id="map-style-selector">
+      <option value="satellite">🛰️ Satélite</option>
+      <option value="dark" selected>🌍 CartoDB Dark</option>
+      <option value="osm">🌍 Callejero</option>
+    </select>
+  </div>
+
+  <!-- DEEPSTATE -->
   <div class="control-group">
     <div class="checkbox-group">
       <input type="checkbox" id="chk-deepstate" checked>
@@ -63,6 +74,7 @@
     <input type="range" id="opacity-line" min="0" max="100" value="90">
   </div>
 
+  <!-- INCENDIOS -->
   <div class="control-group">
     <div class="checkbox-group">
       <input type="checkbox" id="chk-fires" checked>
@@ -72,6 +84,7 @@
     <input type="range" id="frp-slider" min="0" max="100" value="10">
   </div>
 
+  <!-- TERRENO -->
   <div class="control-group">
     <div class="checkbox-group">
       <input type="checkbox" id="chk-terrain" checked>
@@ -98,16 +111,40 @@ const FIRMS_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-trac
 
 let deepstateData = null;
 let firesData = [];
+let currentStyle = 'dark';
+let styleLoadTimeout = null;
 
 const map = new maplibregl.Map({
   container: 'map',
-  style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+  style: getStyleUrl('dark'),
   center: [32.0, 48.5],
   zoom: 5.5,
   pitch: 45,
 });
 
 map.addControl(new maplibregl.NavigationControl(), 'top-right');
+
+// ============================================================
+// FUNCIONES DE ESTILO
+// ============================================================
+
+function getStyleUrl(style) {
+  switch(style) {
+    case 'satellite':
+      return 'https://basemaps.cartocdn.com/gl/gl-maps-gl-style/style.json';
+    case 'dark':
+      return 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
+    case 'osm':
+      return 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
+    default:
+      return 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
+  }
+}
+
+function getSatelliteTiles() {
+  // ArcGIS Satellite (fuente directa, sin estilo)
+  return 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+}
 
 // ============================================================
 // FUNCIONES DE ACTUALIZACIÓN
@@ -226,6 +263,62 @@ function updateStats() {
 }
 
 // ============================================================
+// MAPA BASE (con cambio de estilo)
+// ============================================================
+
+function updateBaseMap() {
+  const selected = document.getElementById('map-style-selector').value;
+
+  if (selected === 'satellite') {
+    // Usar capa de satélite directa (ArcGIS)
+    if (map.getLayer('satellite-layer')) map.removeLayer('satellite-layer');
+    if (map.getSource('satellite-source')) map.removeSource('satellite-source');
+
+    // Establecer estilo base sin capa raster (solo fondo)
+    map.setStyle({
+      version: 8,
+      sources: {},
+      layers: []
+    });
+
+    // Esperar a que el estilo cargue y añadir satélite
+    map.once('style.load', function() {
+      map.addSource('satellite-source', {
+        type: 'raster',
+        tiles: ['https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+        tileSize: 256
+      });
+
+      map.addLayer({
+        id: 'satellite-layer',
+        type: 'raster',
+        source: 'satellite-source'
+      });
+
+      // Recargar capas de datos
+      setTimeout(() => {
+        if (deepstateData) updateDeepstate();
+        if (firesData.length > 0) updateFires();
+      }, 200);
+    });
+
+  } else {
+    // Usar estilo CartoDB
+    const styleUrl = getStyleUrl(selected);
+    map.setStyle(styleUrl);
+
+    map.once('style.load', function() {
+      setTimeout(() => {
+        if (deepstateData) updateDeepstate();
+        if (firesData.length > 0) updateFires();
+      }, 200);
+    });
+  }
+
+  currentStyle = selected;
+}
+
+// ============================================================
 // CARGAR DATOS
 // ============================================================
 
@@ -255,6 +348,11 @@ fetch(FIRMS_URL)
 // CONTROLES
 // ============================================================
 
+document.getElementById('map-style-selector').addEventListener('change', function() {
+  // Guardar el estado actual de las capas antes de cambiar
+  updateBaseMap();
+});
+
 document.getElementById('chk-deepstate').addEventListener('change', updateDeepstate);
 document.getElementById('color-fill').addEventListener('input', updateDeepstate);
 document.getElementById('color-line').addEventListener('input', updateDeepstate);
@@ -279,7 +377,10 @@ document.getElementById('pitch-slider').addEventListener('input', function() {
   updateTerrain();
 });
 
-// Inicializar
+// ============================================================
+// INICIAR
+// ============================================================
+
 map.on('load', function() {
   updateTerrain();
   console.log('✅ Visor listo');
