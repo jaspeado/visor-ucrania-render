@@ -295,6 +295,15 @@
     </select>
   </div>
 
+  <!-- ⏱️ Selector de rango temporal -->
+  <div class="control-group">
+    <label>⏱️ Rango temporal</label>
+    <select id="time-range-selector">
+      <option value="48" selected>Últimas 48 horas</option>
+      <option value="24">Últimas 24 horas</option>
+    </select>
+  </div>
+
   <div class="control-group">
     <div class="checkbox-group">
       <input type="checkbox" id="chk-deepstate" checked>
@@ -428,11 +437,12 @@ function updateDeepstate() {
 }
 
 // ============================================================
-// ✅ POPUP CON COORDENADAS Y ENLACES - VERSIÓN FINAL
+// ✅ FUNCIÓN PRINCIPAL - CON FILTRO POR FECHA
 // ============================================================
 function updateFires() {
   const enabled = document.getElementById('chk-fires').checked;
   const frpMin = parseInt(document.getElementById('frp-slider').value) || 0;
+  const timeRange = parseInt(document.getElementById('time-range-selector').value) || 48;
 
   if (map.getLayer('fires-layer')) map.removeLayer('fires-layer');
   if (map.getSource('fires')) map.removeSource('fires');
@@ -444,7 +454,31 @@ function updateFires() {
     return;
   }
 
-  const filtered = firesData.filter(f => (f.properties?.frp || 0) >= frpMin);
+  // ✅ Calcular fecha límite (hace 24 o 48 horas)
+  const ahora = new Date();
+  const limite = new Date(ahora.getTime() - (timeRange * 60 * 60 * 1000));
+
+  // ✅ Filtrar por FRP y por fecha
+  const filtered = firesData.filter(f => {
+    // Filtrar por FRP
+    if ((f.properties?.frp || 0) < frpMin) return false;
+    
+    // Filtrar por fecha (solo si es 24h)
+    if (timeRange === 24) {
+      const acqDate = f.properties?.acq_date;
+      if (!acqDate) return false;
+      
+      // Parsear fecha (YYYY-MM-DD)
+      const parts = acqDate.split('-');
+      const fechaPunto = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+      
+      // Si el punto es anterior a la fecha límite, descartarlo
+      if (fechaPunto < limite) return false;
+    }
+    
+    return true;
+  });
+
   currentFiresFiltered = filtered;
 
   if (filtered.length === 0) {
@@ -471,9 +505,7 @@ function updateFires() {
     }
   });
 
-  // ============================================================
-  // ✅ POPUP CON COORDENADAS Y ENLACES - VERSIÓN FINAL
-  // ============================================================
+  // ✅ POPUP CON COORDENADAS Y ENLACES
   map.off('click', 'fires-layer');
   map.on('click', 'fires-layer', function(e) {
     const p = e.features[0].properties;
@@ -484,7 +516,6 @@ function updateFires() {
     const localidad = p.locality || 'N/A';
     const oblast = p.NAME_1 || 'N/A';
 
-    // Enlaces para Google Earth y Yandex Maps
     const googleEarthUrl = `https://earth.google.com/web/search/${lat},${lon}`;
     const yandexUrl = `https://yandex.com/maps/?pt=${lon},${lat}&z=15`;
 
@@ -518,7 +549,7 @@ function updateFires() {
 }
 
 // ============================================================
-// ✅ LEYENDA DE REGIONES - FILTRO MEJORADO
+// ✅ LEYENDA DE REGIONES
 // ============================================================
 function updateRegionLegend() {
   const regionList = document.getElementById('region-list');
@@ -681,6 +712,8 @@ fetch(FIRMS_URL)
 // ============================================================
 
 document.getElementById('map-style-selector').addEventListener('change', updateBaseMap);
+
+document.getElementById('time-range-selector').addEventListener('change', updateFires);
 
 document.getElementById('chk-deepstate').addEventListener('change', updateDeepstate);
 document.getElementById('color-fill').addEventListener('input', updateDeepstate);
