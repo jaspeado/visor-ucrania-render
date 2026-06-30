@@ -31,7 +31,7 @@
   .color-row { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
   .slider-value { float: right; font-size: 10px; color: #58a6ff; }
 
-  /* ✅ Leyenda de regiones - Título arriba sin tapar */
+  /* ✅ Leyenda de regiones - Título FIJO + Lista con SCROLL */
   #legend-regions {
     position: absolute; bottom: 80px; right: 12px; z-index: 1000;
     background: rgba(13,17,23,0.9); backdrop-filter: blur(8px);
@@ -39,28 +39,15 @@
     padding: 6px 10px;
     color: #e6edf3;
     font-size: 10px;
-    max-height: 200px; 
-    overflow-y: auto;
     min-width: 120px; 
     max-width: 180px;
+    max-height: 200px;
+    display: flex;
+    flex-direction: column;
     pointer-events: auto;
-    scroll-behavior: smooth;
   }
   
-  /* ✅ Barra de scroll personalizada */
-  #legend-regions::-webkit-scrollbar {
-    width: 3px;
-  }
-  #legend-regions::-webkit-scrollbar-track {
-    background: #21262d;
-    border-radius: 4px;
-  }
-  #legend-regions::-webkit-scrollbar-thumb {
-    background: #58a6ff;
-    border-radius: 4px;
-  }
-
-  /* ✅ Título visible, ESTÁTICO (sin sticky) */
+  /* ✅ Título FIJO (siempre visible) */
   #legend-regions h3 {
     font-size: 10px;
     font-weight: 600;
@@ -69,7 +56,27 @@
     border-bottom: 1px solid #30363d;
     text-align: center;
     color: #8b949e;
-    /* ❌ Eliminado: position: sticky, top, z-index, background */
+    flex-shrink: 0; /* ✅ Evita que se encoja */
+  }
+
+  /* ✅ Lista con SCROLL (solo la lista, no el título) */
+  #region-list {
+    overflow-y: auto;
+    flex-grow: 1; /* ✅ Ocupa el espacio restante */
+    max-height: 150px; /* ✅ Altura fija para el scroll */
+  }
+
+  /* ✅ Barra de scroll personalizada para la lista */
+  #region-list::-webkit-scrollbar {
+    width: 3px;
+  }
+  #region-list::-webkit-scrollbar-track {
+    background: #21262d;
+    border-radius: 4px;
+  }
+  #region-list::-webkit-scrollbar-thumb {
+    background: #58a6ff;
+    border-radius: 4px;
   }
 
   .legend-row {
@@ -101,8 +108,9 @@
 
   @media (max-width: 640px) {
     #panel { width: 200px; padding: 10px; font-size: 11px; max-height: calc(100% - 80px); top: 60px; left: 6px; }
-    #legend-regions { bottom: 70px; right: 6px; min-width: 90px; font-size: 9px; max-height: 150px; max-width: 130px; padding: 4px 8px; }
+    #legend-regions { bottom: 70px; right: 6px; min-width: 90px; font-size: 9px; max-width: 130px; padding: 4px 8px; }
     #legend-regions h3 { font-size: 9px; }
+    #region-list { max-height: 120px; }
     .legend-row { font-size: 8px; }
   }
 </style>
@@ -165,7 +173,7 @@
   </div>
 </div>
 
-<!-- ✅ Leyenda de regiones -->
+<!-- ✅ Leyenda de regiones con título fijo -->
 <div id="legend-regions">
   <h3>🔥 Focos por región</h3>
   <div id="region-list">
