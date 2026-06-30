@@ -216,7 +216,6 @@
   .region-item .region-name:hover {
     color: #58a6ff;
   }
-  /* ✅ Estilo para "Ver todos" */
   .region-item.all-regions {
     border-bottom: 1px solid #58a6ff !important;
     margin-bottom: 2px;
@@ -580,63 +579,78 @@ function updateFires() {
 }
 
 // ============================================================
-// ✅ LEYENDA DE REGIONES CON CLICK
+// ✅ LEYENDA DE REGIONES CON CLICK - CORREGIDA
 // ============================================================
 function updateRegionLegend() {
   const regionList = document.getElementById('region-list');
 
+  // ✅ 1. Si no hay datos filtrados, mostrar mensaje
   if (currentFiresFiltered.length === 0) {
-    regionList.innerHTML = '<div class="region-item">Sin datos</div>';
+    regionList.innerHTML = `
+      <div class="region-item" style="color:#8b949e; text-align:center; padding:4px 0; font-size:10px;">
+        No hay incendios
+      </div>`;
     return;
   }
 
-  // Contar focos por región (excluyendo "Desconocida")
+  // ✅ 2. Contar focos por región (excluyendo "Desconocida")
   const regionCounts = {};
   let totalFires = 0;
+
   currentFiresFiltered.forEach(f => {
     const region = f.properties?.NAME_1;
-    if (!region || region === '' || region === 'Desconocida' || region.toLowerCase() === 'desconocida' || region === 'N/A') {
-      return;
+    // ✅ Solo contar regiones válidas (no vacías, no "Desconocida")
+    if (region && region !== '' && region !== 'Desconocida' && region.toLowerCase() !== 'desconocida' && region !== 'N/A') {
+      regionCounts[region] = (regionCounts[region] || 0) + 1;
+      totalFires++;
     }
-    regionCounts[region] = (regionCounts[region] || 0) + 1;
-    totalFires++;
   });
 
+  // ✅ 3. Ordenar de mayor a menor
   const sorted = Object.entries(regionCounts)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 15);
 
-  // ✅ Construir HTML con regiones clickeables
+  // ✅ 4. Construir HTML
   let html = '';
 
-  // Opción "Ver todos"
+  // ✅ Siempre mostrar "Ver todos" (con el total de incendios filtrados)
   html += `<div class="region-item all-regions ${!selectedRegion ? 'active' : ''}" data-region="all">
             <span class="region-name">⬅️ Ver todos</span>
-            <span class="count">${totalFires}</span>
+            <span class="count">${currentFiresFiltered.length}</span>
           </div>`;
 
-  sorted.forEach(([region, count]) => {
-    const isActive = (selectedRegion === region);
-    html += `<div class="region-item ${isActive ? 'active' : ''}" data-region="${region}">
-              <span class="region-name">${region}</span>
-              <span class="count">${count}</span>
+  // ✅ Si hay regiones, mostrarlas
+  if (sorted.length > 0) {
+    sorted.forEach(([region, count]) => {
+      const isActive = (selectedRegion === region);
+      html += `<div class="region-item ${isActive ? 'active' : ''}" data-region="${region}">
+                <span class="region-name">${region}</span>
+                <span class="count">${count}</span>
+              </div>`;
+    });
+  } else {
+    // ✅ Si no hay regiones, mostrar mensaje
+    html += `<div class="region-item" style="color:#8b949e; text-align:center; padding:2px 0; font-size:9px;">
+              (solo incendios sin región asignada)
             </div>`;
-  });
-
-  if (sorted.length === 0) {
-    html = '<div class="region-item">Sin regiones</div>';
   }
 
   regionList.innerHTML = html;
 
-  // ✅ Añadir eventos de click
+  // ✅ 5. Añadir eventos de click
   document.querySelectorAll('.region-item[data-region]').forEach(el => {
     el.addEventListener('click', function() {
       const region = this.dataset.region;
       if (region === 'all') {
         selectedRegion = null;
       } else {
-        selectedRegion = region;
+        // ✅ Si ya estaba seleccionada, deseleccionar (toggle)
+        if (selectedRegion === region) {
+          selectedRegion = null;
+        } else {
+          selectedRegion = region;
+        }
       }
       updateFires();
     });
