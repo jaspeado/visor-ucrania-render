@@ -280,6 +280,27 @@
     letter-spacing: 0.02em;
   }
 
+  /* ✅ Atribución de fuentes cartográficas */
+  #attribution {
+    position: absolute;
+    bottom: 60px;
+    left: 12px;
+    z-index: 1000;
+    background: rgba(13,17,23,0.7);
+    padding: 4px 10px;
+    border-radius: 12px;
+    border: 1px solid #30363d;
+    color: #8b949e;
+    font-size: 9px;
+    pointer-events: none;
+    font-family: 'Inter', sans-serif;
+    opacity: 0.7;
+    transition: opacity 0.3s ease;
+  }
+  #attribution:hover {
+    opacity: 1;
+  }
+
   @media (max-width: 640px) {
     #panel { width: 200px; padding: 10px 12px; font-size: 11px; max-height: calc(100% - 80px); top: 60px; left: 6px; }
     #legend-regions { bottom: 70px; right: 6px; min-width: 90px; font-size: 9px; max-width: 130px; padding: 6px 8px; }
@@ -287,6 +308,7 @@
     #region-list { max-height: 120px; }
     .region-item { font-size: 9px; padding: 1px 3px; }
     #info { font-size: 10px; padding: 4px 12px; }
+    #attribution { bottom: 50px; left: 6px; font-size: 8px; padding: 2px 8px; }
     .maplibregl-popup-close-button {
       font-size: 20px !important;
       padding: 8px 10px !important;
@@ -374,6 +396,12 @@
 </div>
 
 <div id="info">🌍 Visor 3D Ucrania · Clic en un incendio para detalles</div>
+
+<!-- ✅ Atribución de fuentes cartográficas -->
+<div id="attribution">
+  <span id="attribution-text">🌍 Fuente: CartoDB (Dark Matter)</span>
+</div>
+
 <div id="map"></div>
 
 <script>
@@ -398,6 +426,10 @@ const map = new maplibregl.Map({
 
 map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
+// ============================================================
+// FUNCIONES DE ESTILO
+// ============================================================
+
 function getStyleUrl(style) {
   switch(style) {
     case 'satellite': return null;
@@ -405,6 +437,24 @@ function getStyleUrl(style) {
     default: return 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
   }
 }
+
+// ============================================================
+// ✅ ATRIBUCIÓN DE FUENTES CARTOGRÁFICAS
+// ============================================================
+function updateAttribution(style) {
+  const attributionText = document.getElementById('attribution-text');
+  const sources = {
+    'satellite': '🛰️ Fuente: Microsoft Bing Maps (World Imagery)',
+    'dark': '🌍 Fuente: CartoDB (Dark Matter)',
+    'osm': '🌍 Fuente: OpenStreetMap contributors',
+    'topo': '🗺️ Fuente: OpenTopoMap (© OpenStreetMap contributors)'
+  };
+  attributionText.textContent = sources[style] || sources['dark'];
+}
+
+// ============================================================
+// FUNCIONES DE ACTUALIZACIÓN
+// ============================================================
 
 function updateDeepstate() {
   if (!deepstateData) return;
@@ -559,7 +609,7 @@ function updateFires() {
 }
 
 // ============================================================
-// ✅ LEYENDA DE REGIONES - VERSIÓN CORREGIDA
+// ✅ LEYENDA DE REGIONES
 // ============================================================
 function updateRegionLegend() {
   const regionList = document.getElementById('region-list');
@@ -590,13 +640,11 @@ function updateRegionLegend() {
 
   let html = '';
 
-  // ✅ "Ver todos" SIEMPRE PRIMERO
   html += `<div class="region-item all-regions ${!selectedRegion ? 'active' : ''}" data-region="all">
             <span class="region-name">⬅️ Ver todos</span>
             <span class="count">${currentFiresFiltered.length}</span>
           </div>`;
 
-  // ✅ Regiones con nombre
   if (sortedRegions.length > 0) {
     sortedRegions.forEach(([region, count]) => {
       const isActive = (selectedRegion === region);
@@ -607,7 +655,6 @@ function updateRegionLegend() {
     });
   }
 
-  // ✅ "Otras ubicaciones" AL FINAL
   if (puntosSinRegion > 0) {
     const isActive = (selectedRegion === 'Otras ubicaciones');
     html += `<div class="region-item ${isActive ? 'active' : ''}" data-region="Otras ubicaciones" style="border-top:1px solid #30363d; margin-top:2px; padding-top:3px;">
@@ -624,7 +671,6 @@ function updateRegionLegend() {
 
   regionList.innerHTML = html;
 
-  // ✅ Eventos de click
   document.querySelectorAll('.region-item[data-region]').forEach(el => {
     el.addEventListener('click', function() {
       const region = this.dataset.region;
@@ -670,10 +716,17 @@ function updateTerrain() {
   }
 }
 
+// ============================================================
+// MAPA BASE
+// ============================================================
+
 function updateBaseMap() {
   const selected = document.getElementById('map-style-selector').value;
   const currentDeepstate = deepstateData;
   const currentFires = firesData;
+
+  // ✅ Actualizar atribución
+  updateAttribution(selected);
 
   ['satellite-layer', 'osm-layer', 'topo-layer'].forEach(id => {
     if (map.getLayer(id)) map.removeLayer(id);
@@ -738,6 +791,10 @@ function updateBaseMap() {
   });
 }
 
+// ============================================================
+// CARGAR DATOS
+// ============================================================
+
 fetch(DEEPSTATE_URL)
   .then(r => r.json())
   .then(data => {
@@ -758,6 +815,10 @@ fetch(FIRMS_URL)
     });
   })
   .catch(e => console.error('FIRMS error:', e));
+
+// ============================================================
+// CONTROLES
+// ============================================================
 
 document.getElementById('map-style-selector').addEventListener('change', updateBaseMap);
 
@@ -790,8 +851,13 @@ document.getElementById('pitch-slider').addEventListener('input', function() {
   updateTerrain();
 });
 
+// ============================================================
+// INICIAR
+// ============================================================
+
 map.on('load', function() {
   updateTerrain();
+  updateAttribution('dark');
   console.log('✅ Visor listo');
 });
 </script>
