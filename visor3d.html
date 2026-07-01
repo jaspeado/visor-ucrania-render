@@ -54,7 +54,6 @@
             font-size: 12px;
             color: #e6edf3;
             font-family: 'Inter', sans-serif;
-            transition: none;
         }
         #panel.minimized {
             min-width: auto;
@@ -217,7 +216,6 @@
             flex-direction: column;
             pointer-events: auto;
             font-family: 'Inter', sans-serif;
-            transition: none;
         }
         #legend-regions.minimized {
             min-width: auto;
@@ -383,7 +381,6 @@
             pointer-events: none;
             font-family: 'Inter', sans-serif;
             opacity: 0.7;
-            transition: opacity 0.3s ease;
         }
         #attribution:hover {
             opacity: 1;
@@ -551,6 +548,7 @@
         let activePopup = null;
         let fireMeshes = [];
         let scene, camera, renderer, threeContainer;
+        let threeInitialized = false;
 
         const map = new maplibregl.Map({
             container: 'map',
@@ -566,18 +564,18 @@
         map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
         // ============================================================
-        // THREE.JS SETUP
+        // THREE.JS SETUP (VERSIÓN SIMPLIFICADA)
         // ============================================================
         function initThree() {
+            if (threeInitialized) return;
+            
             threeContainer = document.getElementById('three-container');
 
             scene = new THREE.Scene();
 
-            // Cámara
             const aspect = window.innerWidth / window.innerHeight;
             camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 1000000);
 
-            // Renderer
             renderer = new THREE.WebGLRenderer({
                 alpha: true,
                 antialias: true
@@ -599,53 +597,61 @@
             dirLight2.position.set(-1, 0.5, -1);
             scene.add(dirLight2);
 
+            threeInitialized = true;
+
             // Resize
             window.addEventListener('resize', () => {
+                if (!threeInitialized) return;
                 const w = window.innerWidth;
                 const h = window.innerHeight;
                 camera.aspect = w / h;
                 camera.updateProjectionMatrix();
                 renderer.setSize(w, h);
             });
+
+            // Iniciar animación
+            animate(0);
         }
 
         // ============================================================
-        // FUNCIONES DE PROYECCIÓN Y SINCRONIZACIÓN
+        // FUNCIONES DE PROYECCIÓN
         // ============================================================
         function lngLatToMeters(lng, lat) {
-            const R = 6371000;
-            const x = R * lng * Math.PI / 180 * Math.cos(lat * Math.PI / 180);
-            const y = R * lat * Math.PI / 180;
+            const R = 6378137;
+            const x = R * lng * Math.PI / 180;
+            const y = R * Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360));
             return { x, y };
         }
 
         function syncCamera() {
-            if (!map || !camera) return;
+            if (!map || !camera || !threeInitialized) return;
 
             const center = map.getCenter();
             const zoom = map.getZoom();
             const pitch = map.getPitch();
             const bearing = map.getBearing();
 
-            // Obtener la posición de la cámara en coordenadas del mundo
-            const canvas = map.getCanvas();
-            const width = canvas.width;
-            const height = canvas.height;
-
-            // Proyectar el centro a metros
+            // Convertir centro a metros
             const centerMeters = lngLatToMeters(center.lng, center.lat);
 
-            // Calcular altura basada en zoom
-            const metersPerPixel = 156543.03392 * Math.cos(center.lat * Math.PI / 180) / Math.pow(2, zoom);
-            const altitude = metersPerPixel * height / (2 * Math.tan(camera.fov / 2 * Math.PI / 180));
+            // Calcular altura de cámara
+            const canvas = map.getCanvas();
+            const height = canvas.height;
+            const fov = camera.fov * Math.PI / 180;
 
-            // Posicionar cámara de Three
+            const metersPerPixel = 156543.03392 * Math.cos(center.lat * Math.PI / 180) / Math.pow(2, zoom);
+            const cameraHeight = (height / 2) / Math.tan(fov / 2) * metersPerPixel;
+
+            // Aplicar rotaciones
             const pitchRad = pitch * Math.PI / 180;
             const bearingRad = -bearing * Math.PI / 180;
 
-            const offsetX = altitude * Math.sin(pitchRad) * Math.sin(bearingRad);
-            const offsetY = altitude * Math.sin(pitchRad) * Math.cos(bearingRad);
-            const offsetZ = altitude * Math.cos(pitchRad);
+            const horizontalDistance = cameraHeight * Math.sin(pitchRad);
+            const verticalDistance = cameraHeight * Math.cos(pitchRad);
+
+            const offsetX = horizontalDistance * Math.sin(bearingRad);
+            const offsetY = horizontalDistance * Math.cos(bearingRad);
+            const offsetZ = verticalDistance;
 
             camera.position.set(
                 centerMeters.x + offsetX,
@@ -654,52 +660,46 @@
             );
 
             camera.lookAt(centerMeters.x, centerMeters.y, 0);
-
-            // Actualizar matriz de proyección
             camera.updateProjectionMatrix();
         }
 
         // ============================================================
-        // CREAR SEMIESFERAS 3D CON GLOW
+        // CREAR SEMIESFERAS
         // ============================================================
         function createGlowSphere(lon, lat, frp) {
             const pos = lngLatToMeters(lon, lat);
 
-            // Radio basado en FRP (10-500 → 50-400 metros)
-            const radius = 50 + (frp / 500) * 350;
+            // Radio proporcional al FRP
+            const radius = 80 + (frp / 500) * 400;
 
-            // Altura máxima (para que no se hundan)
-            const maxHeight = 800;
+            // Color: amarillo → naranja → rojo
+            const hue = 45 - (frp / 500) * 30;
+            const lightness = 55 + (frp / 500) * 25;
 
-            // Color basado en FRP (amarillo → naranja → rojo)
-            const hue = 40 - (frp / 500) * 25;
-            const saturation = 100;
-            const lightness = 50 + (frp / 500) * 30;
-
-            // SEMIESFERA PRINCIPAL
+            // Semiesfera principal
             const geometry = new THREE.SphereGeometry(radius, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
 
             const material = new THREE.MeshPhongMaterial({
-                color: new THREE.Color(`hsl(${hue}, ${saturation}%, ${lightness}%)`),
-                emissive: new THREE.Color(`hsl(${hue}, 100%, ${lightness * 0.6}%)`),
-                emissiveIntensity: 0.3 + (frp / 500) * 0.7,
+                color: new THREE.Color(`hsl(${hue}, 100%, ${lightness}%)`),
+                emissive: new THREE.Color(`hsl(${hue}, 100%, ${lightness * 0.5}%)`),
+                emissiveIntensity: 0.4 + (frp / 500) * 0.6,
                 transparent: true,
-                opacity: 0.4 + (frp / 500) * 0.4,
+                opacity: 0.5 + (frp / 500) * 0.3,
                 side: THREE.DoubleSide,
                 blending: THREE.AdditiveBlending,
                 depthWrite: false,
-                shininess: 30
+                shininess: 20
             });
 
             const sphere = new THREE.Mesh(geometry, material);
-            sphere.position.set(pos.x, pos.y, radius * 0.9);
+            sphere.position.set(pos.x, pos.y, radius * 0.8);
 
-            // GLOW EXTERIOR (más grande y difuso)
-            const glowRadius = radius * 1.8;
+            // Glow exterior
+            const glowRadius = radius * 2.5;
             const glowGeometry = new THREE.SphereGeometry(glowRadius, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
 
             const glowMaterial = new THREE.MeshBasicMaterial({
-                color: new THREE.Color(`hsl(${hue}, 100%, ${lightness * 0.7}%)`),
+                color: new THREE.Color(`hsl(${hue}, 100%, ${lightness * 0.6}%)`),
                 transparent: true,
                 opacity: 0.08 + (frp / 500) * 0.12,
                 blending: THREE.AdditiveBlending,
@@ -709,14 +709,14 @@
             const glow = new THREE.Mesh(glowGeometry, glowMaterial);
             glow.position.copy(sphere.position);
 
-            // GLOW INTERIOR (punto brillante)
-            const coreRadius = radius * 0.4;
+            // Núcleo brillante
+            const coreRadius = radius * 0.3;
             const coreGeometry = new THREE.SphereGeometry(coreRadius, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
 
             const coreMaterial = new THREE.MeshBasicMaterial({
                 color: new THREE.Color(`hsl(${hue + 10}, 100%, ${lightness + 20}%)`),
                 transparent: true,
-                opacity: 0.3 + (frp / 500) * 0.4,
+                opacity: 0.5 + (frp / 500) * 0.4,
                 blending: THREE.AdditiveBlending,
                 depthWrite: false
             });
@@ -725,7 +725,6 @@
             core.position.copy(sphere.position);
             core.position.y += radius * 0.2;
 
-            // Agrupar todo
             const group = new THREE.Group();
             group.add(sphere);
             group.add(glow);
@@ -739,10 +738,11 @@
         // ACTUALIZAR FOCOS EN THREE.JS
         // ============================================================
         function updateThreeFires() {
+            if (!threeInitialized) return;
+
             // Limpiar objetos antiguos
             fireMeshes.forEach(obj => {
                 scene.remove(obj);
-                // Liberar geometrías y materiales
                 obj.children.forEach(child => {
                     if (child.geometry) child.geometry.dispose();
                     if (child.material) child.material.dispose();
@@ -753,8 +753,8 @@
             const enabled = document.getElementById('chk-fires').checked;
             if (!enabled || currentFiresFiltered.length === 0) return;
 
-            // Tomar solo los primeros 300 para rendimiento
-            const toRender = currentFiresFiltered.slice(0, 300);
+            // Límite de 200 para rendimiento
+            const toRender = currentFiresFiltered.slice(0, 200);
 
             toRender.forEach(f => {
                 const frp = f.properties?.frp || 10;
@@ -774,25 +774,23 @@
         let lastTime = 0;
 
         function animate(time) {
+            if (!threeInitialized) return;
+            
             requestAnimationFrame(animate);
 
-            // Sincronizar cámara
             syncCamera();
 
-            // Animación suave de las semiesferas
             const delta = (time - lastTime) / 1000;
             lastTime = time;
 
+            // Animación: rotación y pulsación
             fireMeshes.forEach((group, index) => {
-                // Rotación lenta y pulsación
                 const speed = 0.2 + (group.userData.frp / 500) * 0.3;
                 group.rotation.y += delta * speed * 0.5;
 
-                // Pulsación de opacidad
-                const pulse = Math.sin(time / 1000 + index) * 0.05 + 0.95;
+                const pulse = Math.sin(time / 1000 + index * 0.5) * 0.08 + 0.92;
                 group.children.forEach(child => {
                     if (child.material && child.material.opacity !== undefined) {
-                        // Guardar opacidad base en userData
                         if (!child.userData.baseOpacity) {
                             child.userData.baseOpacity = child.material.opacity;
                         }
@@ -805,171 +803,7 @@
         }
 
         // ============================================================
-        // ✅ FUNCIÓN PARA ESPERAR A QUE EL MAPA ESTÉ CARGADO
-        // ============================================================
-        function whenMapLoaded(callback) {
-            if (map.loaded()) {
-                callback();
-            } else {
-                map.on('load', callback);
-            }
-        }
-
-        // ============================================================
-        // ✅ FUNCIÓN PARA HACER ARRASTRABLE EL POPUP
-        // ============================================================
-        function makeDraggable(popupEl, handleEl) {
-            if (!handleEl) {
-                console.error('makeDraggable: no se encontró el elemento de cabecera (.popup-header)');
-                return;
-            }
-
-            let offsetX = 0,
-                offsetY = 0,
-                isDragging = false;
-
-            function getXY(e) {
-                if (e.touches && e.touches.length) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
-                return { x: e.clientX, y: e.clientY };
-            }
-
-            function onStart(e) {
-                e.preventDefault();
-                e.stopPropagation();
-
-                isDragging = true;
-                const rect = popupEl.getBoundingClientRect();
-                const pos = getXY(e);
-                offsetX = pos.x - rect.left;
-                offsetY = pos.y - rect.top;
-
-                popupEl.style.transform = 'none';
-                popupEl.style.position = 'fixed';
-                popupEl.style.left = rect.left + 'px';
-                popupEl.style.top = rect.top + 'px';
-                popupEl.style.margin = '0';
-                popupEl.style.zIndex = '3000';
-
-                document.addEventListener('mousemove', onMove);
-                document.addEventListener('mouseup', onEnd);
-                document.addEventListener('touchmove', onMove, { passive: false });
-                document.addEventListener('touchend', onEnd);
-            }
-
-            function onMove(e) {
-                if (!isDragging) return;
-                e.preventDefault();
-                const pos = getXY(e);
-                popupEl.style.left = (pos.x - offsetX) + 'px';
-                popupEl.style.top = (pos.y - offsetY) + 'px';
-            }
-
-            function onEnd(e) {
-                if (!isDragging) return;
-                isDragging = false;
-                document.removeEventListener('mousemove', onMove);
-                document.removeEventListener('mouseup', onEnd);
-                document.removeEventListener('touchmove', onMove);
-                document.removeEventListener('touchend', onEnd);
-            }
-
-            handleEl.addEventListener('mousedown', onStart);
-            handleEl.addEventListener('touchstart', onStart, { passive: false });
-        }
-
-        // ============================================================
-        // ✅ ARRASTRE Y MINIMIZADO PARA VENTANAS FIJAS
-        // ============================================================
-        function makeWindowDraggable(containerEl, handleEl) {
-            if (!containerEl || !handleEl) return;
-
-            let offsetX = 0,
-                offsetY = 0,
-                isDragging = false;
-
-            function getXY(e) {
-                if (e.touches && e.touches.length) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
-                return { x: e.clientX, y: e.clientY };
-            }
-
-            function onStart(e) {
-                if (e.target.closest('.popup-btn')) return;
-
-                e.preventDefault();
-                isDragging = true;
-                const rect = containerEl.getBoundingClientRect();
-                const pos = getXY(e);
-                offsetX = pos.x - rect.left;
-                offsetY = pos.y - rect.top;
-
-                containerEl.style.position = 'fixed';
-                containerEl.style.left = rect.left + 'px';
-                containerEl.style.top = rect.top + 'px';
-                containerEl.style.right = 'auto';
-                containerEl.style.bottom = 'auto';
-                containerEl.style.margin = '0';
-
-                document.addEventListener('mousemove', onMove);
-                document.addEventListener('mouseup', onEnd);
-                document.addEventListener('touchmove', onMove, { passive: false });
-                document.addEventListener('touchend', onEnd);
-            }
-
-            function onMove(e) {
-                if (!isDragging) return;
-                e.preventDefault();
-                const pos = getXY(e);
-                let left = pos.x - offsetX;
-                let top = pos.y - offsetY;
-
-                left = Math.max(0, Math.min(left, window.innerWidth - 60));
-                top = Math.max(0, Math.min(top, window.innerHeight - 40));
-
-                containerEl.style.left = left + 'px';
-                containerEl.style.top = top + 'px';
-            }
-
-            function onEnd() {
-                isDragging = false;
-                document.removeEventListener('mousemove', onMove);
-                document.removeEventListener('mouseup', onEnd);
-                document.removeEventListener('touchmove', onMove);
-                document.removeEventListener('touchend', onEnd);
-            }
-
-            handleEl.addEventListener('mousedown', onStart);
-            handleEl.addEventListener('touchstart', onStart, { passive: false });
-        }
-
-        function makeWindowMinimizable(bodyEl, btnEl) {
-            if (!bodyEl || !btnEl) return;
-            btnEl.addEventListener('click', (ev) => {
-                ev.stopPropagation();
-                const parentPanel = bodyEl.closest('#panel') || bodyEl.closest('#legend-regions');
-                bodyEl.classList.toggle('minimized');
-                btnEl.textContent = bodyEl.classList.contains('minimized') ? '▢' : '─';
-                if (parentPanel) {
-                    parentPanel.classList.toggle('minimized');
-                }
-            });
-        }
-
-        // ============================================================
-        // FUNCIONES DE ESTILO
-        // ============================================================
-        function updateAttribution(style) {
-            const attributionText = document.getElementById('attribution-text');
-            const sources = {
-                'satellite': '🛰️ Fuente: Microsoft Bing Maps (World Imagery)',
-                'dark': '🌍 Fuente: CartoDB (Dark Matter)',
-                'osm': '🌍 Fuente: OpenStreetMap contributors',
-                'topo': '🗺️ Fuente: OpenTopoMap (© OpenStreetMap contributors)'
-            };
-            attributionText.textContent = sources[style] || sources['dark'];
-        }
-
-        // ============================================================
-        // ✅ FUNCIONES DE ACTUALIZACIÓN
+        // FUNCIONES DE MAPLIBRE
         // ============================================================
         function updateDeepstate() {
             if (!deepstateData) return;
@@ -1013,9 +847,6 @@
             });
         }
 
-        // ============================================================
-        // ✅ FUNCIÓN PRINCIPAL CON THREE.JS
-        // ============================================================
         function updateFires() {
             if (activePopup) {
                 activePopup.remove();
@@ -1026,9 +857,13 @@
             const frpMin = parseInt(document.getElementById('frp-slider').value) || 0;
             const timeRange = parseInt(document.getElementById('time-range-selector').value) || 48;
 
-            // Eliminar capas antiguas de MapLibre (ya no las usamos para 3D)
-            if (map.getLayer('fires-layer')) map.removeLayer('fires-layer');
-            if (map.getSource('fires')) map.removeSource('fires');
+            // ELIMINAR COLUMNAS ANTIGUAS
+            ['fires-layer', 'fires-glow', 'fires-backup-layer'].forEach(id => {
+                if (map.getLayer(id)) map.removeLayer(id);
+            });
+            ['fires', 'fires-backup'].forEach(id => {
+                if (map.getSource(id)) map.removeSource(id);
+            });
 
             if (!enabled || firesData.length === 0) {
                 currentFiresFiltered = [];
@@ -1041,7 +876,6 @@
             const ahora = Date.now();
             const limite = ahora - (timeRange * 60 * 60 * 1000);
 
-            // Filtrar los incendios
             const filtered = firesData.filter(f => {
                 if ((f.properties?.frp || 0) < frpMin) return false;
                 const acqDate = f.properties?.acq_date;
@@ -1064,7 +898,6 @@
                 return fechaUTC.getTime() >= limite;
             });
 
-            // Filtrar por región seleccionada
             const filteredByRegion = filtered.filter(f => {
                 if (!selectedRegion) return true;
                 if (selectedRegion === 'Otras ubicaciones') {
@@ -1075,45 +908,147 @@
                 return region === selectedRegion;
             });
 
-            const finalFiltered = filteredByRegion;
-            currentFiresFiltered = finalFiltered;
+            currentFiresFiltered = filteredByRegion;
 
-            if (finalFiltered.length === 0) {
+            if (filteredByRegion.length === 0) {
                 updateRegionLegend();
                 document.getElementById('stats-fires').textContent = '🔥 0';
                 updateThreeFires();
                 return;
             }
 
-            document.getElementById('stats-fires').textContent = '🔥 ' + finalFiltered.length;
+            document.getElementById('stats-fires').textContent = '🔥 ' + filteredByRegion.length;
             updateRegionLegend();
+
+            // ACTUALIZAR THREE.JS
             updateThreeFires();
 
-            // AÑADIR CÍRCULOS 2D DE APOYO EN MAPLIBRE (opcional, para referencia)
-            // Esto da un respaldo visual si Three.js falla
-            if (enabled && finalFiltered.length > 0) {
-                map.addSource('fires-backup', {
-                    type: 'geojson',
-                    data: { type: 'FeatureCollection', features: finalFiltered }
+            // CAPA DE RESPALDO (círculos 2D por si Three.js falla)
+            map.addSource('fires-backup', {
+                type: 'geojson',
+                data: { type: 'FeatureCollection', features: filteredByRegion }
+            });
+
+            map.addLayer({
+                id: 'fires-backup-layer',
+                type: 'circle',
+                source: 'fires-backup',
+                paint: {
+                    'circle-radius': 4,
+                    'circle-color': '#ff4400',
+                    'circle-opacity': 0.2,
+                    'circle-blur': 0.8
+                }
+            });
+
+            // POPUPS
+            map.off('click', 'fires-backup-layer');
+            map.on('click', 'fires-backup-layer', function(e) {
+                if (activePopup) {
+                    activePopup.remove();
+                    activePopup = null;
+                }
+
+                const p = e.features[0].properties;
+                const coords = e.features[0].geometry.coordinates;
+                const lon = coords[0];
+                const lat = coords[1];
+                const frp = p.frp || 0;
+                const localidad = p.locality || 'N/A';
+                const oblast = p.NAME_1 || 'N/A';
+                const acqDate = p.acq_date || 'N/A';
+                const acqTime = p.acq_time || '0';
+
+                let horaUTC = 0,
+                    minutosUTC = 0;
+                if (acqTime !== 'N/A') {
+                    const timeStr = String(acqTime).padStart(4, '0');
+                    horaUTC = parseInt(timeStr.substring(0, 2));
+                    minutosUTC = parseInt(timeStr.substring(2, 4));
+                }
+
+                const fechaUTC = new Date(Date.UTC(
+                    parseInt(acqDate.split('-')[0]),
+                    parseInt(acqDate.split('-')[1]) - 1,
+                    parseInt(acqDate.split('-')[2]),
+                    horaUTC,
+                    minutosUTC
+                ));
+
+                const horaLocal = fechaUTC.toLocaleString('es-ES', {
+                    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    dateStyle: 'medium',
+                    timeStyle: 'short'
                 });
 
-                map.addLayer({
-                    id: 'fires-backup-layer',
-                    type: 'circle',
-                    source: 'fires-backup',
-                    paint: {
-                        'circle-radius': 3,
-                        'circle-color': '#ff4400',
-                        'circle-opacity': 0.3,
-                        'circle-blur': 0.5
-                    }
+                const googleEarthUrl = `https://earth.google.com/web/search/${lat},${lon}`;
+                const yandexUrl = `https://yandex.com/maps/?pt=${lon},${lat}&z=15`;
+
+                activePopup = new maplibregl.Popup({
+                    closeButton: false,
+                    closeOnClick: false,
+                    className: 'custom-popup'
+                })
+                    .setLngLat(e.lngLat)
+                    .setHTML(`
+                        <div class="popup-header">
+                            <span class="popup-title">🔥 Incendio</span>
+                            <div class="popup-controls">
+                                <span class="popup-btn" id="popup-min">─</span>
+                                <span class="popup-btn" id="popup-close">✕</span>
+                            </div>
+                        </div>
+                        <div class="popup-body" id="popup-body">
+                            <div><span style="color:#ff6600; font-weight:600;">🔥 FRP:</span> ${frp} MW</div>
+                            <div><span style="color:#8b949e;">LAT/LONG:</span> <span style="font-weight:500; font-family:'Courier New',monospace; color:#e6edf3;">${lat.toFixed(5)}, ${lon.toFixed(5)}</span></div>
+                            <div><span style="color:#8b949e;">Localidad:</span> <span style="font-weight:500; color:#e6edf3;">${localidad}</span></div>
+                            <div><span style="color:#8b949e;">Región:</span> <span style="font-weight:500; color:#e6edf3;">${oblast}</span></div>
+                            <div><span style="color:#8b949e;">🕒 Hora local:</span> <span style="font-weight:500; color:#e6edf3;">${horaLocal}</span></div>
+                            <div style="border-top:1px solid #21262d; padding-top:4px; display:flex; gap:6px; font-size:10px;">
+                                <a href="${googleEarthUrl}" target="_blank" style="color:#58a6ff; text-decoration:none; font-weight:500;">🌍 Google Earth</a>
+                                <span style="color:#30363d;">|</span>
+                                <a href="${yandexUrl}" target="_blank" style="color:#58a6ff; text-decoration:none; font-weight:500;">🗺️ Yandex</a>
+                            </div>
+                        </div>
+                    `)
+                    .addTo(map);
+
+                activePopup.on('close', () => {
+                    activePopup = null;
                 });
-            }
+
+                const popupEl = activePopup.getElement();
+                if (popupEl) {
+                    popupEl.style.pointerEvents = 'auto';
+                    const headerEl = popupEl.querySelector('.popup-header');
+                    makeDraggable(popupEl, headerEl);
+
+                    const closeBtn = popupEl.querySelector('#popup-close');
+                    const minBtn = popupEl.querySelector('#popup-min');
+
+                    if (closeBtn) {
+                        closeBtn.addEventListener('click', (ev) => {
+                            ev.stopPropagation();
+                            activePopup.remove();
+                            activePopup = null;
+                        });
+                    }
+
+                    if (minBtn) {
+                        minBtn.addEventListener('click', (ev) => {
+                            ev.stopPropagation();
+                            const body = popupEl.querySelector('#popup-body');
+                            body.classList.toggle('minimized');
+                            ev.target.textContent = body.classList.contains('minimized') ? '▢' : '─';
+                        });
+                    }
+                }
+            });
+
+            map.on('mouseenter', 'fires-backup-layer', () => map.getCanvas().style.cursor = 'pointer');
+            map.on('mouseleave', 'fires-backup-layer', () => map.getCanvas().style.cursor = '');
         }
 
-        // ============================================================
-        // LEYENDA DE REGIONES
-        // ============================================================
         function updateRegionLegend() {
             const regionList = document.getElementById('region-list');
 
@@ -1148,27 +1083,19 @@
                         <span class="count">${currentFiresFiltered.length}</span>
                     </div>`;
 
-            if (sortedRegions.length > 0) {
-                sortedRegions.forEach(([region, count]) => {
-                    const isActive = (selectedRegion === region);
-                    html += `<div class="region-item ${isActive ? 'active' : ''}" data-region="${region}">
-                                <span class="region-name">${region}</span>
-                                <span class="count">${count}</span>
-                            </div>`;
-                });
-            }
+            sortedRegions.forEach(([region, count]) => {
+                const isActive = (selectedRegion === region);
+                html += `<div class="region-item ${isActive ? 'active' : ''}" data-region="${region}">
+                            <span class="region-name">${region}</span>
+                            <span class="count">${count}</span>
+                        </div>`;
+            });
 
             if (puntosSinRegion > 0) {
                 const isActive = (selectedRegion === 'Otras ubicaciones');
                 html += `<div class="region-item ${isActive ? 'active' : ''}" data-region="Otras ubicaciones" style="border-top:1px solid #30363d; margin-top:2px; padding-top:3px;">
                             <span class="region-name" style="color:#8b949e;">❓ Otras ubicaciones</span>
                             <span class="count">${puntosSinRegion}</span>
-                        </div>`;
-            }
-
-            if (sortedRegions.length === 0 && puntosSinRegion === 0) {
-                html += `<div class="region-item" style="color:#8b949e; text-align:center; padding:2px 0; font-size:9px;">
-                            (sin regiones disponibles)
                         </div>`;
             }
 
@@ -1231,13 +1158,9 @@
             }
 
             const selected = document.getElementById('map-style-selector').value;
-            const currentDeepstate = deepstateData;
-            const currentFires = firesData;
-
-            updateAttribution(selected);
 
             ['satellite-layer', 'osm-layer', 'topo-layer', 'deepstate-fill', 'deepstate-line', 'fires-layer',
-                'fires-backup-layer'
+                'fires-glow', 'fires-backup-layer'
             ].forEach(id => {
                 if (map.getLayer(id)) map.removeLayer(id);
             });
@@ -1245,12 +1168,21 @@
                 if (map.getSource(id)) map.removeSource(id);
             });
 
+            const attributionText = document.getElementById('attribution-text');
+            const sources = {
+                'satellite': '🛰️ Fuente: Microsoft Bing Maps (World Imagery)',
+                'dark': '🌍 Fuente: CartoDB (Dark Matter)',
+                'osm': '🌍 Fuente: OpenStreetMap contributors',
+                'topo': '🗺️ Fuente: OpenTopoMap (© OpenStreetMap contributors)'
+            };
+            attributionText.textContent = sources[selected] || sources['dark'];
+
             if (selected === 'dark') {
                 map.setStyle('https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json', { diff: false });
                 map.once('style.load', function() {
                     setTimeout(() => {
-                        if (currentDeepstate) updateDeepstate();
-                        if (currentFires.length > 0) updateFires();
+                        if (deepstateData) updateDeepstate();
+                        updateFires();
                         updateTerrain();
                     }, 200);
                 });
@@ -1294,22 +1226,147 @@
                 });
 
                 setTimeout(() => {
-                    if (currentDeepstate) updateDeepstate();
-                    if (currentFires.length > 0) updateFires();
+                    if (deepstateData) updateDeepstate();
+                    updateFires();
                     updateTerrain();
                 }, 200);
             });
         }
 
         // ============================================================
-        // ✅ CARGAR DATOS E INICIALIZAR
+        // DRAGGABLE / MINIMIZABLE
         // ============================================================
+        function makeDraggable(popupEl, handleEl) {
+            if (!handleEl) return;
+            let offsetX = 0,
+                offsetY = 0,
+                isDragging = false;
 
-        whenMapLoaded(function() {
+            function getXY(e) {
+                if (e.touches && e.touches.length) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                return { x: e.clientX, y: e.clientY };
+            }
+
+            function onStart(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                isDragging = true;
+                const rect = popupEl.getBoundingClientRect();
+                const pos = getXY(e);
+                offsetX = pos.x - rect.left;
+                offsetY = pos.y - rect.top;
+
+                popupEl.style.transform = 'none';
+                popupEl.style.position = 'fixed';
+                popupEl.style.left = rect.left + 'px';
+                popupEl.style.top = rect.top + 'px';
+                popupEl.style.margin = '0';
+                popupEl.style.zIndex = '3000';
+
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onEnd);
+                document.addEventListener('touchmove', onMove, { passive: false });
+                document.addEventListener('touchend', onEnd);
+            }
+
+            function onMove(e) {
+                if (!isDragging) return;
+                e.preventDefault();
+                const pos = getXY(e);
+                popupEl.style.left = (pos.x - offsetX) + 'px';
+                popupEl.style.top = (pos.y - offsetY) + 'px';
+            }
+
+            function onEnd() {
+                isDragging = false;
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onEnd);
+                document.removeEventListener('touchmove', onMove);
+                document.removeEventListener('touchend', onEnd);
+            }
+
+            handleEl.addEventListener('mousedown', onStart);
+            handleEl.addEventListener('touchstart', onStart, { passive: false });
+        }
+
+        function makeWindowDraggable(containerEl, handleEl) {
+            if (!containerEl || !handleEl) return;
+            let offsetX = 0,
+                offsetY = 0,
+                isDragging = false;
+
+            function getXY(e) {
+                if (e.touches && e.touches.length) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                return { x: e.clientX, y: e.clientY };
+            }
+
+            function onStart(e) {
+                if (e.target.closest('.popup-btn')) return;
+                e.preventDefault();
+                isDragging = true;
+                const rect = containerEl.getBoundingClientRect();
+                const pos = getXY(e);
+                offsetX = pos.x - rect.left;
+                offsetY = pos.y - rect.top;
+
+                containerEl.style.position = 'fixed';
+                containerEl.style.left = rect.left + 'px';
+                containerEl.style.top = rect.top + 'px';
+                containerEl.style.right = 'auto';
+                containerEl.style.bottom = 'auto';
+                containerEl.style.margin = '0';
+
+                document.addEventListener('mousemove', onMove);
+                document.addEventListener('mouseup', onEnd);
+                document.addEventListener('touchmove', onMove, { passive: false });
+                document.addEventListener('touchend', onEnd);
+            }
+
+            function onMove(e) {
+                if (!isDragging) return;
+                e.preventDefault();
+                const pos = getXY(e);
+                let left = pos.x - offsetX;
+                let top = pos.y - offsetY;
+                left = Math.max(0, Math.min(left, window.innerWidth - 60));
+                top = Math.max(0, Math.min(top, window.innerHeight - 40));
+                containerEl.style.left = left + 'px';
+                containerEl.style.top = top + 'px';
+            }
+
+            function onEnd() {
+                isDragging = false;
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onEnd);
+                document.removeEventListener('touchmove', onMove);
+                document.removeEventListener('touchend', onEnd);
+            }
+
+            handleEl.addEventListener('mousedown', onStart);
+            handleEl.addEventListener('touchstart', onStart, { passive: false });
+        }
+
+        function makeWindowMinimizable(bodyEl, btnEl) {
+            if (!bodyEl || !btnEl) return;
+            btnEl.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                const parentPanel = bodyEl.closest('#panel') || bodyEl.closest('#legend-regions');
+                bodyEl.classList.toggle('minimized');
+                btnEl.textContent = bodyEl.classList.contains('minimized') ? '▢' : '─';
+                if (parentPanel) {
+                    parentPanel.classList.toggle('minimized');
+                }
+            });
+        }
+
+        // ============================================================
+        // INICIALIZACIÓN
+        // ============================================================
+        map.on('load', function() {
             // Inicializar Three.js
             initThree();
 
-            // Cargar DeepState
+            // Cargar datos
             fetch(DEEPSTATE_URL)
                 .then(r => r.json())
                 .then(data => {
@@ -1320,28 +1377,18 @@
                 })
                 .catch(e => console.error('DeepState error:', e));
 
-            // Cargar FIRMS
             fetch(FIRMS_URL)
                 .then(r => r.json())
                 .then(data => {
                     firesData = data.features || [];
                     updateFires();
-                    console.log('✅ FIRMS cargado');
+                    console.log('✅ FIRMS cargado (' + firesData.length + ' incendios)');
                 })
                 .catch(e => console.error('FIRMS error:', e));
 
-            // Iniciar animación
-            animate(0);
+            updateTerrain();
+            console.log('✅ Visor listo');
         });
-
-        // ============================================================
-        // ACTIVAR ARRASTRE Y MINIMIZADO
-        // ============================================================
-        makeWindowDraggable(document.getElementById('panel'), document.getElementById('panel-header'));
-        makeWindowMinimizable(document.getElementById('panel-body'), document.getElementById('panel-min'));
-
-        makeWindowDraggable(document.getElementById('legend-regions'), document.getElementById('legend-header'));
-        makeWindowMinimizable(document.getElementById('legend-body'), document.getElementById('legend-min'));
 
         // ============================================================
         // CONTROLES
@@ -1369,9 +1416,7 @@
             updateDeepstate();
         });
 
-        document.getElementById('chk-fires').addEventListener('change', function() {
-            updateFires();
-        });
+        document.getElementById('chk-fires').addEventListener('change', updateFires);
         document.getElementById('frp-slider').addEventListener('input', function() {
             document.getElementById('val-frp').textContent = this.value;
             updateFires();
@@ -1383,14 +1428,12 @@
             updateTerrain();
         });
 
-        // ============================================================
-        // INICIAR
-        // ============================================================
-        map.on('load', function() {
-            updateTerrain();
-            updateAttribution('dark');
-            console.log('✅ Visor listo');
-        });
+        // Ventanas
+        makeWindowDraggable(document.getElementById('panel'), document.getElementById('panel-header'));
+        makeWindowMinimizable(document.getElementById('panel-body'), document.getElementById('panel-min'));
+
+        makeWindowDraggable(document.getElementById('legend-regions'), document.getElementById('legend-header'));
+        makeWindowMinimizable(document.getElementById('legend-body'), document.getElementById('legend-min'));
     </script>
 </body>
 </html>
