@@ -9,10 +9,46 @@
     </script>
     <style>
         * { margin: 0; padding: 0; }
-        body { width: 100vw; height: 100vh; overflow: hidden; }
+        body { width: 100vw; height: 100vh; overflow: hidden; background: #0d1117; }
         #map { width: 100vw; height: 100vh; position: relative; }
-        #three-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
-        #info { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; background: rgba(0,0,0,0.8); color: #0f0; padding: 10px 20px; border-radius: 10px; font-family: monospace; font-size: 14px; }
+        #three-container { 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            pointer-events: none; 
+            z-index: 10;
+            background: transparent !important;
+        }
+        #info { 
+            position: absolute; 
+            bottom: 20px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            z-index: 1000; 
+            background: rgba(0,0,0,0.8); 
+            color: #0f0; 
+            padding: 10px 20px; 
+            border-radius: 10px; 
+            font-family: monospace; 
+            font-size: 14px; 
+        }
+        #debug {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            background: rgba(0,0,0,0.9);
+            color: #0f0;
+            padding: 10px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 11px;
+            max-width: 350px;
+            max-height: 300px;
+            overflow: auto;
+        }
     </style>
 </head>
 <body>
@@ -21,16 +57,41 @@
         <div id="three-container"></div>
     </div>
     <div id="info">🔥 Semiesferas 3D - Ucrania</div>
+    <div id="debug">Cargando...</div>
 
     <script>
-        console.log('🚀 INICIANDO...');
+        const debugEl = document.getElementById('debug');
+        function logDebug(msg) {
+            console.log(msg);
+            debugEl.innerHTML = msg + '<br>' + debugEl.innerHTML;
+            if (debugEl.innerHTML.split('<br>').length > 20) {
+                debugEl.innerHTML = debugEl.innerHTML.split('<br>').slice(0, 20).join('<br>');
+            }
+        }
+
+        logDebug('🚀 INICIANDO...');
 
         // ============================================================
-        // 1. MAPA
+        // 1. MAPA - CON ESTILO OSCURO QUE SIEMPRE FUNCIONA
         // ============================================================
         const map = new maplibregl.Map({
             container: 'map',
-            style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+            style: {
+                'version': 8,
+                'sources': {
+                    'osm': {
+                        'type': 'raster',
+                        'tiles': ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+                        'tileSize': 256,
+                        'attribution': '© OpenStreetMap'
+                    }
+                },
+                'layers': [{
+                    'id': 'osm',
+                    'type': 'raster',
+                    'source': 'osm'
+                }]
+            },
             center: [32.0, 48.5],
             zoom: 6,
             pitch: 60,
@@ -39,15 +100,18 @@
 
         map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
+        logDebug('✅ Mapa creado');
+
         // ============================================================
         // 2. THREE.JS
         // ============================================================
         let scene, camera, renderer;
         let threeReady = false;
+        let fireMeshes = [];
 
         function initThree() {
             if (threeReady) return;
-            console.log('🔧 Inicializando Three.js...');
+            logDebug('🔧 Inicializando Three.js...');
 
             const container = document.getElementById('three-container');
 
@@ -55,10 +119,14 @@
 
             camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 10000000);
 
-            renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            renderer = new THREE.WebGLRenderer({ 
+                alpha: true, 
+                antialias: true 
+            });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(window.devicePixelRatio);
             renderer.setClearColor(0x000000, 0);
+            renderer.setAlpha(true);
             container.appendChild(renderer.domElement);
 
             // Luces
@@ -72,7 +140,7 @@
             scene.add(light2);
 
             threeReady = true;
-            console.log('✅ Three.js listo');
+            logDebug('✅ Three.js listo');
 
             window.addEventListener('resize', () => {
                 if (!threeReady) return;
@@ -83,14 +151,13 @@
                 renderer.setSize(w, h);
             });
 
-            // Crear datos de prueba
+            // Crear semiesferas
             createTestData();
-
             animate();
         }
 
         // ============================================================
-        // 3. CONVERTIR COORDENADAS (LA CLAVE)
+        // 3. CONVERTIR COORDENADAS
         // ============================================================
         function lngLatToMeters(lng, lat) {
             const R = 6378137;
@@ -100,7 +167,7 @@
         }
 
         // ============================================================
-        // 4. SINCRONIZAR CÁMARA - VERSIÓN QUE FUNCIONA
+        // 4. SINCRONIZAR CÁMARA
         // ============================================================
         function syncCamera() {
             if (!map || !camera || !threeReady) return;
@@ -137,7 +204,6 @@
             camera.lookAt(centerMeters.x, centerMeters.y, 0);
             camera.updateProjectionMatrix();
 
-            // Ajustar clipping
             const dist = Math.sqrt(offsetX*offsetX + offsetY*offsetY + offsetZ*offsetZ);
             camera.near = Math.max(0.1, dist * 0.0001);
             camera.far = Math.max(100000, dist * 20);
@@ -145,10 +211,8 @@
         }
 
         // ============================================================
-        // 5. CREAR SEMIESFERA 3D
+        // 5. CREAR SEMIESFERA 3D (apunta hacia abajo)
         // ============================================================
-        let fireMeshes = [];
-
         function createFireSphere(lon, lat, frp) {
             const pos = lngLatToMeters(lon, lat);
             
@@ -161,7 +225,7 @@
 
             const group = new THREE.Group();
 
-            // SEMIESFERA (mitad superior, Z hacia arriba)
+            // SEMIESFERA - mitas superior (Z positivo)
             const geom = new THREE.SphereGeometry(radius, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
             const mat = new THREE.MeshPhongMaterial({
                 color: new THREE.Color(`rgb(${r}, ${g}, ${b})`),
@@ -214,7 +278,7 @@
         // 6. DATOS DE PRUEBA
         // ============================================================
         function createTestData() {
-            console.log('🔥 Creando semiesferas de prueba...');
+            logDebug('🔥 Creando semiesferas de prueba...');
             
             const testFires = [
                 [30.5234, 50.4501, 400],
@@ -232,7 +296,7 @@
                 fireMeshes.push(group);
             });
 
-            console.log(`✅ ${fireMeshes.length} semiesferas creadas`);
+            logDebug(`✅ ${fireMeshes.length} semiesferas creadas`);
         }
 
         // ============================================================
@@ -267,23 +331,23 @@
         // 8. INICIAR
         // ============================================================
         map.on('load', function() {
-            console.log('🗺️ Mapa cargado');
+            logDebug('🗺️ Mapa cargado');
             setTimeout(initThree, 500);
         });
 
         if (map.loaded()) {
-            console.log('ℹ️ Mapa ya cargado');
+            logDebug('ℹ️ Mapa ya cargado');
             setTimeout(initThree, 500);
         }
 
         setTimeout(() => {
             if (!threeReady) {
-                console.log('⏰ Forzando inicio...');
+                logDebug('⏰ Forzando inicio...');
                 initThree();
             }
         }, 3000);
 
-        console.log('🚀 Visor iniciado');
+        logDebug('🚀 Visor iniciado');
     </script>
 </body>
 </html>
