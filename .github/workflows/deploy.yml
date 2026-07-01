@@ -11,5 +11,5 @@ jobs:
     steps:
       - name: Trigger Render Deploy
         run: |
-          curl -X POST "https://api.render.com/deploy/srv-d9190d8j3s2c739c6a30?key=TU_CLAVE" \
+          curl -X POST "https://api.render.com/deploy/srv-d9190d8j3s2c739c6a30?key=https://api.render.com/deploy/srv-d9193c19rddc73dcq37g?key=DEEE0nS_c64" \
             -H "Accept: application/json"
