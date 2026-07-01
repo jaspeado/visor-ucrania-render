@@ -1,276 +1,97 @@
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Visor Ucrania 3D - Semiesferas</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>">
+    <title>Visor Ucrania 3D</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.117/Build/Cesium/Cesium.js">
     </script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.117/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body { width: 100%; height: 100%; font-family: 'Inter', sans-serif; overflow: hidden; background: #0d1117; }
-        #cesium-container { width: 100vw; height: 100vh; position: relative; }
-        
-        #panel {
-            position: absolute;
-            top: 12px;
-            left: 12px;
-            z-index: 1000;
-            background: rgba(13, 17, 23, 0.95);
-            border: 1px solid #30363d;
-            border-radius: 10px;
-            padding: 14px 16px;
-            min-width: 200px;
-            max-width: 220px;
-            color: #e6edf3;
-            font-size: 12px;
-            font-family: 'Inter', sans-serif;
-            max-height: calc(100vh - 40px);
-            overflow-y: auto;
-        }
-        #panel::-webkit-scrollbar { width: 3px; }
-        #panel::-webkit-scrollbar-thumb { background: #58a6ff; border-radius: 4px; }
-        
-        .panel-title {
-            font-size: 11px;
-            font-weight: 600;
-            color: #58a6ff;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-            margin-bottom: 12px;
-            border-bottom: 1px solid #21262d;
-            padding-bottom: 8px;
-        }
-        .control-group { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #21262d; }
-        .control-group:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
-        .control-group label { display: block; font-size: 10px; color: #8b949e; text-transform: uppercase; font-weight: 600; margin-bottom: 3px; }
-        .control-group select {
-            width: 100%; padding: 4px 6px; background: #1c2333; color: #e6edf3;
-            border: 1px solid #30363d; border-radius: 4px; font-size: 11px;
-            font-family: 'Inter', sans-serif; cursor: pointer; outline: none;
-        }
-        .control-group select:focus { border-color: #58a6ff; }
-        .control-group input[type="range"] {
-            width: 100%; margin: 4px 0; accent-color: #58a6ff;
-            background: #30363d; height: 3px; border-radius: 2px; cursor: pointer;
-        }
-        .checkbox-group { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
-        .checkbox-group input[type="checkbox"] { accent-color: #58a6ff; width: 14px; height: 14px; cursor: pointer; }
-        .checkbox-group label { text-transform: none !important; font-size: 11px !important; color: #e6edf3 !important; font-weight: 400 !important; margin-bottom: 0 !important; cursor: pointer; }
-        .slider-value { float: right; font-size: 10px; color: #58a6ff; font-weight: 500; }
-        .stats-row { display: flex; justify-content: space-between; font-size: 10px; color: #8b949e; margin-top: 4px; padding-top: 8px; border-top: 1px solid #21262d; font-weight: 500; }
-        
-        #info {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 1000;
-            background: rgba(13, 17, 23, 0.85);
-            padding: 6px 18px;
-            border-radius: 20px;
-            border: 1px solid #30363d;
-            color: #8b949e;
-            font-size: 11px;
-            pointer-events: none;
-            white-space: nowrap;
-            font-family: 'Inter', sans-serif;
-        }
-        #attribution {
-            position: absolute;
-            bottom: 60px;
-            left: 12px;
-            z-index: 1000;
-            background: rgba(13, 17, 23, 0.7);
-            padding: 4px 10px;
-            border-radius: 12px;
-            border: 1px solid #30363d;
-            color: #8b949e;
-            font-size: 9px;
-            pointer-events: none;
-            font-family: 'Inter', sans-serif;
-            opacity: 0.7;
-        }
+        * { margin: 0; padding: 0; }
+        body { width: 100vw; height: 100vh; overflow: hidden; background: #0d1117; }
+        #cesium-container { width: 100vw; height: 100vh; }
         .cesium-viewer-bottom { display: none !important; }
-        
-        @media (max-width: 640px) {
-            #panel { min-width: 160px; max-width: 180px; padding: 10px 12px; font-size: 11px; top: 60px; left: 6px; }
-            #info { font-size: 10px; padding: 4px 12px; white-space: normal; }
-        }
     </style>
 </head>
 <body>
-
     <div id="cesium-container"></div>
 
-    <div id="panel">
-        <div class="panel-title">⚙️ Controles</div>
-        
-        <div class="control-group">
-            <div class="checkbox-group">
-                <input type="checkbox" id="chk-fires" checked>
-                <label for="chk-fires">🔥 Incendios</label>
-            </div>
-            <label>FRP mínimo <span class="slider-value" id="val-frp">10</span></label>
-            <input type="range" id="frp-slider" min="0" max="100" value="10">
-        </div>
-        
-        <div class="control-group">
-            <label>🗺️ Tipo de mapa</label>
-            <select id="map-style-selector">
-                <option value="osm">🌍 OpenStreetMap</option>
-                <option value="satellite">🛰️ Satélite</option>
-                <option value="dark">🌙 Oscuro</option>
-            </select>
-        </div>
-
-        <div class="stats-row">
-            <span id="stats-fires">🔥 0</span>
-        </div>
-    </div>
-
-    <div id="info">🌍 Visor 3D Ucrania · Semiesferas recortadas por el terreno</div>
-    <div id="attribution">🌍 Fuente: OpenStreetMap</div>
-
     <script>
-        console.log('🚀 INICIANDO CESIUM...');
-
-        // ============================================================
-        // 1. CESIUM - SIN TOKEN
-        // ============================================================
         Cesium.Ion.defaultAccessToken = undefined;
 
         const viewer = new Cesium.Viewer('cesium-container', {
             imageryProvider: new Cesium.UrlTemplateImageryProvider({
                 url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                subdomains: ['a', 'b', 'c'],
-                credit: '© OpenStreetMap contributors'
+                subdomains: ['a', 'b', 'c']
             }),
             terrainProvider: new Cesium.EllipsoidTerrainProvider(),
-            animation: false,
-            timeline: false,
-            infoBox: false,
-            selectionIndicator: false,
-            baseLayerPicker: false,
-            geocoder: false,
-            homeButton: false,
-            sceneModePicker: false,
-            navigationHelpButton: false,
-            fullscreenButton: false,
-            vrButton: false,
-            backgroundColor: new Cesium.Color(0.08, 0.1, 0.15, 1.0)
+            animation: false, timeline: false, infoBox: false,
+            selectionIndicator: false, baseLayerPicker: false, geocoder: false,
+            homeButton: false, sceneModePicker: false, navigationHelpButton: false,
+            fullscreenButton: false, vrButton: false
         });
 
-        // Cámara - Ucrania
         viewer.camera.setView({
-            destination: Cesium.Cartesian3.fromDegrees(32.0, 48.5, 600000),
-            orientation: {
-                pitch: Cesium.Math.toRadians(-40),
-                heading: Cesium.Math.toRadians(0),
-                roll: 0
-            }
+            destination: Cesium.Cartesian3.fromDegrees(32.0, 48.5, 400000),
+            orientation: { pitch: Cesium.Math.toRadians(-40) }
         });
 
-        viewer.scene.requestRender();
-        console.log('✅ Cesium listo');
-
         // ============================================================
-        // 2. VARIABLES
+        // CREAR SEMIESFERA - VERSIÓN QUE SÍ FUNCIONA
+        // Usamos un modelo 3D simple creado con vértices manuales
         // ============================================================
-        let firesData = [];
-        let fireEntities = [];
-
-        // ============================================================
-        // 3. FUNCIONES
-        // ============================================================
-        function getPolygonCenter(coords) {
-            const ring = coords[0] || coords;
-            let lon = 0, lat = 0;
-            const count = ring.length;
-            for (let i = 0; i < count; i++) {
-                lon += ring[i][0];
-                lat += ring[i][1];
-            }
-            return [lon / count, lat / count];
-        }
-
-        // ============================================================
-        // 4. CREAR SEMIESFERA CON VÉRTICES MANUALES
-        //    (se corta con el terreno porque está anclada al suelo)
-        // ============================================================
-        function createFireSphere(lon, lat, frp) {
-            const t = Math.min(frp / 500, 1);
-            const radius = 2000 + t * 8000;
-            
-            const r = 1.0;
-            const g = 1.0 - t * 0.8;
-            const b = 0.3 - t * 0.25;
-
+        function createHemisphere(lon, lat, radius, color) {
             const position = Cesium.Cartesian3.fromDegrees(lon, lat, 0);
-
-            // ============================================================
-            // CONSTRUIR SEMIESFERA CON VÉRTICES (solo mitad superior)
-            // ============================================================
+            
+            // Generar vértices de una semiesfera manualmente
             const positions = [];
-            const normals = [];
-            const colors = [];
             const indices = [];
-
-            const color = new Cesium.Color(r, g, b, 0.8);
+            const normals = [];
+            
             const segments = 32;
             const rings = 16;
-
-            // Vértice superior (polo)
+            
+            // Vértice superior
             positions.push(0, 0, radius);
             normals.push(0, 0, 1);
-            colors.push(color.red, color.green, color.blue, color.alpha);
-
-            // Generar anillos de la semiesfera
+            
+            // Anillos
             for (let ring = 1; ring <= rings; ring++) {
                 const phi = (ring / rings) * Math.PI / 2;
                 const y = radius * Math.cos(phi);
-                const rRing = radius * Math.sin(phi);
+                const r = radius * Math.sin(phi);
                 
                 for (let i = 0; i < segments; i++) {
                     const theta = (i / segments) * Math.PI * 2;
-                    const x = rRing * Math.cos(theta);
-                    const z = rRing * Math.sin(theta);
-                    
+                    const x = r * Math.cos(theta);
+                    const z = r * Math.sin(theta);
                     positions.push(x, y, z);
                     const len = Math.sqrt(x*x + y*y + z*z);
                     normals.push(x/len, y/len, z/len);
-                    colors.push(color.red, color.green, color.blue, color.alpha);
                 }
             }
-
+            
             // Índices
             for (let ring = 0; ring < rings - 1; ring++) {
                 const ringStart = ring * segments + 1;
                 const nextRingStart = (ring + 1) * segments + 1;
-                
                 for (let i = 0; i < segments; i++) {
                     const a = ringStart + i;
                     const b = ringStart + (i + 1) % segments;
                     const c = nextRingStart + i;
                     const d = nextRingStart + (i + 1) % segments;
-                    
                     indices.push(a, c, b);
                     indices.push(b, c, d);
                 }
             }
-
-            // Último anillo al polo
+            
             const lastRingStart = (rings - 1) * segments + 1;
             for (let i = 0; i < segments; i++) {
                 const a = lastRingStart + i;
                 const b = lastRingStart + (i + 1) % segments;
                 indices.push(0, b, a);
             }
-
-            // Crear geometría
+            
             const geometry = new Cesium.Geometry({
                 attributes: {
                     position: new Cesium.GeometryAttribute({
@@ -282,26 +103,23 @@
                         componentDatatype: Cesium.ComponentDatatype.FLOAT,
                         componentsPerAttribute: 3,
                         values: new Float32Array(normals)
-                    }),
-                    color: new Cesium.GeometryAttribute({
-                        componentDatatype: Cesium.ComponentDatatype.FLOAT,
-                        componentsPerAttribute: 4,
-                        values: new Float32Array(colors)
                     })
                 },
                 indices: indices,
                 primitiveType: Cesium.PrimitiveType.TRIANGLES,
                 boundingSphere: Cesium.BoundingSphere.fromVertices(positions)
             });
-
-            // Matriz de transformación (anclada al suelo)
+            
             const modelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(position);
-
+            
             const instance = new Cesium.GeometryInstance({
                 geometry: geometry,
-                modelMatrix: modelMatrix
+                modelMatrix: modelMatrix,
+                attributes: {
+                    color: Cesium.ColorGeometryInstanceAttribute.fromColor(color)
+                }
             });
-
+            
             const primitive = new Cesium.Primitive({
                 geometryInstances: instance,
                 appearance: new Cesium.PerInstanceColorAppearance({
@@ -310,184 +128,52 @@
                     flat: false
                 })
             });
-
+            
             viewer.scene.primitives.add(primitive);
+            return primitive;
+        }
 
-            // ============================================================
-            // GLOW - círculo en el suelo
-            // ============================================================
-            const glow = viewer.entities.add({
-                position: position,
+        // ============================================================
+        // DATOS DE PRUEBA
+        // ============================================================
+        const testData = [
+            [30.5234, 50.4501, 5000, 400],
+            [30.6, 50.5, 4000, 300],
+            [30.4, 50.4, 3000, 200],
+            [30.7, 50.3, 2500, 150],
+            [30.3, 50.6, 2000, 100]
+        ];
+
+        testData.forEach(([lon, lat, radius, frp]) => {
+            const t = Math.min(frp / 500, 1);
+            const color = new Cesium.Color(
+                1.0,
+                1.0 - t * 0.8,
+                0.3 - t * 0.25,
+                0.8
+            );
+            
+            createHemisphere(lon, lat, radius, color);
+            
+            // Glow
+            viewer.entities.add({
+                position: Cesium.Cartesian3.fromDegrees(lon, lat, 0),
                 ellipse: {
-                    semiMinorAxis: radius * 3,
-                    semiMajorAxis: radius * 3,
-                    material: new Cesium.Color(r, g * 0.4, b * 0.2, 0.12),
+                    semiMinorAxis: radius * 2.5,
+                    semiMajorAxis: radius * 2.5,
+                    material: new Cesium.Color(
+                        1.0,
+                        (1.0 - t * 0.8) * 0.4,
+                        (0.3 - t * 0.25) * 0.2,
+                        0.15
+                    ),
                     outline: false,
                     height: 10
                 }
             });
-
-            // ============================================================
-            // NÚCLEO BRILLANTE - pequeña esfera en la cima
-            // ============================================================
-            const core = viewer.entities.add({
-                position: Cesium.Cartesian3.fromDegrees(lon, lat, radius * 0.3),
-                ellipsoid: {
-                    radii: new Cesium.Cartesian3(radius * 0.2, radius * 0.2, radius * 0.2),
-                    material: new Cesium.Color(1.0, Math.min(g + 0.3, 1.0), Math.min(b + 0.3, 1.0), 0.9),
-                    outline: false
-                }
-            });
-
-            return { sphere: primitive, glow, core };
-        }
-
-        // ============================================================
-        // 5. ACTUALIZAR INCENDIOS
-        // ============================================================
-        function updateFires() {
-            const enabled = document.getElementById('chk-fires').checked;
-            const frpMin = parseInt(document.getElementById('frp-slider').value) || 0;
-
-            // Limpiar entidades anteriores
-            fireEntities.forEach(entity => {
-                if (entity && entity.remove) {
-                    entity.remove();
-                }
-            });
-            fireEntities = [];
-
-            if (!enabled || firesData.length === 0) {
-                document.getElementById('stats-fires').textContent = '🔥 0';
-                return;
-            }
-
-            const filtered = firesData.filter(f => {
-                const frp = f.properties?.frp || 0;
-                return frp >= frpMin;
-            });
-
-            document.getElementById('stats-fires').textContent = '🔥 ' + filtered.length;
-
-            const toRender = filtered.slice(0, 100);
-
-            toRender.forEach(f => {
-                try {
-                    const frp = f.properties?.frp || 10;
-                    const coords = f.geometry.coordinates;
-                    const [lon, lat] = getPolygonCenter(coords);
-
-                    const entities = createFireSphere(lon, lat, frp);
-                    fireEntities.push(entities.sphere);
-                    fireEntities.push(entities.glow);
-                    fireEntities.push(entities.core);
-                } catch (e) {
-                    console.warn('Error:', e);
-                }
-            });
-
-            console.log(`✅ ${fireEntities.length / 3} semiesferas creadas`);
-        }
-
-        // ============================================================
-        // 6. CAMBIAR MAPA
-        // ============================================================
-        function updateMap() {
-            const selected = document.getElementById('map-style-selector').value;
-            let provider;
-
-            switch (selected) {
-                case 'satellite':
-                    provider = new Cesium.UrlTemplateImageryProvider({
-                        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-                        credit: '© Esri'
-                    });
-                    break;
-                case 'dark':
-                    provider = new Cesium.UrlTemplateImageryProvider({
-                        url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-                        subdomains: ['a', 'b', 'c'],
-                        credit: '© CartoDB'
-                    });
-                    break;
-                default: // OSM
-                    provider = new Cesium.UrlTemplateImageryProvider({
-                        url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        subdomains: ['a', 'b', 'c'],
-                        credit: '© OpenStreetMap'
-                    });
-                    break;
-            }
-
-            viewer.imageryLayers.removeAll();
-            viewer.imageryLayers.addImageryProvider(provider);
-            
-            const labels = {
-                'osm': '🌍 OpenStreetMap',
-                'satellite': '🛰️ Esri Satélite',
-                'dark': '🌙 CartoDB Dark'
-            };
-            document.getElementById('attribution').textContent = '🌍 Fuente: ' + labels[selected];
-        }
-
-        // ============================================================
-        // 7. CARGAR DATOS
-        // ============================================================
-        const FIRMS_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires_polygons.geojson';
-
-        function loadFires() {
-            console.log('📡 Cargando incendios...');
-
-            fetch(FIRMS_URL)
-                .then(r => r.json())
-                .then(data => {
-                    firesData = data.features || [];
-                    console.log(`✅ ${firesData.length} incendios cargados`);
-                    updateFires();
-                })
-                .catch(e => {
-                    console.error('Error:', e);
-                    createTestData();
-                });
-        }
-
-        function createTestData() {
-            console.log('🔥 Usando datos de prueba...');
-            const testFires = [
-                [30.5234, 50.4501, 400],
-                [30.6, 50.5, 300],
-                [30.4, 50.4, 200],
-                [30.7, 50.3, 150],
-                [30.3, 50.6, 100]
-            ];
-            
-            firesData = testFires.map(([lon, lat, frp]) => ({
-                properties: { frp },
-                geometry: {
-                    coordinates: [[[lon-0.02, lat-0.02], [lon+0.02, lat-0.02], [lon+0.02, lat+0.02], [lon-0.02, lat+0.02], [lon-0.02, lat-0.02]]]
-                }
-            }));
-            updateFires();
-        }
-
-        // ============================================================
-        // 8. CONTROLES
-        // ============================================================
-        document.getElementById('chk-fires').addEventListener('change', updateFires);
-        document.getElementById('frp-slider').addEventListener('input', function() {
-            document.getElementById('val-frp').textContent = this.value;
-            updateFires();
         });
-        document.getElementById('map-style-selector').addEventListener('change', updateMap);
 
-        // ============================================================
-        // 9. INICIAR
-        // ============================================================
-        setTimeout(() => {
-            loadFires();
-        }, 1000);
-
-        console.log('🚀 Visor iniciado');
+        console.log('✅ Semiesferas 3D creadas');
     </script>
 </body>
 </html>
