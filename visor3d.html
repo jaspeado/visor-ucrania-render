@@ -9,7 +9,7 @@
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.117/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; }
-        body { width: 100vw; height: 100vh; overflow: hidden; background: #000; }
+        body { width: 100vw; height: 100vh; overflow: hidden; background: #1a1a2e; }
         #cesium-container { width: 100vw; height: 100vh; position: relative; }
         #info {
             position: absolute;
@@ -18,11 +18,27 @@
             transform: translateX(-50%);
             z-index: 1000;
             background: rgba(0,0,0,0.8);
-            color: #fff;
+            color: #0f0;
             padding: 10px 20px;
             border-radius: 10px;
             font-family: monospace;
             font-size: 14px;
+            text-align: center;
+        }
+        #debug {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            background: rgba(0,0,0,0.9);
+            color: #0f0;
+            padding: 10px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 11px;
+            max-width: 350px;
+            max-height: 300px;
+            overflow: auto;
         }
         .cesium-viewer-bottom { display: none !important; }
     </style>
@@ -31,17 +47,29 @@
 
     <div id="cesium-container"></div>
     <div id="info">🔥 Visor 3D - Incendios Ucrania</div>
+    <div id="debug">Cargando...</div>
 
     <script>
-        console.log('🚀 INICIANDO CESIUM...');
+        const debugEl = document.getElementById('debug');
+        function logDebug(msg) {
+            console.log(msg);
+            debugEl.innerHTML = msg + '<br>' + debugEl.innerHTML;
+            if (debugEl.innerHTML.split('<br>').length > 20) {
+                debugEl.innerHTML = debugEl.innerHTML.split('<br>').slice(0, 20).join('<br>');
+            }
+        }
+
+        logDebug('🚀 INICIANDO...');
 
         // ============================================================
-        // 1. CESIUM
+        // 1. CESIUM SIN TOKEN
         // ============================================================
-        Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI1ZTRhMDBhNS05Y2FhLTQxYzQtYThhZC0zMjYwZDU3MjAzYWMiLCJpZCI6MjU5LCJpYXQiOjE1MzYyMzk5Mzl9.XvDdRjS7LqCw6bbBBhgMcJmz0b_9h-D7bWZ_H1XIrL8';
-
         const viewer = new Cesium.Viewer('cesium-container', {
-            terrainProvider: Cesium.createWorldTerrain(),
+            imageryProvider: new Cesium.UrlTemplateImageryProvider({
+                url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                credit: 'OpenStreetMap'
+            }),
+            terrainProvider: new Cesium.EllipsoidTerrainProvider(),
             animation: false,
             timeline: false,
             infoBox: false,
@@ -55,19 +83,20 @@
             vrButton: false
         });
 
-        // Cámara - Ucrania
+        // Configurar cámara (Ucrania)
         viewer.camera.setView({
             destination: Cesium.Cartesian3.fromDegrees(32.0, 48.5, 500000),
             orientation: {
                 pitch: Cesium.Math.toRadians(-45),
-                heading: Cesium.Math.toRadians(0)
+                heading: Cesium.Math.toRadians(0),
+                roll: 0
             }
         });
 
-        console.log('✅ Cesium listo');
+        logDebug('✅ Cesium listo');
 
         // ============================================================
-        // 2. CENTROIDE
+        // 2. FUNCIONES
         // ============================================================
         function getPolygonCenter(coords) {
             const ring = coords[0] || coords;
@@ -80,230 +109,71 @@
             return [lon / count, lat / count];
         }
 
-        // ============================================================
-        // 3. CREAR SEMIESFERA 3D - MÉTODO CORRECTO
-        // ============================================================
         function createFireSphere(lon, lat, frp) {
             const t = Math.min(frp / 500, 1);
-            const radius = 2000 + t * 8000; // 2km a 10km
+            const radius = 2000 + t * 8000;
             
-            // Color
             const r = 1.0;
             const g = 1.0 - t * 0.8;
             const b = 0.3 - t * 0.25;
 
-            // Posición
             const position = Cesium.Cartesian3.fromDegrees(lon, lat, 0);
-
-            // ============================================================
-            // CREAR SEMIESFERA CON VÉRTICES MANUALES
-            // ============================================================
-            const positions = [];
-            const indices = [];
-            const normals = [];
-            const colors = [];
-
-            // Generar semiesfera (mitad superior)
-            const segments = 32;
-            const color = new Cesium.Color(r, g, b, 0.8);
             
-            // Vértice superior (polo)
-            positions.push(0, 0, radius);
-            normals.push(0, 0, 1);
-            colors.push(color.red, color.green, color.blue, color.alpha);
-
-            // Generar anillos
-            for (let ring = 1; ring <= segments / 2; ring++) {
-                const phi = (ring / (segments / 2)) * Math.PI / 2;
-                const y = radius * Math.cos(phi);
-                const rRing = radius * Math.sin(phi);
-                
-                for (let i = 0; i < segments; i++) {
-                    const theta = (i / segments) * Math.PI * 2;
-                    const x = rRing * Math.cos(theta);
-                    const z = rRing * Math.sin(theta);
-                    
-                    positions.push(x, y, z);
-                    normals.push(x / radius, y / radius, z / radius);
-                    colors.push(color.red, color.green, color.blue, color.alpha);
+            // Usar Entity en lugar de geometría manual (más simple y funciona mejor)
+            const entity = viewer.entities.add({
+                position: position,
+                ellipsoid: {
+                    radii: new Cesium.Cartesian3(radius, radius, radius),
+                    material: new Cesium.Color(r, g, b, 0.6),
+                    emissiveColor: new Cesium.Color(r * 0.8, g * 0.5, b * 0.3, 0.8),
+                    outline: false,
+                    // Solo la mitad superior
+                    slicePart: 0.5
                 }
-            }
+            });
 
-            // Índices
-            const rings = segments / 2;
-            for (let ring = 0; ring < rings - 1; ring++) {
-                const ringStart = ring * segments + 1;
-                const nextRingStart = (ring + 1) * segments + 1;
-                
-                for (let i = 0; i < segments; i++) {
-                    const a = ringStart + i;
-                    const b = ringStart + (i + 1) % segments;
-                    const c = nextRingStart + i;
-                    const d = nextRingStart + (i + 1) % segments;
-                    
-                    indices.push(a, c, b);
-                    indices.push(b, c, d);
+            // Glow (círculo en el suelo)
+            const glowEntity = viewer.entities.add({
+                position: position,
+                ellipse: {
+                    semiMinorAxis: radius * 3,
+                    semiMajorAxis: radius * 3,
+                    material: new Cesium.Color(r, g * 0.4, b * 0.2, 0.15),
+                    outline: false
                 }
-            }
-
-            // Último anillo al polo
-            const lastRingStart = (rings - 1) * segments + 1;
-            for (let i = 0; i < segments; i++) {
-                const a = lastRingStart + i;
-                const b = lastRingStart + (i + 1) % segments;
-                indices.push(0, b, a);
-            }
-
-            // Crear geometría
-            const geometry = new Cesium.Geometry({
-                attributes: {
-                    position: new Cesium.GeometryAttribute({
-                        componentDatatype: Cesium.ComponentDatatype.DOUBLE,
-                        componentsPerAttribute: 3,
-                        values: new Float64Array(positions)
-                    }),
-                    normal: new Cesium.GeometryAttribute({
-                        componentDatatype: Cesium.ComponentDatatype.FLOAT,
-                        componentsPerAttribute: 3,
-                        values: new Float32Array(normals)
-                    }),
-                    color: new Cesium.GeometryAttribute({
-                        componentDatatype: Cesium.ComponentDatatype.FLOAT,
-                        componentsPerAttribute: 4,
-                        values: new Float32Array(colors)
-                    })
-                },
-                indices: indices,
-                primitiveType: Cesium.PrimitiveType.TRIANGLES,
-                boundingSphere: Cesium.BoundingSphere.fromVertices(positions)
             });
 
-            // Matriz de transformación
-            const modelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(position);
-
-            const instance = new Cesium.GeometryInstance({
-                geometry: geometry,
-                modelMatrix: modelMatrix
-            });
-
-            const primitive = new Cesium.Primitive({
-                geometryInstances: instance,
-                appearance: new Cesium.PerInstanceColorAppearance({
-                    translucent: true,
-                    closed: false,
-                    flat: false
-                })
-            });
-
-            viewer.scene.primitives.add(primitive);
-
-            // ============================================================
-            // GLOW - Esfera más grande y difusa
-            // ============================================================
-            const glowPositions = [];
-            const glowColors = [];
-            const glowRadius = radius * 2.5;
-            const glowColor = new Cesium.Color(r, g * 0.4, b * 0.2, 0.15);
-
-            // Generar glow (más simple, menos segmentos)
-            const glowSegments = 16;
-            for (let ring = 0; ring <= glowSegments / 2; ring++) {
-                const phi = (ring / (glowSegments / 2)) * Math.PI / 2;
-                const y = glowRadius * Math.cos(phi);
-                const rRing = glowRadius * Math.sin(phi);
-                
-                for (let i = 0; i < glowSegments; i++) {
-                    const theta = (i / glowSegments) * Math.PI * 2;
-                    const x = rRing * Math.cos(theta);
-                    const z = rRing * Math.sin(theta);
-                    
-                    glowPositions.push(x, y, z);
-                    glowColors.push(glowColor.red, glowColor.green, glowColor.blue, glowColor.alpha);
-                }
-            }
-
-            // Índices para glow
-            const glowIndices = [];
-            const glowRings = glowSegments / 2;
-            for (let ring = 0; ring < glowRings - 1; ring++) {
-                const ringStart = ring * glowSegments;
-                const nextRingStart = (ring + 1) * glowSegments;
-                
-                for (let i = 0; i < glowSegments; i++) {
-                    const a = ringStart + i;
-                    const b = ringStart + (i + 1) % glowSegments;
-                    const c = nextRingStart + i;
-                    const d = nextRingStart + (i + 1) % glowSegments;
-                    
-                    glowIndices.push(a, c, b);
-                    glowIndices.push(b, c, d);
-                }
-            }
-
-            const glowGeometry = new Cesium.Geometry({
-                attributes: {
-                    position: new Cesium.GeometryAttribute({
-                        componentDatatype: Cesium.ComponentDatatype.DOUBLE,
-                        componentsPerAttribute: 3,
-                        values: new Float64Array(glowPositions)
-                    }),
-                    color: new Cesium.GeometryAttribute({
-                        componentDatatype: Cesium.ComponentDatatype.FLOAT,
-                        componentsPerAttribute: 4,
-                        values: new Float32Array(glowColors)
-                    })
-                },
-                indices: glowIndices,
-                primitiveType: Cesium.PrimitiveType.TRIANGLES,
-                boundingSphere: Cesium.BoundingSphere.fromVertices(glowPositions)
-            });
-
-            const glowInstance = new Cesium.GeometryInstance({
-                geometry: glowGeometry,
-                modelMatrix: modelMatrix
-            });
-
-            const glowPrimitive = new Cesium.Primitive({
-                geometryInstances: glowInstance,
-                appearance: new Cesium.PerInstanceColorAppearance({
-                    translucent: true,
-                    closed: false,
-                    flat: true
-                })
-            });
-
-            viewer.scene.primitives.add(glowPrimitive);
-
-            return { sphere: primitive, glow: glowPrimitive };
+            return { sphere: entity, glow: glowEntity };
         }
 
         // ============================================================
-        // 4. CARGAR INCENDIOS
+        // 3. CARGAR INCENDIOS
         // ============================================================
         const FIRMS_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires_polygons.geojson';
-        let fireObjects = [];
+        let fireEntities = [];
 
         function loadFires() {
-            console.log('📡 Cargando incendios...');
+            logDebug('📡 Cargando incendios...');
 
             fetch(FIRMS_URL)
                 .then(r => r.json())
                 .then(data => {
                     const features = data.features || [];
-                    console.log(`✅ ${features.length} incendios cargados`);
+                    logDebug(`✅ ${features.length} incendios cargados`);
                     createFires(features);
                 })
                 .catch(e => {
-                    console.error('Error:', e);
+                    logDebug('❌ Error: ' + e.message + ' - Usando prueba');
                     createTestFires();
                 });
         }
 
         function createFires(features) {
-            fireObjects.forEach(obj => {
-                viewer.scene.primitives.remove(obj);
+            // Limpiar anteriores
+            fireEntities.forEach(entity => {
+                viewer.entities.remove(entity);
             });
-            fireObjects = [];
+            fireEntities = [];
 
             const toRender = features.slice(0, 100);
 
@@ -313,19 +183,19 @@
                     const coords = f.geometry.coordinates;
                     const [lon, lat] = getPolygonCenter(coords);
 
-                    const objects = createFireSphere(lon, lat, frp);
-                    fireObjects.push(objects.sphere);
-                    fireObjects.push(objects.glow);
+                    const entities = createFireSphere(lon, lat, frp);
+                    fireEntities.push(entities.sphere);
+                    fireEntities.push(entities.glow);
                 } catch (e) {
-                    console.warn('Error:', e);
+                    logDebug('❌ Error creando: ' + e.message);
                 }
             });
 
-            console.log(`✅ ${fireObjects.length / 2} semiesferas creadas`);
+            logDebug(`✅ ${fireEntities.length / 2} semiesferas creadas`);
         }
 
         function createTestFires() {
-            console.log('🔥 Usando datos de prueba...');
+            logDebug('🔥 Usando datos de prueba...');
             const testFires = [
                 [30.5234, 50.4501, 400],
                 [30.6, 50.5, 300],
@@ -335,22 +205,22 @@
             ];
 
             testFires.forEach(([lon, lat, frp]) => {
-                const objects = createFireSphere(lon, lat, frp);
-                fireObjects.push(objects.sphere);
-                fireObjects.push(objects.glow);
+                const entities = createFireSphere(lon, lat, frp);
+                fireEntities.push(entities.sphere);
+                fireEntities.push(entities.glow);
             });
 
-            console.log(`✅ ${fireObjects.length / 2} semiesferas de prueba`);
+            logDebug(`✅ ${fireEntities.length / 2} semiesferas de prueba en Kyiv`);
         }
 
         // ============================================================
-        // 5. INICIAR
+        // 4. INICIAR
         // ============================================================
         setTimeout(() => {
             loadFires();
         }, 1000);
 
-        console.log('🚀 Visor iniciado');
+        logDebug('🚀 Visor iniciado');
     </script>
 </body>
 </html>
