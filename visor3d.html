@@ -1,10 +1,7 @@
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Visor Ucrania 3D</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>">
+    <title>Visor 3D - Proyección en Pantalla</title>
     <script src="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.js">
     </script>
     <link href="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.css" rel="stylesheet">
@@ -12,68 +9,32 @@
     </script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body { width: 100%; height: 100%; font-family: 'Inter', sans-serif; overflow: hidden; }
-        #map { width: 100%; height: 100vh; position: relative; }
+        html, body { width: 100vw; height: 100vh; overflow: hidden; }
+        #map { width: 100vw; height: 100vh; position: relative; }
         #three-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
-        #panel {
-            position: absolute;
-            top: 12px;
-            left: 12px;
-            z-index: 1000;
-            background: rgba(13, 17, 23, 0.92);
-            border: 1px solid #30363d;
-            border-radius: 10px;
-            padding: 14px 16px;
-            min-width: 200px;
-            color: #e6edf3;
-            font-size: 12px;
-        }
-        .control-group { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #21262d; }
-        .control-group:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
-        .control-group label { display: block; font-size: 10px; color: #8b949e; text-transform: uppercase; font-weight: 600; margin-bottom: 3px; }
-        .control-group input[type="range"] { width: 100%; margin: 4px 0; accent-color: #58a6ff; background: #30363d; height: 3px; border-radius: 2px; cursor: pointer; }
-        .checkbox-group { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
-        .checkbox-group input[type="checkbox"] { accent-color: #58a6ff; width: 14px; height: 14px; cursor: pointer; }
-        .checkbox-group label { text-transform: none !important; font-size: 11px !important; color: #e6edf3 !important; font-weight: 400 !important; margin-bottom: 0 !important; }
-        .slider-value { float: right; font-size: 10px; color: #58a6ff; font-weight: 500; }
-        .stats-row { display: flex; justify-content: space-between; font-size: 10px; color: #8b949e; margin-top: 4px; padding-top: 8px; border-top: 1px solid #21262d; font-weight: 500; }
-        #info { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; background: rgba(13,17,23,0.85); padding: 6px 18px; border-radius: 20px; border: 1px solid #30363d; color: #8b949e; font-size: 11px; pointer-events: none; white-space: nowrap; }
+        #info { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; background: rgba(0,0,0,0.8); color: #fff; padding: 8px 16px; border-radius: 10px; font-family: monospace; font-size: 12px; }
+        #debug { position: absolute; top: 10px; right: 10px; z-index: 1000; background: rgba(0,0,0,0.9); color: #0f0; padding: 8px; border-radius: 6px; font-family: monospace; font-size: 10px; max-width: 300px; max-height: 150px; overflow: auto; }
     </style>
 </head>
 <body>
 
-    <div id="panel">
-        <div style="margin-bottom:10px; font-weight:600; color:#58a6ff; font-size:11px;">⚙️ Controles</div>
-        <div class="control-group">
-            <div class="checkbox-group">
-                <input type="checkbox" id="chk-fires" checked>
-                <label for="chk-fires">🔥 Incendios</label>
-            </div>
-            <label>FRP mínimo <span class="slider-value" id="val-frp">10</span></label>
-            <input type="range" id="frp-slider" min="0" max="100" value="10">
-        </div>
-        <div class="stats-row">
-            <span id="stats-fires">🔥 0</span>
-        </div>
-    </div>
-
-    <div id="info">🌍 Visor 3D Ucrania · Semiesferas 3D</div>
     <div id="map">
         <div id="three-container"></div>
     </div>
+    <div id="info">🔥 Visor 3D - Proyección en pantalla</div>
+    <div id="debug">Cargando...</div>
 
     <script>
-        // ============================================================
-        // CONFIGURACIÓN
-        // ============================================================
-        const FIRMS_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires_polygons.geojson';
-        
-        let firesData = [];
-        let fireMeshes = [];
-        let scene, camera, renderer;
-        let threeReady = false;
-        let isUpdating = false;
-        let frameCount = 0;
+        const debugEl = document.getElementById('debug');
+        function logDebug(msg) {
+            console.log(msg);
+            debugEl.innerHTML = msg + '<br>' + debugEl.innerHTML;
+            if (debugEl.innerHTML.split('<br>').length > 15) {
+                debugEl.innerHTML = debugEl.innerHTML.split('<br>').slice(0, 15).join('<br>');
+            }
+        }
+
+        logDebug('🚀 INICIANDO...');
 
         // ============================================================
         // MAPA
@@ -92,16 +53,33 @@
         // ============================================================
         // THREE.JS
         // ============================================================
+        let scene, camera, renderer;
+        let threeReady = false;
+        let fireMeshes = [];
+        let firesData = [];
+
         function initThree() {
             if (threeReady) return;
-            console.log('🔧 Inicializando Three.js...');
+            logDebug('🔄 Inicializando Three.js...');
 
             const container = document.getElementById('three-container');
 
+            // Escena SIN fondo (transparente)
             scene = new THREE.Scene();
 
+            // Cámara ORTOGRÁFICA (coordenadas de pantalla)
             const aspect = window.innerWidth / window.innerHeight;
-            camera = new THREE.PerspectiveCamera(45, aspect, 0.00001, 1000);
+            const frustumSize = 1000;
+            camera = new THREE.OrthographicCamera(
+                -frustumSize * aspect / 2,  // left
+                frustumSize * aspect / 2,   // right
+                frustumSize / 2,            // top
+                -frustumSize / 2,           // bottom
+                0.1,                        // near
+                10000                       // far
+            );
+            camera.position.set(0, 0, 1000);
+            camera.lookAt(0, 0, 0);
 
             renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
@@ -109,6 +87,7 @@
             renderer.setClearColor(0x000000, 0);
             container.appendChild(renderer.domElement);
 
+            // Luces
             const ambient = new THREE.AmbientLight(0x404060);
             scene.add(ambient);
             const light1 = new THREE.DirectionalLight(0xffffff, 1);
@@ -119,19 +98,24 @@
             scene.add(light2);
 
             threeReady = true;
-            console.log('✅ Three.js listo');
+            logDebug('✅ Three.js listo');
 
             window.addEventListener('resize', () => {
                 if (!threeReady) return;
                 const w = window.innerWidth;
                 const h = window.innerHeight;
-                camera.aspect = w / h;
+                const aspect2 = w / h;
+                const fs = 1000;
+                camera.left = -fs * aspect2 / 2;
+                camera.right = fs * aspect2 / 2;
+                camera.top = fs / 2;
+                camera.bottom = -fs / 2;
                 camera.updateProjectionMatrix();
                 renderer.setSize(w, h);
             });
 
             loadFires();
-            animate(0);
+            animate();
         }
 
         // ============================================================
@@ -149,111 +133,70 @@
         }
 
         // ============================================================
-        // SINCRONIZAR CÁMARA - CON NEAR/FAR DINÁMICO
+        // CONVERTIR COORDENADAS DEL MAPA A PANTALLA
         // ============================================================
-        function syncCamera() {
-            if (!map || !camera || !threeReady) return;
-
-            try {
-                const center = map.getCenter();
-                const zoom = map.getZoom();
-                const pitch = map.getPitch();
-                const bearing = map.getBearing();
-
-                const centerMercator = maplibregl.MercatorCoordinate.fromLngLat(
-                    new maplibregl.LngLat(center.lng, center.lat)
-                );
-
-                const canvas = map.getCanvas();
-                const height = canvas.height;
-                const halfFov = camera.fov * Math.PI / 360;
-                const pixelsPerMeter = 1 / (Math.pow(2, zoom) * 256);
-                const cameraToCenterDistance = (height / 2) / Math.tan(halfFov) / pixelsPerMeter;
-
-                const pitchRad = pitch * Math.PI / 180;
-                const bearingRad = -bearing * Math.PI / 180;
-
-                const xOffset = cameraToCenterDistance * Math.sin(pitchRad) * Math.sin(bearingRad);
-                const yOffset = cameraToCenterDistance * Math.sin(pitchRad) * Math.cos(bearingRad);
-                const zOffset = cameraToCenterDistance * Math.cos(pitchRad);
-
-                camera.position.set(
-                    centerMercator.x + xOffset,
-                    centerMercator.y + yOffset,
-                    centerMercator.z + zOffset
-                );
-
-                camera.lookAt(
-                    centerMercator.x,
-                    centerMercator.y,
-                    centerMercator.z
-                );
-                
-                // ============================================================
-                // AJUSTE DINÁMICO DE NEAR/FAR - EVITA QUE DESAPAREZCAN
-                // ============================================================
-                const dist = Math.sqrt(xOffset*xOffset + yOffset*yOffset + zOffset*zOffset);
-                
-                // Near: muy pequeño para ver objetos cercanos
-                const near = Math.max(0.0000001, dist * 0.000001);
-                // Far: muy grande para ver objetos lejanos
-                const far = Math.max(100, dist * 20);
-                
-                camera.near = near;
-                camera.far = far;
-                camera.updateProjectionMatrix();
-                
-                // Log cada 60 frames
-                frameCount++;
-                if (frameCount % 60 === 0) {
-                    console.log(`📐 Zoom: ${zoom.toFixed(2)}, Near: ${near.toExponential(2)}, Far: ${far.toFixed(0)}`);
-                }
-
-            } catch (e) {
-                // Silencioso
-            }
+        function lngLatToScreen(lng, lat) {
+            // Proyectar punto en el mapa
+            const point = map.project(new maplibregl.LngLat(lng, lat));
+            
+            // Convertir a coordenadas de Three.js (centro en 0,0)
+            const x = (point.x / window.innerWidth) * 1000 - 500;
+            const y = -(point.y / window.innerHeight) * 1000 + 500;
+            
+            return { x, y };
         }
 
         // ============================================================
-        // CREAR SEMIESFERA
+        // OBTENER TAMAÑO EN PANTALLA SEGÚN ZOOM
         // ============================================================
-        function createFireSphere(lon, lat, frp) {
-            const mercator = maplibregl.MercatorCoordinate.fromLngLat(
-                new maplibregl.LngLat(lon, lat)
-            );
-            
+        function getSizeInScreen(frp, zoom) {
+            // Tamaño base en píxeles
             const t = Math.min(frp / 500, 1);
-            const radius = 0.0001 + t * 0.0008;
+            const baseSize = 15 + t * 40;
+            
+            // Ajustar por zoom: más grande cuando más zoom
+            const zoomFactor = Math.pow(1.2, zoom - 5);
+            return baseSize * Math.min(zoomFactor, 3);
+        }
 
+        // ============================================================
+        // CREAR SEMIESFERA (en coordenadas de pantalla)
+        // ============================================================
+        function createScreenSphere(lon, lat, frp) {
+            const pos = lngLatToScreen(lon, lat);
+            const zoom = map.getZoom();
+            const radius = getSizeInScreen(frp, zoom);
+
+            const t = Math.min(frp / 500, 1);
             const r = 255;
             const g = Math.round(255 * (1 - t * 0.9));
             const b = Math.round(80 * (1 - t * 0.8));
 
             const group = new THREE.Group();
 
-            // Semiesfera
-            const geom = new THREE.SphereGeometry(radius, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+            // Semiesfera 3D (en pantalla)
+            const geom = new THREE.SphereGeometry(radius, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2);
             const mat = new THREE.MeshPhongMaterial({
                 color: new THREE.Color(`rgb(${r}, ${g}, ${b})`),
                 emissive: new THREE.Color(`rgb(${r}, ${Math.round(g * 0.6)}, ${Math.round(b * 0.3)})`),
                 emissiveIntensity: 0.6 + t * 0.8,
                 transparent: true,
-                opacity: 0.8 + t * 0.2,
+                opacity: 0.85 + t * 0.15,
                 side: THREE.DoubleSide,
                 blending: THREE.AdditiveBlending,
                 depthWrite: false,
                 shininess: 30
             });
             const sphere = new THREE.Mesh(geom, mat);
-            sphere.position.set(mercator.x, mercator.y, mercator.z + radius * 0.8);
+            sphere.position.set(pos.x, pos.y, radius * 0.8);
             group.add(sphere);
 
             // Glow
-            const glowGeom = new THREE.SphereGeometry(radius * 2.5, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+            const glowGeom = new THREE.SphereGeometry(radius * 2.5, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2);
             const glowMat = new THREE.MeshBasicMaterial({
                 color: new THREE.Color(`rgb(${r}, ${Math.round(g * 0.4)}, ${Math.round(b * 0.2)})`),
                 transparent: true,
-                opacity: 0.1 + t * 0.15,
+                opacity: 0.12 + t * 0.12,
                 blending: THREE.AdditiveBlending,
                 depthWrite: false
             });
@@ -262,11 +205,11 @@
             group.add(glow);
 
             // Núcleo
-            const coreGeom = new THREE.SphereGeometry(radius * 0.4, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+            const coreGeom = new THREE.SphereGeometry(radius * 0.4, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2);
             const coreMat = new THREE.MeshBasicMaterial({
                 color: new THREE.Color(`rgb(255, ${Math.min(g + 80, 255)}, ${Math.min(b + 80, 255)})`),
                 transparent: true,
-                opacity: 0.6 + t * 0.3,
+                opacity: 0.7 + t * 0.3,
                 blending: THREE.AdditiveBlending,
                 depthWrite: false
             });
@@ -275,7 +218,7 @@
             core.position.y += radius * 0.2;
             group.add(core);
 
-            group.userData = { frp, lon, lat, radius };
+            group.userData = { frp, lon, lat, radius, screenX: pos.x, screenY: pos.y };
 
             return group;
         }
@@ -284,8 +227,7 @@
         // ACTUALIZAR INCENDIOS
         // ============================================================
         function updateFires() {
-            if (isUpdating) return;
-            isUpdating = true;
+            if (!threeReady) return;
 
             const enabled = document.getElementById('chk-fires').checked;
             const frpMin = parseInt(document.getElementById('frp-slider').value) || 0;
@@ -301,7 +243,6 @@
 
             if (!enabled || firesData.length === 0) {
                 document.getElementById('stats-fires').textContent = '🔥 0';
-                isUpdating = false;
                 return;
             }
 
@@ -320,7 +261,7 @@
                     const coords = f.geometry.coordinates;
                     const [lon, lat] = getPolygonCenter(coords);
 
-                    const group = createFireSphere(lon, lat, frp);
+                    const group = createScreenSphere(lon, lat, frp);
                     scene.add(group);
                     fireMeshes.push(group);
                 } catch (e) {
@@ -328,44 +269,83 @@
                 }
             });
 
-            isUpdating = false;
+            logDebug(`✅ ${fireMeshes.length} semiesferas en pantalla`);
+        }
+
+        // ============================================================
+        // ACTUALIZAR POSICIONES EN PANTALLA (cuando se mueve el mapa)
+        // ============================================================
+        function updateScreenPositions() {
+            if (!threeReady || fireMeshes.length === 0) return;
+
+            const zoom = map.getZoom();
+            
+            fireMeshes.forEach(group => {
+                const { lon, lat, frp } = group.userData;
+                const pos = lngLatToScreen(lon, lat);
+                const radius = getSizeInScreen(frp, zoom);
+                
+                // Actualizar posición
+                group.position.set(pos.x, pos.y, 0);
+                
+                // Actualizar tamaño de las geometrías
+                group.children.forEach(child => {
+                    if (child.geometry && child.geometry.type === 'SphereGeometry') {
+                        // Recrear geometría con nuevo radio
+                        const oldGeom = child.geometry;
+                        const newGeom = new THREE.SphereGeometry(radius, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+                        child.geometry = newGeom;
+                        oldGeom.dispose();
+                    }
+                    if (child.position) {
+                        child.position.x = 0;
+                        child.position.y = 0;
+                        child.position.z = radius * 0.8;
+                    }
+                });
+                
+                // Guardar nuevo radio
+                group.userData.radius = radius;
+                group.userData.screenX = pos.x;
+                group.userData.screenY = pos.y;
+            });
         }
 
         // ============================================================
         // CARGAR DATOS
         // ============================================================
+        const FIRMS_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires_polygons.geojson';
+
         function loadFires() {
+            logDebug('📡 Cargando incendios...');
+            
             fetch(FIRMS_URL)
                 .then(r => r.json())
                 .then(data => {
                     firesData = data.features || [];
-                    console.log(`✅ FIRMS: ${firesData.length} incendios`);
+                    logDebug(`✅ ${firesData.length} incendios`);
                     updateFires();
                 })
-                .catch(e => console.error('Error:', e));
+                .catch(e => {
+                    logDebug('❌ Error: ' + e.message);
+                });
         }
 
         // ============================================================
         // ANIMACIÓN
         // ============================================================
-        let lastTime = 0;
-
-        function animate(time) {
+        function animate() {
             requestAnimationFrame(animate);
 
             if (!threeReady) return;
 
-            syncCamera();
+            // Actualizar posiciones en pantalla
+            updateScreenPositions();
 
-            const delta = (time - lastTime) / 1000;
-            lastTime = time;
-
-            const timeNow = Date.now() / 1000;
+            const time = Date.now() / 1000;
             fireMeshes.forEach((group, index) => {
-                const speed = 0.1 + (group.userData.frp / 500) * 0.3;
-                group.rotation.y += delta * speed * 0.5;
-
-                const pulse = Math.sin(timeNow * 0.5 + index * 0.3) * 0.06 + 0.94;
+                group.rotation.y += 0.01;
+                const pulse = Math.sin(time * 0.5 + index * 0.3) * 0.06 + 0.94;
                 group.children.forEach(child => {
                     if (child.material && child.material.opacity !== undefined) {
                         if (!child.userData?.baseOpacity) {
@@ -389,20 +369,34 @@
             updateFires();
         });
 
+        // Actualizar posiciones al mover el mapa
+        map.on('move', () => {
+            if (threeReady) {
+                updateScreenPositions();
+            }
+        });
+
         // ============================================================
         // INICIALIZACIÓN
         // ============================================================
         map.on('load', function() {
-            console.log('🗺️ Mapa cargado');
+            logDebug('🗺️ Mapa cargado');
             setTimeout(initThree, 500);
         });
 
         if (map.loaded()) {
-            console.log('ℹ️ Mapa ya cargado');
+            logDebug('ℹ️ Mapa ya cargado');
             setTimeout(initThree, 500);
         }
 
-        console.log('🚀 Visor iniciado');
+        setTimeout(() => {
+            if (!threeReady) {
+                logDebug('⏰ Forzando inicio...');
+                initThree();
+            }
+        }, 3000);
+
+        logDebug('🚀 Visor iniciado');
     </script>
 </body>
 </html>
