@@ -21,7 +21,7 @@
     <div id="map">
         <div id="three-container"></div>
     </div>
-    <div id="info">🌍 Visor 3D REAL - Semiesferas</div>
+    <div id="info">🌍 Visor 3D REAL - Semiesferas GIGANTES</div>
     <div id="debug">Cargando...</div>
 
     <script>
@@ -37,7 +37,7 @@
         logDebug('🚀 INICIANDO...');
 
         // ============================================================
-        // 1. MAPA
+        // 1. MAPA - CENTRADO EN UCRANIA
         // ============================================================
         const map = new maplibregl.Map({
             container: 'map',
@@ -103,7 +103,7 @@
 
                 const dist = Math.sqrt(offsetX * offsetX + offsetY * offsetY + offsetZ * offsetZ);
                 camera.near = Math.max(0.1, dist * 0.0001);
-                camera.far = Math.max(100000, dist * 20);
+                camera.far = Math.max(1000000, dist * 50);
                 camera.updateProjectionMatrix();
 
             } catch (e) {
@@ -154,15 +154,14 @@
         }
 
         // ============================================================
-        // 3. CREAR SEMIESFERA 3D - CON TAMAÑO EN METROS
+        // 3. CREAR SEMIESFERA 3D - RADIOS GIGANTES
         // ============================================================
         function createFireSphere(lon, lat, frp) {
             const pos = lngLatToMeters(lon, lat);
 
             const t = Math.min(frp / 500, 1);
-            const radius = 200 + t * 800; // 200-1000 metros
-
-            logDebug(`📍 Fuego en (${lon.toFixed(2)}, ${lat.toFixed(2)}) → (${pos.x.toFixed(0)}, ${pos.y.toFixed(0)}) radio: ${radius}m`);
+            // RADIO GIGANTE: 2000 a 10000 metros
+            const radius = 2000 + t * 8000;
 
             const r = 255;
             const g = Math.round(255 * (1 - t * 0.9));
@@ -175,9 +174,9 @@
             const mat = new THREE.MeshPhongMaterial({
                 color: new THREE.Color(`rgb(${r}, ${g}, ${b})`),
                 emissive: new THREE.Color(`rgb(${r}, ${Math.round(g * 0.6)}, ${Math.round(b * 0.3)})`),
-                emissiveIntensity: 0.8 + t * 1.0,
+                emissiveIntensity: 1.0 + t * 1.5,
                 transparent: true,
-                opacity: 0.85 + t * 0.15,
+                opacity: 0.7 + t * 0.3,
                 side: THREE.DoubleSide,
                 blending: THREE.AdditiveBlending,
                 depthWrite: false,
@@ -188,11 +187,11 @@
             group.add(sphere);
 
             // Glow
-            const glowGeom = new THREE.SphereGeometry(radius * 2.5, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+            const glowGeom = new THREE.SphereGeometry(radius * 3, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
             const glowMat = new THREE.MeshBasicMaterial({
-                color: new THREE.Color(`rgb(${r}, ${Math.round(g * 0.4)}, ${Math.round(b * 0.2)})`),
+                color: new THREE.Color(`rgb(${r}, ${Math.round(g * 0.3)}, ${Math.round(b * 0.15)})`),
                 transparent: true,
-                opacity: 0.12 + t * 0.12,
+                opacity: 0.08 + t * 0.12,
                 blending: THREE.AdditiveBlending,
                 depthWrite: false
             });
@@ -201,11 +200,11 @@
             group.add(glow);
 
             // Núcleo
-            const coreGeom = new THREE.SphereGeometry(radius * 0.4, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+            const coreGeom = new THREE.SphereGeometry(radius * 0.3, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
             const coreMat = new THREE.MeshBasicMaterial({
                 color: new THREE.Color(`rgb(255, ${Math.min(g + 80, 255)}, ${Math.min(b + 80, 255)})`),
                 transparent: true,
-                opacity: 0.8 + t * 0.2,
+                opacity: 0.7 + t * 0.3,
                 blending: THREE.AdditiveBlending,
                 depthWrite: false
             });
@@ -213,6 +212,22 @@
             core.position.copy(sphere.position);
             core.position.y += radius * 0.2;
             group.add(core);
+
+            // Anillo base
+            const ringGeom = new THREE.RingGeometry(radius * 0.5, radius * 0.9, 32);
+            const ringMat = new THREE.MeshBasicMaterial({
+                color: new THREE.Color(`rgb(${r}, ${Math.round(g * 0.7)}, ${Math.round(b * 0.4)})`),
+                transparent: true,
+                opacity: 0.15 + t * 0.15,
+                side: THREE.DoubleSide,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            const ring = new THREE.Mesh(ringGeom, ringMat);
+            ring.position.copy(sphere.position);
+            ring.position.y += 1;
+            ring.rotation.x = -Math.PI / 2;
+            group.add(ring);
 
             group.userData = { frp, lon, lat, radius, pos };
 
@@ -255,7 +270,7 @@
                 return;
             }
 
-            const toRender = firesData.slice(0, 50);
+            const toRender = firesData.slice(0, 30);
 
             toRender.forEach(f => {
                 try {
@@ -271,7 +286,11 @@
                 }
             });
 
-            logDebug(`✅ ${fireMeshes.length} semiesferas 3D creadas`);
+            logDebug(`✅ ${fireMeshes.length} semiesferas GIGANTES creadas`);
+            if (fireMeshes.length > 0) {
+                const pos = fireMeshes[0].position;
+                logDebug(`📍 Primera en: (${pos.x.toFixed(0)}, ${pos.y.toFixed(0)})`);
+            }
         }
 
         // ============================================================
@@ -330,7 +349,7 @@
 
             const timeNow = Date.now() / 1000;
             fireMeshes.forEach((group, index) => {
-                group.rotation.y += delta * 0.2;
+                group.rotation.y += delta * 0.1;
 
                 const pulse = Math.sin(timeNow * 0.5 + index * 0.3) * 0.06 + 0.94;
                 group.children.forEach(child => {
