@@ -11,43 +11,10 @@
         * { margin: 0; padding: 0; }
         body { width: 100vw; height: 100vh; overflow: hidden; background: #0d1117; }
         #map { width: 100vw; height: 100vh; position: relative; }
-        #three-container { 
-            position: absolute; 
-            top: 0; 
-            left: 0; 
-            width: 100%; 
-            height: 100%; 
-            pointer-events: none; 
-            z-index: 10;
-        }
-        #info { 
-            position: absolute; 
-            bottom: 20px; 
-            left: 50%; 
-            transform: translateX(-50%); 
-            z-index: 1000; 
-            background: rgba(0,0,0,0.8); 
-            color: #0f0; 
-            padding: 10px 20px; 
-            border-radius: 10px; 
-            font-family: monospace; 
-            font-size: 14px; 
-        }
-        #debug {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            z-index: 1000;
-            background: rgba(0,0,0,0.9);
-            color: #0f0;
-            padding: 10px;
-            border-radius: 8px;
-            font-family: monospace;
-            font-size: 11px;
-            max-width: 350px;
-            max-height: 300px;
-            overflow: auto;
-        }
+        #three-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+        #info { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; background: rgba(0,0,0,0.8); color: #0f0; padding: 10px 20px; border-radius: 10px; font-family: monospace; font-size: 14px; }
+        #debug { position: absolute; top: 10px; right: 10px; z-index: 1000; background: rgba(0,0,0,0.9); color: #0f0; padding: 10px; border-radius: 8px; font-family: monospace; font-size: 11px; max-width: 350px; max-height: 300px; overflow: auto; }
+        .cesium-viewer-bottom { display: none !important; }
     </style>
 </head>
 <body>
@@ -55,7 +22,7 @@
     <div id="map">
         <div id="three-container"></div>
     </div>
-    <div id="info">🔥 Semiesferas 3D - Ucrania</div>
+    <div id="info">🌍 Visor 3D - Semiesferas</div>
     <div id="debug">Cargando...</div>
 
     <script>
@@ -71,26 +38,11 @@
         logDebug('🚀 INICIANDO...');
 
         // ============================================================
-        // 1. MAPA - CON ESTILO OSCURO
+        // 1. MAPA
         // ============================================================
         const map = new maplibregl.Map({
             container: 'map',
-            style: {
-                'version': 8,
-                'sources': {
-                    'osm': {
-                        'type': 'raster',
-                        'tiles': ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-                        'tileSize': 256,
-                        'attribution': '© OpenStreetMap'
-                    }
-                },
-                'layers': [{
-                    'id': 'osm',
-                    'type': 'raster',
-                    'source': 'osm'
-                }]
-            },
+            style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
             center: [32.0, 48.5],
             zoom: 6,
             pitch: 60,
@@ -99,14 +51,13 @@
 
         map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
-        logDebug('✅ Mapa creado');
-
         // ============================================================
-        // 2. THREE.JS - VERSIÓN SIMPLIFICADA
+        // 2. THREE.JS - CON CÁMARA ORTOGRÁFICA
         // ============================================================
         let scene, camera, renderer;
         let threeReady = false;
         let fireMeshes = [];
+        let firesData = [];
 
         function initThree() {
             if (threeReady) return;
@@ -116,17 +67,22 @@
 
             scene = new THREE.Scene();
 
-            // Cámara ORTOGRÁFICA
+            // Cámara ORTOGRÁFICA (coordenadas de pantalla)
             const aspect = window.innerWidth / window.innerHeight;
-            camera = new THREE.OrthographicCamera(-aspect, aspect, 1, -1, 0.1, 1000);
-            camera.position.z = 1;
+            const frustumSize = 1000;
+            camera = new THREE.OrthographicCamera(
+                -frustumSize * aspect / 2,
+                frustumSize * aspect / 2,
+                frustumSize / 2,
+                -frustumSize / 2,
+                0.1,
+                10000
+            );
+            camera.position.z = 1000;
 
-            renderer = new THREE.WebGLRenderer({ 
-                alpha: true, 
-                antialias: true 
-            });
+            renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             renderer.setClearColor(0x000000, 0);
             container.appendChild(renderer.domElement);
 
@@ -148,115 +104,134 @@
                 const w = window.innerWidth;
                 const h = window.innerHeight;
                 const aspect2 = w / h;
-                camera.left = -aspect2;
-                camera.right = aspect2;
-                camera.top = 1;
-                camera.bottom = -1;
+                const fs = 1000;
+                camera.left = -fs * aspect2 / 2;
+                camera.right = fs * aspect2 / 2;
+                camera.top = fs / 2;
+                camera.bottom = -fs / 2;
                 camera.updateProjectionMatrix();
                 renderer.setSize(w, h);
             });
 
-            // Crear semiesferas
-            createTestData();
+            // Cargar datos
+            loadFires();
+            
+            // Iniciar animación
             animate();
         }
 
         // ============================================================
-        // 3. CONVERTIR COORDENADAS MERCATOR
+        // 3. CONVERTIR COORDENADAS A PANTALLA
         // ============================================================
-        function lngLatToMercator(lng, lat) {
-            const mercator = maplibregl.MercatorCoordinate.fromLngLat(
-                new maplibregl.LngLat(lng, lat)
-            );
-            return { x: mercator.x, y: mercator.y, z: mercator.z || 0 };
-        }
-
-        // ============================================================
-        // 4. SINCRONIZAR CÁMARA - VERSIÓN CORREGIDA
-        // ============================================================
-        function syncCamera() {
-            if (!map || !camera || !threeReady) return;
-
-            try {
-                const transform = map.transform;
-                const projMatrix = transform.glMatrix;
-                
-                const m = new THREE.Matrix4().fromArray(projMatrix);
-                m.multiply(new THREE.Matrix4().makeScale(1, -1, 1));
-                
-                camera.projectionMatrix = m;
-                camera.projectionMatrixInverse = new THREE.Matrix4().copy(m).invert();
-                
-                const camPos = new THREE.Vector3();
-                const mInv = new THREE.Matrix4().copy(m).invert();
-                camPos.set(0, 0, 0).applyMatrix4(mInv);
-                camera.position.copy(camPos);
-                
-                camera.updateMatrixWorld(true);
-            } catch (e) {
-                // Silencioso
-            }
-        }
-
-        // ============================================================
-        // 5. CREAR SEMIESFERA 3D (apunta hacia arriba)
-        // ============================================================
-        function createFireSphere(lon, lat, frp) {
-            const merc = lngLatToMercator(lon, lat);
+        function lngLatToScreen(lng, lat) {
+            const point = map.project(new maplibregl.LngLat(lng, lat));
+            const w = window.innerWidth;
+            const h = window.innerHeight;
             
-            const t = Math.min(frp / 500, 1);
-            const radius = 0.0005 + t * 0.002;
+            // Convertir a coordenadas Three.js (centro en 0,0)
+            const x = (point.x / w) * 1000 - 500;
+            const y = -((point.y / h) * 1000 - 500);
+            
+            return { x, y };
+        }
 
+        // ============================================================
+        // 4. OBTENER TAMAÑO EN PANTALLA
+        // ============================================================
+        function getScreenSize(frp, zoom) {
+            const t = Math.min(frp / 500, 1);
+            const baseSize = 20 + t * 50;
+            const zoomFactor = Math.pow(1.15, zoom - 5);
+            return baseSize * Math.min(zoomFactor, 3);
+        }
+
+        // ============================================================
+        // 5. CENTROIDE DE POLÍGONO
+        // ============================================================
+        function getPolygonCenter(coords) {
+            const ring = coords[0] || coords;
+            let lon = 0, lat = 0;
+            const count = ring.length;
+            for (let i = 0; i < count; i++) {
+                lon += ring[i][0];
+                lat += ring[i][1];
+            }
+            return [lon / count, lat / count];
+        }
+
+        // ============================================================
+        // 6. CREAR SEMIESFERA EN PANTALLA
+        // ============================================================
+        function createScreenSphere(lon, lat, frp) {
+            const pos = lngLatToScreen(lon, lat);
+            const zoom = map.getZoom();
+            const radius = getScreenSize(frp, zoom);
+
+            const t = Math.min(frp / 500, 1);
             const r = 255;
             const g = Math.round(255 * (1 - t * 0.9));
             const b = Math.round(80 * (1 - t * 0.8));
 
             const group = new THREE.Group();
-            group.position.set(merc.x, merc.y, merc.z + radius * 0.5);
+            group.position.set(pos.x, pos.y, 0);
 
-            // SEMIESFERA - MITAD SUPERIOR
+            // Semiesfera
             const geom = new THREE.SphereGeometry(radius, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
             const mat = new THREE.MeshPhongMaterial({
                 color: new THREE.Color(`rgb(${r}, ${g}, ${b})`),
                 emissive: new THREE.Color(`rgb(${r}, ${Math.round(g * 0.6)}, ${Math.round(b * 0.3)})`),
-                emissiveIntensity: 1.0,
+                emissiveIntensity: 0.6 + t * 0.8,
                 transparent: true,
-                opacity: 0.9,
+                opacity: 0.85 + t * 0.15,
                 side: THREE.DoubleSide,
                 blending: THREE.AdditiveBlending,
                 depthWrite: false,
-                shininess: 40
+                shininess: 30
             });
             const sphere = new THREE.Mesh(geom, mat);
-            sphere.position.set(0, 0, radius * 0.5);
+            sphere.position.set(0, 0, radius * 0.8);
             group.add(sphere);
 
-            // GLOW
-            const glowGeom = new THREE.SphereGeometry(radius * 3, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+            // Glow
+            const glowGeom = new THREE.SphereGeometry(radius * 2.5, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
             const glowMat = new THREE.MeshBasicMaterial({
                 color: new THREE.Color(`rgb(${r}, ${Math.round(g * 0.4)}, ${Math.round(b * 0.2)})`),
                 transparent: true,
-                opacity: 0.15,
+                opacity: 0.1 + t * 0.15,
                 blending: THREE.AdditiveBlending,
                 depthWrite: false
             });
             const glow = new THREE.Mesh(glowGeom, glowMat);
-            glow.position.copy(sphere.position);
+            glow.position.set(0, 0, radius * 0.8);
             group.add(glow);
 
-            // NÚCLEO
+            // Núcleo
             const coreGeom = new THREE.SphereGeometry(radius * 0.4, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
             const coreMat = new THREE.MeshBasicMaterial({
                 color: new THREE.Color(`rgb(255, ${Math.min(g + 80, 255)}, ${Math.min(b + 80, 255)})`),
                 transparent: true,
-                opacity: 0.9,
+                opacity: 0.7 + t * 0.3,
                 blending: THREE.AdditiveBlending,
                 depthWrite: false
             });
             const core = new THREE.Mesh(coreGeom, coreMat);
-            core.position.copy(sphere.position);
-            core.position.y += radius * 0.2;
+            core.position.set(0, 0, radius * 0.8 + radius * 0.2);
             group.add(core);
+
+            // Anillo base
+            const ringGeom = new THREE.RingGeometry(radius * 0.5, radius * 0.9, 32);
+            const ringMat = new THREE.MeshBasicMaterial({
+                color: new THREE.Color(`rgb(${r}, ${Math.round(g * 0.7)}, ${Math.round(b * 0.4)})`),
+                transparent: true,
+                opacity: 0.2 + t * 0.2,
+                side: THREE.DoubleSide,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            const ring = new THREE.Mesh(ringGeom, ringMat);
+            ring.position.set(0, 0, 1);
+            ring.rotation.x = -Math.PI / 2;
+            group.add(ring);
 
             group.userData = { frp, lon, lat, radius };
 
@@ -264,44 +239,158 @@
         }
 
         // ============================================================
-        // 6. DATOS DE PRUEBA
+        // 7. ACTUALIZAR POSICIONES EN PANTALLA
         // ============================================================
-        function createTestData() {
-            logDebug('🔥 Creando semiesferas de prueba...');
-            
-            const testFires = [
-                [30.5234, 50.4501, 400],
-                [30.6, 50.5, 300],
-                [30.4, 50.4, 200],
-                [30.7, 50.3, 150],
-                [30.3, 50.6, 100],
-                [30.8, 50.6, 250],
-                [30.2, 50.3, 180]
-            ];
+        function updateScreenPositions() {
+            if (!threeReady || fireMeshes.length === 0) return;
 
-            testFires.forEach(([lon, lat, frp]) => {
-                const group = createFireSphere(lon, lat, frp);
-                scene.add(group);
-                fireMeshes.push(group);
+            const zoom = map.getZoom();
+
+            fireMeshes.forEach(group => {
+                const { lon, lat, frp } = group.userData;
+                const pos = lngLatToScreen(lon, lat);
+                const radius = getScreenSize(frp, zoom);
+
+                // Actualizar posición
+                group.position.set(pos.x, pos.y, 0);
+                group.userData.radius = radius;
+
+                // Actualizar geometrías
+                group.children.forEach(child => {
+                    if (child.geometry && child.geometry.type === 'SphereGeometry') {
+                        const oldGeom = child.geometry;
+                        const newGeom = new THREE.SphereGeometry(radius, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+                        child.geometry = newGeom;
+                        oldGeom.dispose();
+                    }
+                    if (child.position) {
+                        child.position.z = radius * 0.8;
+                    }
+                    // Núcleo
+                    if (child.position && child.position.y > 0) {
+                        child.position.z = radius * 0.8 + radius * 0.2;
+                    }
+                    // Anillo
+                    if (child.geometry && child.geometry.type === 'RingGeometry') {
+                        const oldGeom = child.geometry;
+                        const newGeom = new THREE.RingGeometry(radius * 0.5, radius * 0.9, 32);
+                        child.geometry = newGeom;
+                        oldGeom.dispose();
+                    }
+                });
+            });
+        }
+
+        // ============================================================
+        // 8. ACTUALIZAR INCENDIOS
+        // ============================================================
+        function updateFires() {
+            if (!threeReady) return;
+
+            const enabled = document.getElementById('chk-fires')?.checked !== false;
+            const frpMin = parseInt(document.getElementById('frp-slider')?.value || 10);
+
+            // Limpiar
+            fireMeshes.forEach(obj => {
+                scene.remove(obj);
+                obj.children.forEach(child => {
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) child.material.dispose();
+                });
+            });
+            fireMeshes = [];
+
+            if (!enabled || firesData.length === 0) {
+                document.getElementById('stats-fires').textContent = '🔥 0';
+                return;
+            }
+
+            const filtered = firesData.filter(f => {
+                const frp = f.properties?.frp || 0;
+                return frp >= frpMin;
+            });
+
+            document.getElementById('stats-fires').textContent = '🔥 ' + filtered.length;
+
+            const toRender = filtered.slice(0, 200);
+
+            toRender.forEach(f => {
+                try {
+                    const frp = f.properties?.frp || 10;
+                    const coords = f.geometry.coordinates;
+                    const [lon, lat] = getPolygonCenter(coords);
+
+                    const group = createScreenSphere(lon, lat, frp);
+                    scene.add(group);
+                    fireMeshes.push(group);
+                } catch (e) {
+                    // Silencioso
+                }
             });
 
             logDebug(`✅ ${fireMeshes.length} semiesferas creadas`);
         }
 
         // ============================================================
-        // 7. ANIMACIÓN
+        // 9. CARGAR DATOS
         // ============================================================
-        function animate() {
+        const FIRMS_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires_polygons.geojson';
+
+        function loadFires() {
+            logDebug('📡 Cargando incendios...');
+            
+            fetch(FIRMS_URL)
+                .then(r => r.json())
+                .then(data => {
+                    firesData = data.features || [];
+                    logDebug(`✅ ${firesData.length} incendios`);
+                    updateFires();
+                })
+                .catch(e => {
+                    logDebug('❌ Error: ' + e.message);
+                    createTestData();
+                });
+        }
+
+        function createTestData() {
+            logDebug('🔥 Usando datos de prueba...');
+            const testFires = [
+                [30.5234, 50.4501, 400],
+                [30.6, 50.5, 300],
+                [30.4, 50.4, 200],
+                [30.7, 50.3, 150],
+                [30.3, 50.6, 100]
+            ];
+            firesData = testFires.map(([lon, lat, frp]) => ({
+                properties: { frp },
+                geometry: {
+                    coordinates: [[[lon-0.02, lat-0.02], [lon+0.02, lat-0.02], [lon+0.02, lat+0.02], [lon-0.02, lat+0.02], [lon-0.02, lat-0.02]]]
+                }
+            }));
+            updateFires();
+        }
+
+        // ============================================================
+        // 10. ANIMACIÓN
+        // ============================================================
+        let lastTime = 0;
+
+        function animate(time) {
             requestAnimationFrame(animate);
 
             if (!threeReady) return;
 
-            syncCamera();
+            // Actualizar posiciones en pantalla
+            updateScreenPositions();
 
-            const time = Date.now() / 1000;
+            const delta = lastTime ? (time - lastTime) / 1000 : 0;
+            lastTime = time;
+
+            const timeNow = Date.now() / 1000;
             fireMeshes.forEach((group, index) => {
-                group.rotation.y += 0.005;
-                const pulse = Math.sin(time * 0.5 + index * 0.3) * 0.06 + 0.94;
+                group.rotation.y += delta * 0.3;
+
+                const pulse = Math.sin(timeNow * 0.5 + index * 0.3) * 0.06 + 0.94;
                 group.children.forEach(child => {
                     if (child.material && child.material.opacity !== undefined) {
                         if (!child.userData?.baseOpacity) {
@@ -317,21 +406,41 @@
         }
 
         // ============================================================
-        // 8. INICIAR
+        // 11. CONTROLES
+        // ============================================================
+        function setupControls() {
+            const chkFires = document.getElementById('chk-fires');
+            const frpSlider = document.getElementById('frp-slider');
+            
+            if (chkFires) chkFires.addEventListener('change', updateFires);
+            if (frpSlider) {
+                frpSlider.addEventListener('input', function() {
+                    const valEl = document.getElementById('val-frp');
+                    if (valEl) valEl.textContent = this.value;
+                    updateFires();
+                });
+            }
+        }
+
+        // ============================================================
+        // 12. INICIALIZACIÓN
         // ============================================================
         map.on('load', function() {
             logDebug('🗺️ Mapa cargado');
+            setupControls();
             setTimeout(initThree, 500);
         });
 
         if (map.loaded()) {
             logDebug('ℹ️ Mapa ya cargado');
+            setupControls();
             setTimeout(initThree, 500);
         }
 
         setTimeout(() => {
             if (!threeReady) {
                 logDebug('⏰ Forzando inicio...');
+                setupControls();
                 initThree();
             }
         }, 3000);
