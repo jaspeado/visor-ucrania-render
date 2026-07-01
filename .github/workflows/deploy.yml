@@ -1,0 +1,15 @@
+name: Deploy to Render
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:  # ✅ Esto permite ejecución manual
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render Deploy
+        run: |
+          curl -X POST "https://api.render.com/deploy/srv-d9190d8j3s2c739c6a30?key=TU_CLAVE" \
+            -H "Accept: application/json"
