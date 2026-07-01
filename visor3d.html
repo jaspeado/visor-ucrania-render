@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Visor 3D REAL - Three.js</title>
+    <title>Visor 3D REAL - Semiesferas</title>
     <script src="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.js">
     </script>
     <link href="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.css" rel="stylesheet">
@@ -21,7 +21,7 @@
     <div id="map">
         <div id="three-container"></div>
     </div>
-    <div id="info">🌍 Visor 3D REAL - Semiesferas 3D</div>
+    <div id="info">🌍 Visor 3D REAL - Busca la semiesfera GIGANTE en Kyiv</div>
     <div id="debug">Cargando...</div>
 
     <script>
@@ -42,8 +42,8 @@
         const map = new maplibregl.Map({
             container: 'map',
             style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
-            center: [32.0, 48.5],
-            zoom: 6,
+            center: [30.5234, 50.4501], // Kyiv
+            zoom: 10,
             pitch: 60,
             antialias: true
         });
@@ -51,16 +51,11 @@
         map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
         // ============================================================
-        // 2. THREE.JS - CON CÁMARA DE VERDAD
+        // 2. THREE.JS
         // ============================================================
         let scene, camera, renderer;
         let threeReady = false;
-        let fireMeshes = [];
-        let firesData = [];
 
-        // ============================================================
-        // 3. FUNCIONES DE COORDENADAS (CORRECTAS)
-        // ============================================================
         function lngLatToMeters(lng, lat) {
             const R = 6378137;
             const x = R * lng * Math.PI / 180;
@@ -68,9 +63,6 @@
             return { x, y };
         }
 
-        // ============================================================
-        // 4. SINCRONIZAR CÁMARA - VERSIÓN CORREGIDA
-        // ============================================================
         function syncCamera() {
             if (!map || !camera || !threeReady) return;
 
@@ -112,14 +104,13 @@
                 camera.far = Math.max(100000, dist * 20);
                 camera.updateProjectionMatrix();
 
+                logDebug(`📍 Cámara en (${camera.position.x.toFixed(0)}, ${camera.position.y.toFixed(0)}, ${camera.position.z.toFixed(0)})`);
+
             } catch (e) {
                 logDebug('⚠️ Error sync: ' + e.message);
             }
         }
 
-        // ============================================================
-        // 5. THREE.JS SETUP
-        // ============================================================
         function initThree() {
             if (threeReady) return;
             logDebug('🔧 Inicializando Three.js...');
@@ -137,7 +128,6 @@
             renderer.setClearColor(0x000000, 0);
             container.appendChild(renderer.domElement);
 
-            // Luces
             const ambient = new THREE.AmbientLight(0x404060);
             scene.add(ambient);
             const light1 = new THREE.DirectionalLight(0xffffff, 1);
@@ -159,36 +149,32 @@
                 renderer.setSize(w, h);
             });
 
-            // Cargar datos
-            loadFires();
+            // ============================================================
+            // CREAR SEMIESFERA DE PRUEBA GIGANTE EN KYIV
+            // ============================================================
+            createTestSphere();
 
-            // Iniciar animación
             animate(0);
         }
 
         // ============================================================
-        // 6. CREAR SEMIESFERA 3D REAL
+        // CREAR SEMIESFERA DE PRUEBA GIGANTE
         // ============================================================
-        function createFireSphere(lon, lat, frp) {
-            const pos = lngLatToMeters(lon, lat);
+        function createTestSphere() {
+            const pos = lngLatToMeters(30.5234, 50.4501);
+            const radius = 5000; // 5km de radio
 
-            const t = Math.min(frp / 500, 1);
-            const radius = 200 + t * 800;
+            logDebug(`📍 Kyiv en metros: (${pos.x.toFixed(0)}, ${pos.y.toFixed(0)})`);
+            logDebug(`🔴 Radio: ${radius} metros`);
 
-            const r = 255;
-            const g = Math.round(255 * (1 - t * 0.9));
-            const b = Math.round(80 * (1 - t * 0.8));
-
-            const group = new THREE.Group();
-
-            // SEMIESFERA (mitad superior)
-            const geom = new THREE.SphereGeometry(radius, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+            // SEMIESFERA GIGANTE
+            const geom = new THREE.SphereGeometry(radius, 64, 32, 0, Math.PI * 2, 0, Math.PI / 2);
             const mat = new THREE.MeshPhongMaterial({
-                color: new THREE.Color(`rgb(${r}, ${g}, ${b})`),
-                emissive: new THREE.Color(`rgb(${r}, ${Math.round(g * 0.6)}, ${Math.round(b * 0.3)})`),
-                emissiveIntensity: 0.8 + t * 1.0,
+                color: 0xff6600,
+                emissive: 0xff3300,
+                emissiveIntensity: 1.5,
                 transparent: true,
-                opacity: 0.85 + t * 0.15,
+                opacity: 0.9,
                 side: THREE.DoubleSide,
                 blending: THREE.AdditiveBlending,
                 depthWrite: false,
@@ -196,140 +182,41 @@
             });
             const sphere = new THREE.Mesh(geom, mat);
             sphere.position.set(pos.x, pos.y, radius * 0.9);
-            group.add(sphere);
+            scene.add(sphere);
 
-            // GLOW
-            const glowGeom = new THREE.SphereGeometry(radius * 2.5, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+            // GLOW GIGANTE
+            const glowGeom = new THREE.SphereGeometry(radius * 3, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
             const glowMat = new THREE.MeshBasicMaterial({
-                color: new THREE.Color(`rgb(${r}, ${Math.round(g * 0.4)}, ${Math.round(b * 0.2)})`),
+                color: 0xff4400,
                 transparent: true,
-                opacity: 0.12 + t * 0.12,
+                opacity: 0.15,
                 blending: THREE.AdditiveBlending,
                 depthWrite: false
             });
             const glow = new THREE.Mesh(glowGeom, glowMat);
             glow.position.copy(sphere.position);
-            group.add(glow);
+            scene.add(glow);
 
             // NÚCLEO
-            const coreGeom = new THREE.SphereGeometry(radius * 0.4, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+            const coreGeom = new THREE.SphereGeometry(radius * 0.3, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
             const coreMat = new THREE.MeshBasicMaterial({
-                color: new THREE.Color(`rgb(255, ${Math.min(g + 80, 255)}, ${Math.min(b + 80, 255)})`),
+                color: 0xffaa00,
                 transparent: true,
-                opacity: 0.8 + t * 0.2,
+                opacity: 0.9,
                 blending: THREE.AdditiveBlending,
                 depthWrite: false
             });
             const core = new THREE.Mesh(coreGeom, coreMat);
             core.position.copy(sphere.position);
             core.position.y += radius * 0.2;
-            group.add(core);
+            scene.add(core);
 
-            group.userData = { frp, lon, lat, radius, pos };
-
-            return group;
+            logDebug('✅ Semiesfera GIGANTE creada en Kyiv');
+            logDebug(`📐 Tamaño: ${radius/1000}km de radio`);
         }
 
         // ============================================================
-        // 7. CENTROIDE
-        // ============================================================
-        function getPolygonCenter(coords) {
-            const ring = coords[0] || coords;
-            let lon = 0, lat = 0;
-            const count = ring.length;
-            for (let i = 0; i < count; i++) {
-                lon += ring[i][0];
-                lat += ring[i][1];
-            }
-            return [lon / count, lat / count];
-        }
-
-        // ============================================================
-        // 8. ACTUALIZAR INCENDIOS
-        // ============================================================
-        function updateFires() {
-            if (!threeReady) return;
-
-            logDebug('🔄 Actualizando incendios...');
-
-            fireMeshes.forEach(obj => {
-                scene.remove(obj);
-                obj.children.forEach(child => {
-                    if (child.geometry) child.geometry.dispose();
-                    if (child.material) child.material.dispose();
-                });
-            });
-            fireMeshes = [];
-
-            if (firesData.length === 0) {
-                logDebug('⚠️ No hay datos');
-                return;
-            }
-
-            const toRender = firesData.slice(0, 100);
-
-            toRender.forEach(f => {
-                try {
-                    const frp = f.properties?.frp || 10;
-                    const coords = f.geometry.coordinates;
-                    const [lon, lat] = getPolygonCenter(coords);
-
-                    const group = createFireSphere(lon, lat, frp);
-                    scene.add(group);
-                    fireMeshes.push(group);
-                } catch (e) {
-                    // Silencioso
-                }
-            });
-
-            logDebug(`✅ ${fireMeshes.length} semiesferas 3D creadas`);
-        }
-
-        // ============================================================
-        // 9. CARGAR DATOS
-        // ============================================================
-        const FIRMS_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires_polygons.geojson';
-
-        function loadFires() {
-            logDebug('📡 Cargando incendios...');
-
-            fetch(FIRMS_URL)
-                .then(r => r.json())
-                .then(data => {
-                    firesData = data.features || [];
-                    logDebug(`✅ ${firesData.length} incendios`);
-                    setTimeout(() => {
-                        updateFires();
-                    }, 100);
-                })
-                .catch(e => {
-                    logDebug('❌ Error: ' + e.message);
-                    createTestData();
-                });
-        }
-
-        function createTestData() {
-            logDebug('🔥 Usando datos de prueba...');
-            const testFires = [
-                [30.5234, 50.4501, 400],
-                [30.6, 50.5, 300],
-                [30.4, 50.4, 200],
-                [30.7, 50.3, 150],
-                [30.3, 50.6, 100]
-            ];
-            firesData = testFires.map(([lon, lat, frp]) => ({
-                properties: { frp },
-                geometry: {
-                    coordinates: [[[lon-0.02, lat-0.02], [lon+0.02, lat-0.02], [lon+0.02, lat+0.02], [lon-0.02, lat+0.02], [lon-0.02, lat-0.02]]]
-                }
-            }));
-            setTimeout(() => {
-                updateFires();
-            }, 100);
-        }
-
-        // ============================================================
-        // 10. ANIMACIÓN
+        // ANIMACIÓN
         // ============================================================
         let lastTime = 0;
 
@@ -338,33 +225,23 @@
 
             if (!threeReady) return;
 
-            // Sincronizar cámara
             syncCamera();
 
             const delta = lastTime ? (time - lastTime) / 1000 : 0;
             lastTime = time;
 
-            const timeNow = Date.now() / 1000;
-            fireMeshes.forEach((group, index) => {
-                group.rotation.y += delta * 0.3;
-
-                const pulse = Math.sin(timeNow * 0.5 + index * 0.3) * 0.06 + 0.94;
-                group.children.forEach(child => {
-                    if (child.material && child.material.opacity !== undefined) {
-                        if (!child.userData?.baseOpacity) {
-                            child.userData = child.userData || {};
-                            child.userData.baseOpacity = child.material.opacity;
-                        }
-                        child.material.opacity = child.userData.baseOpacity * pulse;
-                    }
-                });
+            // Rotar la semiesfera de prueba
+            scene.children.forEach(child => {
+                if (child.isMesh) {
+                    child.rotation.y += delta * 0.1;
+                }
             });
 
             renderer.render(scene, camera);
         }
 
         // ============================================================
-        // 11. INICIALIZACIÓN
+        // INICIALIZACIÓN
         // ============================================================
         map.on('load', function() {
             logDebug('🗺️ Mapa cargado');
