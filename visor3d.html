@@ -738,6 +738,9 @@ function updateDeepstate() {
   });
 }
 
+// ============================================================
+// ✅ FUNCIÓN CORREGIDA - FILTRO DE 24H CON FECHA EXACTA
+// ============================================================
 function updateFires() {
   if (activePopup) {
     activePopup.remove();
@@ -758,21 +761,33 @@ function updateFires() {
     return;
   }
 
+  // ✅ Calcular fecha límite con hora exacta (24 o 48 horas atrás desde AHORA)
   const ahora = new Date();
-  const limite = new Date(ahora.getTime() - (timeRange * 60 * 60 * 1000));
+  const limite = ahora.getTime() - (timeRange * 60 * 60 * 1000);
 
+  // ✅ Filtrar datos
   const filtered = firesData.filter(f => {
+    // 1. Filtrar por FRP
     if ((f.properties?.frp || 0) < frpMin) return false;
-    if (timeRange === 24) {
-      const acqDate = f.properties?.acq_date;
-      if (!acqDate) return false;
-      const parts = acqDate.split('-');
-      const fechaPunto = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-      if (fechaPunto < limite) return false;
-    }
-    return true;
+    
+    // 2. Filtrar por fecha
+    const acqDate = f.properties?.acq_date;
+    if (!acqDate) return false;
+    
+    // ✅ Crear fecha con hora 23:59:59 para que incluya TODO el día
+    const parts = acqDate.split('-');
+    const fechaPunto = new Date(
+      parseInt(parts[0]), 
+      parseInt(parts[1]) - 1, 
+      parseInt(parts[2]), 
+      23, 59, 59
+    );
+    
+    // ✅ Comparar timestamps
+    return fechaPunto.getTime() >= limite;
   });
 
+  // ✅ Filtrar por región seleccionada
   const filteredByRegion = filtered.filter(f => {
     if (!selectedRegion) return true;
     if (selectedRegion === 'Otras ubicaciones') {
