@@ -11,7 +11,20 @@
         * { margin: 0; padding: 0; }
         body { width: 100vw; height: 100vh; overflow: hidden; background: #0d1117; }
         #map { width: 100vw; height: 100vh; position: relative; }
-        #three-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+        #three-container { 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            pointer-events: none; 
+            z-index: 10;
+        }
+        #three-container canvas {
+            display: block;
+            width: 100% !important;
+            height: 100% !important;
+        }
         #info { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; background: rgba(0,0,0,0.8); color: #0f0; padding: 10px 20px; border-radius: 10px; font-family: monospace; font-size: 14px; }
         #debug { position: absolute; top: 10px; right: 10px; z-index: 1000; background: rgba(0,0,0,0.9); color: #0f0; padding: 10px; border-radius: 8px; font-family: monospace; font-size: 11px; max-width: 350px; max-height: 300px; overflow: auto; }
     </style>
@@ -51,7 +64,7 @@
         map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
         // ============================================================
-        // 2. THREE.JS - CÁMARA ORTOGRÁFICA
+        // 2. THREE.JS - CON FONDO TRANSPARENTE
         // ============================================================
         let scene, camera, renderer;
         let threeReady = false;
@@ -77,10 +90,14 @@
             );
             camera.position.z = 1000;
 
-            renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            renderer = new THREE.WebGLRenderer({ 
+                alpha: true, 
+                antialias: true 
+            });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            renderer.setClearColor(0x000000, 0);
+            renderer.setClearColor(0x000000, 0); // Fondo transparente
+            renderer.sortObjects = true;
             container.appendChild(renderer.domElement);
 
             const ambient = new THREE.AmbientLight(0x404060);
@@ -108,19 +125,23 @@
                 renderer.setSize(w, h);
             });
 
+            // Crear datos de prueba INMEDIATAMENTE
+            createTestData();
+            
+            // También cargar datos reales
             loadFires();
+            
             animate(0);
         }
 
         // ============================================================
-        // 3. CONVERTIR COORDENADAS A PÍXELES DE PANTALLA
+        // 3. CONVERTIR COORDENADAS A PÍXELES
         // ============================================================
         function lngLatToScreen(lng, lat) {
             const point = map.project(new maplibregl.LngLat(lng, lat));
             const w = window.innerWidth;
             const h = window.innerHeight;
 
-            // Convertir a coordenadas Three.js (centro en 0,0)
             const x = (point.x / w) * 1000 - 500;
             const y = -((point.y / h) * 1000 - 500);
 
@@ -128,11 +149,11 @@
         }
 
         // ============================================================
-        // 4. OBTENER TAMAÑO EN PANTALLA
+        // 4. OBTENER TAMAÑO
         // ============================================================
         function getScreenSize(frp) {
             const t = Math.min(frp / 500, 1);
-            return 15 + t * 50;
+            return 20 + t * 60;
         }
 
         // ============================================================
@@ -164,19 +185,14 @@
             const group = new THREE.Group();
             group.position.set(pos.x, pos.y, 0);
 
-            // LOG solo para los primeros
-            if (fireMeshes.length < 3) {
-                logDebug(`📍 Fuego en (${lon.toFixed(2)}, ${lat.toFixed(2)}) → pantalla (${pos.x.toFixed(0)}, ${pos.y.toFixed(0)}) radio: ${radius}`);
-            }
-
             // Semiesfera
             const geom = new THREE.SphereGeometry(radius, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
             const mat = new THREE.MeshPhongMaterial({
                 color: new THREE.Color(`rgb(${r}, ${g}, ${b})`),
                 emissive: new THREE.Color(`rgb(${r}, ${Math.round(g * 0.6)}, ${Math.round(b * 0.3)})`),
-                emissiveIntensity: 1.0,
+                emissiveIntensity: 1.2,
                 transparent: true,
-                opacity: 0.95,
+                opacity: 0.9,
                 side: THREE.DoubleSide,
                 blending: THREE.AdditiveBlending,
                 depthWrite: false,
@@ -218,7 +234,7 @@
         }
 
         // ============================================================
-        // 7. ACTUALIZAR POSICIONES EN PANTALLA (CUANDO SE MUEVE EL MAPA)
+        // 7. ACTUALIZAR POSICIONES
         // ============================================================
         function updatePositions() {
             if (!threeReady || fireMeshes.length === 0) return;
@@ -268,32 +284,30 @@
                 }
             });
 
-            logDebug(`✅ ${fireMeshes.length} semiesferas en pantalla`);
+            logDebug(`✅ ${fireMeshes.length} semiesferas`);
         }
 
         // ============================================================
-        // 9. CARGAR DATOS
+        // 9. CARGAR DATOS REALES
         // ============================================================
         const FIRMS_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires_polygons.geojson';
 
         function loadFires() {
-            logDebug('📡 Cargando incendios...');
-
             fetch(FIRMS_URL)
                 .then(r => r.json())
                 .then(data => {
                     firesData = data.features || [];
-                    logDebug(`✅ ${firesData.length} incendios`);
-                    setTimeout(updateFires, 200);
+                    logDebug(`✅ ${firesData.length} incendios reales`);
+                    if (threeReady) updateFires();
                 })
-                .catch(e => {
-                    logDebug('❌ Error: ' + e.message);
-                    createTestData();
-                });
+                .catch(e => logDebug('❌ Error: ' + e.message));
         }
 
+        // ============================================================
+        // 10. DATOS DE PRUEBA (SIEMPRE VISIBLES)
+        // ============================================================
         function createTestData() {
-            logDebug('🔥 Usando datos de prueba...');
+            logDebug('🔥 Creando datos de prueba...');
             const testFires = [
                 [30.5234, 50.4501, 400],
                 [30.6, 50.5, 300],
@@ -303,17 +317,21 @@
                 [30.8, 50.6, 250],
                 [30.2, 50.3, 180]
             ];
-            firesData = testFires.map(([lon, lat, frp]) => ({
-                properties: { frp },
-                geometry: {
-                    coordinates: [[[lon-0.02, lat-0.02], [lon+0.02, lat-0.02], [lon+0.02, lat+0.02], [lon-0.02, lat+0.02], [lon-0.02, lat-0.02]]]
-                }
-            }));
-            setTimeout(updateFires, 200);
+            
+            // Guardar como datos de prueba
+            if (firesData.length === 0) {
+                firesData = testFires.map(([lon, lat, frp]) => ({
+                    properties: { frp },
+                    geometry: {
+                        coordinates: [[[lon-0.02, lat-0.02], [lon+0.02, lat-0.02], [lon+0.02, lat+0.02], [lon-0.02, lat+0.02], [lon-0.02, lat-0.02]]]
+                    }
+                }));
+                if (threeReady) updateFires();
+            }
         }
 
         // ============================================================
-        // 10. ANIMACIÓN
+        // 11. ANIMACIÓN
         // ============================================================
         let lastTime = 0;
 
@@ -322,7 +340,6 @@
 
             if (!threeReady) return;
 
-            // Actualizar posiciones en pantalla
             updatePositions();
 
             const delta = lastTime ? (time - lastTime) / 1000 : 0;
@@ -348,7 +365,7 @@
         }
 
         // ============================================================
-        // 11. INICIALIZACIÓN
+        // 12. INICIALIZACIÓN
         // ============================================================
         map.on('load', function() {
             logDebug('🗺️ Mapa cargado');
@@ -360,11 +377,8 @@
             setTimeout(initThree, 500);
         }
 
-        // Actualizar posiciones al mover el mapa
         map.on('move', () => {
-            if (threeReady) {
-                updatePositions();
-            }
+            if (threeReady) updatePositions();
         });
 
         setTimeout(() => {
