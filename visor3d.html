@@ -869,6 +869,17 @@
                 }
             });
 
+            // ✅ CAPA DE RESPALDO (círculos rojos) - para diagnosticar
+        map.addLayer({
+            id: 'fires-backup',
+            type: 'circle',
+            source: 'fires',
+            paint: {
+                'circle-radius': 8,
+                'circle-color': '#FF0000',
+                'circle-opacity': 0.9
+                }
+            });
             // ============================================================
             // ✅ POPUP CON HORA LOCAL DEL USUARIO
             // ============================================================
