@@ -48,51 +48,11 @@
             border: 1px solid #30363d;
             border-radius: 10px;
             padding: 14px 16px;
-            min-width: 220px;
+            min-width: 200px;
             max-width: 220px;
             font-size: 12px;
             color: #e6edf3;
             font-family: 'Inter', sans-serif;
-        }
-        #panel.minimized {
-            min-width: auto;
-            max-width: auto;
-            padding-bottom: 0;
-        }
-        .window-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: #161b22;
-            padding: 6px 8px 6px 10px;
-            cursor: grab;
-            user-select: none;
-            border-bottom: 1px solid #21262d;
-            border-radius: 8px 8px 0 0;
-            margin: -14px -16px 10px -16px;
-        }
-        .window-header:active {
-            cursor: grabbing;
-        }
-        #legend-regions .window-header {
-            margin: -8px -12px 8px -12px;
-        }
-        .window-title {
-            font-size: 10px;
-            font-weight: 600;
-            color: #58a6ff;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-        .window-body.minimized {
-            display: none;
-        }
-        #panel.minimized,
-        #legend-regions.minimized {
-            width: auto;
-            min-width: 140px;
-            max-height: none;
-            padding-bottom: 0;
         }
         .control-group {
             margin-bottom: 10px;
@@ -109,24 +69,8 @@
             font-size: 10px;
             color: #8b949e;
             text-transform: uppercase;
-            letter-spacing: 0.04em;
             font-weight: 600;
             margin-bottom: 3px;
-        }
-        .control-group select {
-            width: 100%;
-            padding: 4px 6px;
-            background: #1c2333;
-            color: #e6edf3;
-            border: 1px solid #30363d;
-            border-radius: 4px;
-            font-size: 11px;
-            font-family: 'Inter', sans-serif;
-            cursor: pointer;
-            outline: none;
-        }
-        .control-group select:focus {
-            border-color: #58a6ff;
         }
         .control-group input[type="range"] {
             width: 100%;
@@ -136,15 +80,6 @@
             height: 3px;
             border-radius: 2px;
             cursor: pointer;
-        }
-        .control-group input[type="color"] {
-            width: 24px;
-            height: 24px;
-            border: 2px solid #30363d;
-            border-radius: 4px;
-            padding: 0;
-            cursor: pointer;
-            background: transparent;
         }
         .checkbox-group {
             display: flex;
@@ -163,18 +98,7 @@
             font-size: 11px !important;
             color: #e6edf3 !important;
             font-weight: 400 !important;
-            letter-spacing: 0 !important;
             margin-bottom: 0 !important;
-        }
-        .color-row {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            margin-top: 2px;
-        }
-        .color-row span {
-            font-size: 10px;
-            color: #8b949e;
         }
         .slider-value {
             float: right;
@@ -192,162 +116,6 @@
             border-top: 1px solid #21262d;
             font-weight: 500;
         }
-        .stats-row span {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-        #legend-regions {
-            position: absolute;
-            bottom: 80px;
-            right: 12px;
-            z-index: 1000;
-            background: rgba(13, 17, 23, 0.92);
-            border: 1px solid #30363d;
-            border-radius: 10px;
-            padding: 8px 12px;
-            color: #e6edf3;
-            font-size: 10px;
-            min-width: 120px;
-            max-width: 180px;
-            max-height: 200px;
-            display: flex;
-            flex-direction: column;
-            pointer-events: auto;
-            font-family: 'Inter', sans-serif;
-        }
-        #legend-regions.minimized {
-            min-width: auto;
-            max-width: auto;
-            max-height: none;
-            padding-bottom: 0;
-        }
-        #region-list {
-            overflow-y: auto;
-            flex-grow: 1;
-            max-height: 150px;
-        }
-        #region-list::-webkit-scrollbar {
-            width: 3px;
-        }
-        #region-list::-webkit-scrollbar-track {
-            background: #21262d;
-            border-radius: 4px;
-        }
-        #region-list::-webkit-scrollbar-thumb {
-            background: #58a6ff;
-            border-radius: 4px;
-        }
-        .region-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 2px 4px;
-            border-bottom: 1px solid #21262d;
-            font-size: 10px;
-            font-weight: 400;
-            cursor: pointer;
-            border-radius: 4px;
-            transition: background 0.15s ease;
-        }
-        .region-item:last-child {
-            border-bottom: none;
-        }
-        .region-item:hover {
-            background: rgba(88, 166, 255, 0.1);
-        }
-        .region-item.active {
-            background: rgba(88, 166, 255, 0.15);
-            border-left: 2px solid #58a6ff;
-        }
-        .region-item .count {
-            color: #58a6ff;
-            font-weight: 600;
-        }
-        .region-item .region-name {
-            color: #e6edf3;
-        }
-        .region-item .region-name:hover {
-            color: #58a6ff;
-        }
-        .region-item.all-regions {
-            border-bottom: 1px solid #58a6ff !important;
-            margin-bottom: 2px;
-        }
-        .region-item.all-regions .region-name {
-            color: #58a6ff;
-            font-weight: 600;
-        }
-        .maplibregl-popup-content {
-            padding: 0 !important;
-            overflow: hidden;
-            background: #0d1117 !important;
-            border: 1px solid #30363d !important;
-            border-radius: 8px !important;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6) !important;
-            min-width: 200px !important;
-            font-family: 'Inter', sans-serif !important;
-        }
-        .maplibregl-popup-tip {
-            border-top-color: #30363d !important;
-        }
-        .maplibregl-popup-close-button {
-            display: none !important;
-        }
-        .popup-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: #161b22;
-            padding: 6px 8px 6px 10px;
-            cursor: grab;
-            user-select: none;
-            border-bottom: 1px solid #21262d;
-            border-radius: 8px 8px 0 0;
-            pointer-events: auto !important;
-        }
-        .popup-header:active {
-            cursor: grabbing;
-        }
-        .popup-title {
-            font-size: 11px;
-            font-weight: 600;
-            color: #ff6600;
-        }
-        .popup-controls {
-            display: flex;
-            gap: 4px;
-        }
-        .popup-btn {
-            width: 18px;
-            height: 18px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #21262d;
-            border-radius: 4px;
-            color: #e6edf3;
-            font-size: 12px;
-            cursor: pointer;
-            line-height: 1;
-            border: none;
-            transition: background 0.15s ease;
-            pointer-events: auto !important;
-        }
-        .popup-btn:hover {
-            background: #30363d;
-        }
-        .popup-body {
-            padding: 8px 12px;
-            font-size: 11px;
-            line-height: 1.5;
-            color: #e6edf3;
-        }
-        .popup-body.minimized {
-            display: none;
-        }
-        .maplibregl-popup {
-            pointer-events: auto !important;
-        }
         #info {
             position: absolute;
             bottom: 20px;
@@ -363,172 +131,27 @@
             pointer-events: none;
             white-space: nowrap;
             font-family: 'Inter', sans-serif;
-            font-weight: 400;
-            letter-spacing: 0.02em;
-        }
-        #attribution {
-            position: absolute;
-            bottom: 60px;
-            left: 12px;
-            z-index: 1000;
-            background: rgba(13, 17, 23, 0.7);
-            padding: 4px 10px;
-            border-radius: 12px;
-            border: 1px solid #30363d;
-            color: #8b949e;
-            font-size: 9px;
-            pointer-events: none;
-            font-family: 'Inter', sans-serif;
-            opacity: 0.7;
-        }
-        #attribution:hover {
-            opacity: 1;
-        }
-        @media (max-width: 640px) {
-            #panel {
-                min-width: 180px;
-                max-width: 180px;
-                padding: 10px 12px;
-                font-size: 11px;
-                top: 60px;
-                left: 6px;
-            }
-            #panel .window-header {
-                margin: -10px -12px 8px -12px;
-            }
-            #legend-regions {
-                bottom: 70px;
-                right: 6px;
-                min-width: 90px;
-                font-size: 9px;
-                max-width: 130px;
-                padding: 6px 8px;
-            }
-            #legend-regions .window-header {
-                margin: -6px -8px 6px -8px;
-            }
-            #region-list {
-                max-height: 120px;
-            }
-            .region-item {
-                font-size: 9px;
-                padding: 1px 3px;
-            }
-            #info {
-                font-size: 10px;
-                padding: 4px 12px;
-            }
-            #attribution {
-                bottom: 50px;
-                left: 6px;
-                font-size: 8px;
-                padding: 2px 8px;
-            }
-            .maplibregl-popup-content {
-                min-width: 160px !important;
-            }
-            .popup-body {
-                font-size: 10px !important;
-                padding: 6px 10px !important;
-            }
-            .popup-btn {
-                width: 16px;
-                height: 16px;
-                font-size: 10px;
-            }
         }
     </style>
 </head>
 <body>
 
     <div id="panel">
-        <div class="window-header" id="panel-header">
-            <span class="window-title">⚙️ Controles</span>
-            <div class="popup-controls">
-                <span class="popup-btn" id="panel-min">─</span>
+        <div style="margin-bottom:10px; font-weight:600; color:#58a6ff; font-size:11px;">⚙️ Controles</div>
+        <div class="control-group">
+            <div class="checkbox-group">
+                <input type="checkbox" id="chk-fires" checked>
+                <label for="chk-fires">🔥 Incendios</label>
             </div>
+            <label>FRP mínimo <span class="slider-value" id="val-frp">10</span></label>
+            <input type="range" id="frp-slider" min="0" max="100" value="10">
         </div>
-        <div class="window-body" id="panel-body">
-            <div class="control-group">
-                <label>🗺️ Mapa base</label>
-                <select id="map-style-selector">
-                    <option value="satellite">🛰️ Satélite</option>
-                    <option value="dark" selected>🌍 CartoDB Dark</option>
-                    <option value="osm">🌍 OpenStreetMap</option>
-                    <option value="topo">🗺️ Topográfico</option>
-                </select>
-            </div>
-
-            <div class="control-group">
-                <label>🕒 Registros existentes de las últimas:</label>
-                <select id="time-range-selector">
-                    <option value="48" selected>48 horas</option>
-                    <option value="24">24 horas</option>
-                    <option value="72">72 horas</option>
-                </select>
-            </div>
-
-            <div class="control-group">
-                <div class="checkbox-group">
-                    <input type="checkbox" id="chk-deepstate" checked>
-                    <label for="chk-deepstate">🟥 Línea del frente</label>
-                </div>
-                <div class="color-row">
-                    <input type="color" id="color-fill" value="#cc2200">
-                    <span>Relleno</span>
-                    <span style="margin-left:auto;">Opacidad <span class="slider-value" id="val-opacity-fill">0.45</span></span>
-                </div>
-                <input type="range" id="opacity-fill" min="0" max="100" value="45">
-                <div class="color-row">
-                    <input type="color" id="color-line" value="#ffffff">
-                    <span>Borde</span>
-                    <span style="margin-left:auto;">Opacidad <span class="slider-value" id="val-opacity-line">0.90</span></span>
-                </div>
-                <input type="range" id="opacity-line" min="0" max="100" value="90">
-            </div>
-
-            <div class="control-group">
-                <div class="checkbox-group">
-                    <input type="checkbox" id="chk-fires" checked>
-                    <label for="chk-fires">🔥 Incendios</label>
-                </div>
-                <label>FRP mínimo <span class="slider-value" id="val-frp">10</span></label>
-                <input type="range" id="frp-slider" min="0" max="100" value="10">
-            </div>
-
-            <div class="control-group">
-                <div class="checkbox-group">
-                    <input type="checkbox" id="chk-terrain" checked>
-                    <label for="chk-terrain">🏔️ Terreno 3D</label>
-                </div>
-                <label>Inclinación <span class="slider-value" id="val-pitch">45</span></label>
-                <input type="range" id="pitch-slider" min="0" max="85" value="45">
-            </div>
-
-            <div class="stats-row">
-                <span id="stats-fires">🔥 0</span>
-            </div>
+        <div class="stats-row">
+            <span id="stats-fires">🔥 0</span>
         </div>
     </div>
 
-    <div id="legend-regions">
-        <div class="window-header" id="legend-header">
-            <span class="window-title">🔥 Focos por región</span>
-            <div class="popup-controls">
-                <span class="popup-btn" id="legend-min">─</span>
-            </div>
-        </div>
-        <div class="window-body" id="legend-body">
-            <div id="region-list">
-                <div class="region-item">Cargando...</div>
-            </div>
-        </div>
-    </div>
-
-    <div id="info">🌍 Visor 3D Ucrania · Clic en un incendio para detalles</div>
-    <div id="attribution">
-        <span id="attribution-text">🌍 Fuente: CartoDB (Dark Matter)</span>
-    </div>
+    <div id="info">🌍 Visor 3D Ucrania · Semiesferas 3D</div>
     <div id="map">
         <div id="three-container"></div>
     </div>
@@ -537,61 +160,54 @@
         // ============================================================
         // CONFIGURACIÓN
         // ============================================================
-        const DEEPSTATE_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/deepstate_actual.geojson';
         const FIRMS_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires_polygons.geojson';
-
-        let deepstateData = null;
+        
         let firesData = [];
-        let currentFiresFiltered = [];
-        let selectedRegion = null;
-        let activePopup = null;
+        let currentFires = [];
         let fireMeshes = [];
-        let scene, camera, renderer, threeContainer;
+        let scene, camera, renderer;
         let threeReady = false;
-        let allFiresData = [];
+        let isUpdating = false;
 
+        // ============================================================
+        // MAPA
+        // ============================================================
         const map = new maplibregl.Map({
             container: 'map',
             style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
             center: [32.0, 48.5],
-            zoom: 5.5,
-            pitch: 65,
-            renderWorldCopies: false,
-            antialias: true,
-            preserveDrawingBuffer: true
+            zoom: 6,
+            pitch: 60,
+            antialias: true
         });
 
         map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
         // ============================================================
-        // THREE.JS SETUP
+        // THREE.JS
         // ============================================================
         function initThree() {
             if (threeReady) return;
+            console.log('🔧 Inicializando Three.js...');
 
-            threeContainer = document.getElementById('three-container');
+            const container = document.getElementById('three-container');
 
             scene = new THREE.Scene();
 
             const aspect = window.innerWidth / window.innerHeight;
-            camera = new THREE.PerspectiveCamera(45, aspect, 1, 1000000);
+            camera = new THREE.PerspectiveCamera(45, aspect, 0.01, 1000);
 
-            renderer = new THREE.WebGLRenderer({
-                alpha: true,
-                antialias: true
-            });
+            renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             renderer.setClearColor(0x000000, 0);
-            threeContainer.appendChild(renderer.domElement);
+            container.appendChild(renderer.domElement);
 
             const ambient = new THREE.AmbientLight(0x404060);
             scene.add(ambient);
-
             const light1 = new THREE.DirectionalLight(0xffffff, 1);
             light1.position.set(1, 1, 1);
             scene.add(light1);
-
             const light2 = new THREE.DirectionalLight(0xff8844, 0.5);
             light2.position.set(-1, 0.5, -1);
             scene.add(light2);
@@ -608,6 +224,9 @@
                 renderer.setSize(w, h);
             });
 
+            // Cargar incendios
+            loadFires();
+            
             animate(0);
         }
 
@@ -616,8 +235,7 @@
         // ============================================================
         function getPolygonCenter(coords) {
             const ring = coords[0] || coords;
-            let lon = 0,
-                lat = 0;
+            let lon = 0, lat = 0;
             const count = ring.length;
             for (let i = 0; i < count; i++) {
                 lon += ring[i][0];
@@ -627,20 +245,7 @@
         }
 
         // ============================================================
-        // CONVERTIR COORDENADAS
-        // ============================================================
-        function latLonToPosition(lng, lat) {
-            const scale = 111320;
-            const centerLng = 32.0;
-            const centerLat = 48.5;
-            return {
-                x: (lng - centerLng) * scale * Math.cos(centerLat * Math.PI / 180),
-                y: (lat - centerLat) * scale
-            };
-        }
-
-        // ============================================================
-        // SINCRONIZAR CÁMARA
+        // SINCRONIZAR CÁMARA - CORREGIDA
         // ============================================================
         function syncCamera() {
             if (!map || !camera || !threeReady) return;
@@ -651,36 +256,40 @@
                 const pitch = map.getPitch();
                 const bearing = map.getBearing();
 
-                const centerPos = latLonToPosition(center.lng, center.lat);
+                // Obtener centro en coordenadas Mercator
+                const centerMercator = maplibregl.MercatorCoordinate.fromLngLat(
+                    new maplibregl.LngLat(center.lng, center.lat)
+                );
 
+                // Calcular distancia de la cámara al centro
                 const canvas = map.getCanvas();
                 const height = canvas.height;
-                const fov = camera.fov * Math.PI / 180;
-                const metersPerPixel = 156543.03392 * Math.cos(center.lat * Math.PI / 180) / Math.pow(2, zoom);
-                const cameraHeight = (height / 2) / Math.tan(fov / 2) * metersPerPixel;
+                const halfFov = camera.fov * Math.PI / 360;
+                const pixelsPerMeter = 1 / (Math.pow(2, zoom) * 256);
+                const cameraToCenterDistance = (height / 2) / Math.tan(halfFov) / pixelsPerMeter;
 
+                // Aplicar pitch y bearing
                 const pitchRad = pitch * Math.PI / 180;
                 const bearingRad = -bearing * Math.PI / 180;
 
-                const hDist = cameraHeight * Math.sin(pitchRad);
-                const vDist = cameraHeight * Math.cos(pitchRad);
+                const xOffset = cameraToCenterDistance * Math.sin(pitchRad) * Math.sin(bearingRad);
+                const yOffset = cameraToCenterDistance * Math.sin(pitchRad) * Math.cos(bearingRad);
+                const zOffset = cameraToCenterDistance * Math.cos(pitchRad);
 
-                const offsetX = hDist * Math.sin(bearingRad);
-                const offsetY = hDist * Math.cos(bearingRad);
-                const offsetZ = vDist;
-
+                // Posicionar cámara
                 camera.position.set(
-                    centerPos.x + offsetX,
-                    centerPos.y + offsetY,
-                    offsetZ
+                    centerMercator.x + xOffset,
+                    centerMercator.y + yOffset,
+                    centerMercator.z + zOffset
                 );
 
-                camera.lookAt(centerPos.x, centerPos.y, 0);
-                camera.updateProjectionMatrix();
-
-                const dist = Math.sqrt(offsetX * offsetX + offsetY * offsetY + offsetZ * offsetZ);
-                camera.near = Math.max(0.1, dist * 0.0001);
-                camera.far = Math.max(100000, dist * 20);
+                // Mirar al centro
+                camera.lookAt(
+                    centerMercator.x,
+                    centerMercator.y,
+                    centerMercator.z
+                );
+                
                 camera.updateProjectionMatrix();
 
             } catch (e) {
@@ -689,13 +298,15 @@
         }
 
         // ============================================================
-        // CREAR SEMIESFERA DE INCENDIO
+        // CREAR SEMIESFERA - CORREGIDA
         // ============================================================
         function createFireSphere(lon, lat, frp) {
-            const pos = latLonToPosition(lon, lat);
-
+            const mercator = maplibregl.MercatorCoordinate.fromLngLat(
+                new maplibregl.LngLat(lon, lat)
+            );
+            
             const t = Math.min(frp / 500, 1);
-            const radius = 80 + t * 300;
+            const radius = 0.0001 + t * 0.0008;
 
             const r = 255;
             const g = Math.round(255 * (1 - t * 0.9));
@@ -703,27 +314,29 @@
 
             const group = new THREE.Group();
 
+            // Semiesfera
             const geom = new THREE.SphereGeometry(radius, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
             const mat = new THREE.MeshPhongMaterial({
                 color: new THREE.Color(`rgb(${r}, ${g}, ${b})`),
                 emissive: new THREE.Color(`rgb(${r}, ${Math.round(g * 0.6)}, ${Math.round(b * 0.3)})`),
                 emissiveIntensity: 0.6 + t * 0.8,
                 transparent: true,
-                opacity: 0.7 + t * 0.3,
+                opacity: 0.8 + t * 0.2,
                 side: THREE.DoubleSide,
                 blending: THREE.AdditiveBlending,
                 depthWrite: false,
                 shininess: 30
             });
             const sphere = new THREE.Mesh(geom, mat);
-            sphere.position.set(pos.x, pos.y, radius * 0.85);
+            sphere.position.set(mercator.x, mercator.y, mercator.z + radius * 0.8);
             group.add(sphere);
 
-            const glowGeom = new THREE.SphereGeometry(radius * 2, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+            // Glow
+            const glowGeom = new THREE.SphereGeometry(radius * 2.5, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
             const glowMat = new THREE.MeshBasicMaterial({
                 color: new THREE.Color(`rgb(${r}, ${Math.round(g * 0.4)}, ${Math.round(b * 0.2)})`),
                 transparent: true,
-                opacity: 0.15 + t * 0.15,
+                opacity: 0.1 + t * 0.15,
                 blending: THREE.AdditiveBlending,
                 depthWrite: false
             });
@@ -731,6 +344,7 @@
             glow.position.copy(sphere.position);
             group.add(glow);
 
+            // Núcleo
             const coreGeom = new THREE.SphereGeometry(radius * 0.4, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
             const coreMat = new THREE.MeshBasicMaterial({
                 color: new THREE.Color(`rgb(255, ${Math.min(g + 80, 255)}, ${Math.min(b + 80, 255)})`),
@@ -750,11 +364,16 @@
         }
 
         // ============================================================
-        // ACTUALIZAR INCENDIOS EN THREE.JS
+        // ACTUALIZAR INCENDIOS
         // ============================================================
-        function updateThreeFires() {
-            if (!threeReady) return;
+        function updateFires() {
+            if (isUpdating) return;
+            isUpdating = true;
 
+            const enabled = document.getElementById('chk-fires').checked;
+            const frpMin = parseInt(document.getElementById('frp-slider').value) || 0;
+
+            // Limpiar objetos antiguos
             fireMeshes.forEach(obj => {
                 scene.remove(obj);
                 obj.children.forEach(child => {
@@ -764,10 +383,22 @@
             });
             fireMeshes = [];
 
-            const enabled = document.getElementById('chk-fires').checked;
-            if (!enabled || currentFiresFiltered.length === 0) return;
+            if (!enabled || firesData.length === 0) {
+                document.getElementById('stats-fires').textContent = '🔥 0';
+                isUpdating = false;
+                return;
+            }
 
-            const toRender = currentFiresFiltered.slice(0, 300);
+            const filtered = firesData.filter(f => {
+                const frp = f.properties?.frp || 0;
+                return frp >= frpMin;
+            });
+
+            currentFires = filtered;
+            document.getElementById('stats-fires').textContent = '🔥 ' + filtered.length;
+
+            const toRender = filtered.slice(0, 200);
+            console.log(`🔥 Renderizando ${toRender.length} incendios`);
 
             toRender.forEach(f => {
                 try {
@@ -779,9 +410,25 @@
                     scene.add(group);
                     fireMeshes.push(group);
                 } catch (e) {
-                    // Silencioso
+                    console.warn('Error:', e);
                 }
             });
+
+            isUpdating = false;
+        }
+
+        // ============================================================
+        // CARGAR INCENDIOS
+        // ============================================================
+        function loadFires() {
+            fetch(FIRMS_URL)
+                .then(r => r.json())
+                .then(data => {
+                    firesData = data.features || [];
+                    console.log(`✅ FIRMS cargado (${firesData.length} incendios)`);
+                    updateFires();
+                })
+                .catch(e => console.error('Error:', e));
         }
 
         // ============================================================
@@ -790,12 +437,9 @@
         let lastTime = 0;
 
         function animate(time) {
-            if (!threeReady) {
-                requestAnimationFrame(animate);
-                return;
-            }
-
             requestAnimationFrame(animate);
+
+            if (!threeReady) return;
 
             syncCamera();
 
@@ -823,632 +467,28 @@
         }
 
         // ============================================================
-        // FUNCIONES DE MAPLIBRE
-        // ============================================================
-        function updateDeepstate() {
-            if (!deepstateData) return;
-            const enabled = document.getElementById('chk-deepstate').checked;
-            const fillColor = document.getElementById('color-fill').value;
-            const lineColor = document.getElementById('color-line').value;
-            const fillOpacity = parseInt(document.getElementById('opacity-fill').value) / 100;
-            const lineOpacity = parseInt(document.getElementById('opacity-line').value) / 100;
-
-            ['deepstate-fill', 'deepstate-line'].forEach(id => {
-                if (map.getLayer(id)) map.removeLayer(id);
-            });
-            if (map.getSource('deepstate')) map.removeSource('deepstate');
-
-            if (!enabled) return;
-
-            map.addSource('deepstate', {
-                type: 'geojson',
-                data: deepstateData
-            });
-
-            map.addLayer({
-                id: 'deepstate-fill',
-                type: 'fill',
-                source: 'deepstate',
-                paint: {
-                    'fill-color': fillColor,
-                    'fill-opacity': fillOpacity,
-                }
-            });
-
-            map.addLayer({
-                id: 'deepstate-line',
-                type: 'line',
-                source: 'deepstate',
-                paint: {
-                    'line-color': lineColor,
-                    'line-width': 2.5,
-                    'line-opacity': lineOpacity,
-                }
-            });
-        }
-
-        function updateFires() {
-            if (activePopup) {
-                activePopup.remove();
-                activePopup = null;
-            }
-
-            const enabled = document.getElementById('chk-fires').checked;
-            const frpMin = parseInt(document.getElementById('frp-slider').value) || 0;
-            const timeRange = parseInt(document.getElementById('time-range-selector').value) || 48;
-
-            // Eliminar capas de respaldo
-            ['fires-backup-layer'].forEach(id => {
-                if (map.getLayer(id)) map.removeLayer(id);
-            });
-            if (map.getSource('fires-backup')) map.removeSource('fires-backup');
-
-            if (!enabled || firesData.length === 0) {
-                currentFiresFiltered = [];
-                updateRegionLegend();
-                document.getElementById('stats-fires').textContent = '🔥 0';
-                updateThreeFires();
-                return;
-            }
-
-            const ahora = Date.now();
-            const limite = ahora - (timeRange * 60 * 60 * 1000);
-
-            const filtered = firesData.filter(f => {
-                if ((f.properties?.frp || 0) < frpMin) return false;
-                const acqDate = f.properties?.acq_date;
-                const acqTime = f.properties?.acq_time;
-                if (!acqDate) return false;
-                let horaUTC = 0,
-                    minutosUTC = 0;
-                if (acqTime) {
-                    const timeStr = String(acqTime).padStart(4, '0');
-                    horaUTC = parseInt(timeStr.substring(0, 2));
-                    minutosUTC = parseInt(timeStr.substring(2, 4));
-                }
-                const fechaUTC = new Date(Date.UTC(
-                    parseInt(acqDate.split('-')[0]),
-                    parseInt(acqDate.split('-')[1]) - 1,
-                    parseInt(acqDate.split('-')[2]),
-                    horaUTC,
-                    minutosUTC
-                ));
-                return fechaUTC.getTime() >= limite;
-            });
-
-            const filteredByRegion = filtered.filter(f => {
-                if (!selectedRegion) return true;
-                if (selectedRegion === 'Otras ubicaciones') {
-                    const region = f.properties?.NAME_1 || '';
-                    return !region || region === '' || region === 'N/A' || region.toLowerCase() === 'desconocida';
-                }
-                const region = f.properties?.NAME_1 || '';
-                return region === selectedRegion;
-            });
-
-            currentFiresFiltered = filteredByRegion;
-
-            if (filteredByRegion.length === 0) {
-                updateRegionLegend();
-                document.getElementById('stats-fires').textContent = '🔥 0';
-                updateThreeFires();
-                return;
-            }
-
-            document.getElementById('stats-fires').textContent = '🔥 ' + filteredByRegion.length;
-            updateRegionLegend();
-
-            updateThreeFires();
-
-            // Capa invisible para popups
-            map.addSource('fires-backup', {
-                type: 'geojson',
-                data: { type: 'FeatureCollection', features: filteredByRegion }
-            });
-
-            map.addLayer({
-                id: 'fires-backup-layer',
-                type: 'circle',
-                source: 'fires-backup',
-                paint: {
-                    'circle-radius': 2,
-                    'circle-color': '#ff4400',
-                    'circle-opacity': 0.01
-                }
-            });
-
-            // POPUPS
-            map.off('click', 'fires-backup-layer');
-            map.on('click', 'fires-backup-layer', function(e) {
-                if (activePopup) {
-                    activePopup.remove();
-                    activePopup = null;
-                }
-
-                const p = e.features[0].properties;
-                const coords = e.features[0].geometry.coordinates;
-                const [lon, lat] = getPolygonCenter(coords);
-                const frp = p.frp || 0;
-                const localidad = p.locality || 'N/A';
-                const oblast = p.NAME_1 || 'N/A';
-                const acqDate = p.acq_date || 'N/A';
-                const acqTime = p.acq_time || '0';
-
-                let horaUTC = 0,
-                    minutosUTC = 0;
-                if (acqTime !== 'N/A') {
-                    const timeStr = String(acqTime).padStart(4, '0');
-                    horaUTC = parseInt(timeStr.substring(0, 2));
-                    minutosUTC = parseInt(timeStr.substring(2, 4));
-                }
-
-                const fechaUTC = new Date(Date.UTC(
-                    parseInt(acqDate.split('-')[0]),
-                    parseInt(acqDate.split('-')[1]) - 1,
-                    parseInt(acqDate.split('-')[2]),
-                    horaUTC,
-                    minutosUTC
-                ));
-
-                const horaLocal = fechaUTC.toLocaleString('es-ES', {
-                    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    dateStyle: 'medium',
-                    timeStyle: 'short'
-                });
-
-                const googleEarthUrl = `https://earth.google.com/web/search/${lat},${lon}`;
-                const yandexUrl = `https://yandex.com/maps/?pt=${lon},${lat}&z=15`;
-
-                activePopup = new maplibregl.Popup({
-                    closeButton: false,
-                    closeOnClick: false,
-                    className: 'custom-popup'
-                })
-                    .setLngLat([lon, lat])
-                    .setHTML(`
-                        <div class="popup-header">
-                            <span class="popup-title">🔥 Incendio</span>
-                            <div class="popup-controls">
-                                <span class="popup-btn" id="popup-min">─</span>
-                                <span class="popup-btn" id="popup-close">✕</span>
-                            </div>
-                        </div>
-                        <div class="popup-body" id="popup-body">
-                            <div><span style="color:#ff6600; font-weight:600;">🔥 FRP:</span> ${frp} MW</div>
-                            <div><span style="color:#8b949e;">LAT/LONG:</span> <span style="font-weight:500; font-family:'Courier New',monospace; color:#e6edf3;">${lat.toFixed(5)}, ${lon.toFixed(5)}</span></div>
-                            <div><span style="color:#8b949e;">Localidad:</span> <span style="font-weight:500; color:#e6edf3;">${localidad}</span></div>
-                            <div><span style="color:#8b949e;">Región:</span> <span style="font-weight:500; color:#e6edf3;">${oblast}</span></div>
-                            <div><span style="color:#8b949e;">🕒 Hora local:</span> <span style="font-weight:500; color:#e6edf3;">${horaLocal}</span></div>
-                            <div style="border-top:1px solid #21262d; padding-top:4px; display:flex; gap:6px; font-size:10px;">
-                                <a href="${googleEarthUrl}" target="_blank" style="color:#58a6ff; text-decoration:none; font-weight:500;">🌍 Google Earth</a>
-                                <span style="color:#30363d;">|</span>
-                                <a href="${yandexUrl}" target="_blank" style="color:#58a6ff; text-decoration:none; font-weight:500;">🗺️ Yandex</a>
-                            </div>
-                        </div>
-                    `)
-                    .addTo(map);
-
-                activePopup.on('close', () => {
-                    activePopup = null;
-                });
-
-                const popupEl = activePopup.getElement();
-                if (popupEl) {
-                    popupEl.style.pointerEvents = 'auto';
-                    const headerEl = popupEl.querySelector('.popup-header');
-                    makeDraggable(popupEl, headerEl);
-
-                    const closeBtn = popupEl.querySelector('#popup-close');
-                    const minBtn = popupEl.querySelector('#popup-min');
-
-                    if (closeBtn) {
-                        closeBtn.addEventListener('click', (ev) => {
-                            ev.stopPropagation();
-                            activePopup.remove();
-                            activePopup = null;
-                        });
-                    }
-
-                    if (minBtn) {
-                        minBtn.addEventListener('click', (ev) => {
-                            ev.stopPropagation();
-                            const body = popupEl.querySelector('#popup-body');
-                            body.classList.toggle('minimized');
-                            ev.target.textContent = body.classList.contains('minimized') ? '▢' : '─';
-                        });
-                    }
-                }
-            });
-
-            map.on('mouseenter', 'fires-backup-layer', () => map.getCanvas().style.cursor = 'pointer');
-            map.on('mouseleave', 'fires-backup-layer', () => map.getCanvas().style.cursor = '');
-        }
-
-        function updateRegionLegend() {
-            const regionList = document.getElementById('region-list');
-
-            if (currentFiresFiltered.length === 0) {
-                regionList.innerHTML = `
-                    <div class="region-item" style="color:#8b949e; text-align:center; padding:4px 0; font-size:10px;">
-                        No hay incendios
-                    </div>`;
-                return;
-            }
-
-            const regionCounts = {};
-            let puntosSinRegion = 0;
-
-            currentFiresFiltered.forEach(f => {
-                const region = f.properties?.NAME_1;
-                if (region && region !== '' && region !== 'N/A' && region.toLowerCase() !== 'desconocida') {
-                    regionCounts[region] = (regionCounts[region] || 0) + 1;
-                } else {
-                    puntosSinRegion++;
-                }
-            });
-
-            const sortedRegions = Object.entries(regionCounts)
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 15);
-
-            let html = '';
-
-            html += `<div class="region-item all-regions ${!selectedRegion ? 'active' : ''}" data-region="all">
-                        <span class="region-name">⬅️ Ver todos</span>
-                        <span class="count">${currentFiresFiltered.length}</span>
-                    </div>`;
-
-            sortedRegions.forEach(([region, count]) => {
-                const isActive = (selectedRegion === region);
-                html += `<div class="region-item ${isActive ? 'active' : ''}" data-region="${region}">
-                            <span class="region-name">${region}</span>
-                            <span class="count">${count}</span>
-                        </div>`;
-            });
-
-            if (puntosSinRegion > 0) {
-                const isActive = (selectedRegion === 'Otras ubicaciones');
-                html += `<div class="region-item ${isActive ? 'active' : ''}" data-region="Otras ubicaciones" style="border-top:1px solid #30363d; margin-top:2px; padding-top:3px;">
-                            <span class="region-name" style="color:#8b949e;">❓ Otras ubicaciones</span>
-                            <span class="count">${puntosSinRegion}</span>
-                        </div>`;
-            }
-
-            regionList.innerHTML = html;
-
-            document.querySelectorAll('.region-item[data-region]').forEach(el => {
-                el.addEventListener('click', function() {
-                    const region = this.dataset.region;
-
-                    if (region === 'all') {
-                        selectedRegion = null;
-                    } else if (region === 'Otras ubicaciones') {
-                        if (selectedRegion === 'Otras ubicaciones') {
-                            selectedRegion = null;
-                        } else {
-                            selectedRegion = 'Otras ubicaciones';
-                        }
-                    } else {
-                        if (selectedRegion === region) {
-                            selectedRegion = null;
-                        } else {
-                            selectedRegion = region;
-                        }
-                    }
-
-                    updateFires();
-                });
-            });
-        }
-
-        function updateTerrain() {
-            const enabled = document.getElementById('chk-terrain').checked;
-            const pitch = parseInt(document.getElementById('pitch-slider').value);
-
-            if (enabled) {
-                if (!map.getSource('terrainSource')) {
-                    map.addSource('terrainSource', {
-                        type: 'raster-dem',
-                        tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
-                        tileSize: 256,
-                        encoding: 'terrarium',
-                        maxzoom: 14
-                    });
-                }
-                map.setTerrain({ source: 'terrainSource', exaggeration: 2.0 });
-                map.setPitch(pitch);
-            } else {
-                map.setTerrain(null);
-                map.setPitch(0);
-            }
-        }
-
-        // ============================================================
-        // MAPA BASE
-        // ============================================================
-        function updateBaseMap() {
-            if (activePopup) {
-                activePopup.remove();
-                activePopup = null;
-            }
-
-            const selected = document.getElementById('map-style-selector').value;
-
-            ['satellite-layer', 'osm-layer', 'topo-layer', 'deepstate-fill', 'deepstate-line', 'fires-backup-layer']
-            .forEach(id => {
-                if (map.getLayer(id)) map.removeLayer(id);
-            });
-            ['satellite-source', 'osm-source', 'topo-source', 'deepstate', 'fires-backup'].forEach(id => {
-                if (map.getSource(id)) map.removeSource(id);
-            });
-
-            const attributionText = document.getElementById('attribution-text');
-            const sources = {
-                'satellite': '🛰️ Fuente: Microsoft Bing Maps (World Imagery)',
-                'dark': '🌍 Fuente: CartoDB (Dark Matter)',
-                'osm': '🌍 Fuente: OpenStreetMap contributors',
-                'topo': '🗺️ Fuente: OpenTopoMap (© OpenStreetMap contributors)'
-            };
-            attributionText.textContent = sources[selected] || sources['dark'];
-
-            if (selected === 'dark') {
-                map.setStyle('https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json', { diff: false });
-                map.once('style.load', function() {
-                    setTimeout(() => {
-                        if (deepstateData) updateDeepstate();
-                        updateFires();
-                        updateTerrain();
-                    }, 200);
-                });
-                return;
-            }
-
-            map.setStyle({ version: 8, sources: {}, layers: [] });
-
-            let tiles = [];
-            let layerId = '';
-
-            switch (selected) {
-                case 'satellite':
-                    tiles = ['https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'];
-                    layerId = 'satellite-layer';
-                    break;
-                case 'osm':
-                    tiles = ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'];
-                    layerId = 'osm-layer';
-                    break;
-                case 'topo':
-                    tiles = ['https://tile.opentopomap.org/{z}/{x}/{y}.png'];
-                    layerId = 'topo-layer';
-                    break;
-                default:
-                    tiles = ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'];
-                    layerId = 'osm-layer';
-            }
-
-            map.once('style.load', function() {
-                map.addSource(layerId.replace('-layer', '-source'), {
-                    type: 'raster',
-                    tiles: tiles,
-                    tileSize: 256
-                });
-
-                map.addLayer({
-                    id: layerId,
-                    type: 'raster',
-                    source: layerId.replace('-layer', '-source')
-                });
-
-                setTimeout(() => {
-                    if (deepstateData) updateDeepstate();
-                    updateFires();
-                    updateTerrain();
-                }, 200);
-            });
-        }
-
-        // ============================================================
-        // DRAGGABLE / MINIMIZABLE
-        // ============================================================
-        function makeDraggable(popupEl, handleEl) {
-            if (!handleEl) return;
-            let offsetX = 0,
-                offsetY = 0,
-                isDragging = false;
-
-            function getXY(e) {
-                if (e.touches && e.touches.length) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
-                return { x: e.clientX, y: e.clientY };
-            }
-
-            function onStart(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                isDragging = true;
-                const rect = popupEl.getBoundingClientRect();
-                const pos = getXY(e);
-                offsetX = pos.x - rect.left;
-                offsetY = pos.y - rect.top;
-
-                popupEl.style.transform = 'none';
-                popupEl.style.position = 'fixed';
-                popupEl.style.left = rect.left + 'px';
-                popupEl.style.top = rect.top + 'px';
-                popupEl.style.margin = '0';
-                popupEl.style.zIndex = '3000';
-
-                document.addEventListener('mousemove', onMove);
-                document.addEventListener('mouseup', onEnd);
-                document.addEventListener('touchmove', onMove, { passive: false });
-                document.addEventListener('touchend', onEnd);
-            }
-
-            function onMove(e) {
-                if (!isDragging) return;
-                e.preventDefault();
-                const pos = getXY(e);
-                popupEl.style.left = (pos.x - offsetX) + 'px';
-                popupEl.style.top = (pos.y - offsetY) + 'px';
-            }
-
-            function onEnd() {
-                isDragging = false;
-                document.removeEventListener('mousemove', onMove);
-                document.removeEventListener('mouseup', onEnd);
-                document.removeEventListener('touchmove', onMove);
-                document.removeEventListener('touchend', onEnd);
-            }
-
-            handleEl.addEventListener('mousedown', onStart);
-            handleEl.addEventListener('touchstart', onStart, { passive: false });
-        }
-
-        function makeWindowDraggable(containerEl, handleEl) {
-            if (!containerEl || !handleEl) return;
-            let offsetX = 0,
-                offsetY = 0,
-                isDragging = false;
-
-            function getXY(e) {
-                if (e.touches && e.touches.length) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
-                return { x: e.clientX, y: e.clientY };
-            }
-
-            function onStart(e) {
-                if (e.target.closest('.popup-btn')) return;
-                e.preventDefault();
-                isDragging = true;
-                const rect = containerEl.getBoundingClientRect();
-                const pos = getXY(e);
-                offsetX = pos.x - rect.left;
-                offsetY = pos.y - rect.top;
-
-                containerEl.style.position = 'fixed';
-                containerEl.style.left = rect.left + 'px';
-                containerEl.style.top = rect.top + 'px';
-                containerEl.style.right = 'auto';
-                containerEl.style.bottom = 'auto';
-                containerEl.style.margin = '0';
-
-                document.addEventListener('mousemove', onMove);
-                document.addEventListener('mouseup', onEnd);
-                document.addEventListener('touchmove', onMove, { passive: false });
-                document.addEventListener('touchend', onEnd);
-            }
-
-            function onMove(e) {
-                if (!isDragging) return;
-                e.preventDefault();
-                const pos = getXY(e);
-                let left = pos.x - offsetX;
-                let top = pos.y - offsetY;
-                left = Math.max(0, Math.min(left, window.innerWidth - 60));
-                top = Math.max(0, Math.min(top, window.innerHeight - 40));
-                containerEl.style.left = left + 'px';
-                containerEl.style.top = top + 'px';
-            }
-
-            function onEnd() {
-                isDragging = false;
-                document.removeEventListener('mousemove', onMove);
-                document.removeEventListener('mouseup', onEnd);
-                document.removeEventListener('touchmove', onMove);
-                document.removeEventListener('touchend', onEnd);
-            }
-
-            handleEl.addEventListener('mousedown', onStart);
-            handleEl.addEventListener('touchstart', onStart, { passive: false });
-        }
-
-        function makeWindowMinimizable(bodyEl, btnEl) {
-            if (!bodyEl || !btnEl) return;
-            btnEl.addEventListener('click', (ev) => {
-                ev.stopPropagation();
-                const parentPanel = bodyEl.closest('#panel') || bodyEl.closest('#legend-regions');
-                bodyEl.classList.toggle('minimized');
-                btnEl.textContent = bodyEl.classList.contains('minimized') ? '▢' : '─';
-                if (parentPanel) {
-                    parentPanel.classList.toggle('minimized');
-                }
-            });
-        }
-
-        // ============================================================
-        // INICIALIZACIÓN
-        // ============================================================
-        map.on('load', function() {
-            // Inicializar Three.js
-            setTimeout(initThree, 500);
-
-            // Cargar DeepState
-            fetch(DEEPSTATE_URL)
-                .then(r => r.json())
-                .then(data => {
-                    deepstateData = data;
-                    updateDeepstate();
-                    updateTerrain();
-                    console.log('✅ DeepState cargado');
-                })
-                .catch(e => console.error('DeepState error:', e));
-
-            // Cargar FIRMS
-            fetch(FIRMS_URL)
-                .then(r => r.json())
-                .then(data => {
-                    firesData = data.features || [];
-                    updateFires();
-                    console.log('✅ FIRMS cargado (' + firesData.length + ' incendios)');
-                })
-                .catch(e => console.error('FIRMS error:', e));
-
-            updateTerrain();
-            console.log('✅ Visor listo');
-        });
-
-        // ============================================================
         // CONTROLES
         // ============================================================
-        document.getElementById('map-style-selector').addEventListener('change', updateBaseMap);
-
-        document.getElementById('time-range-selector').addEventListener('change', function() {
-            if (activePopup) {
-                activePopup.remove();
-                activePopup = null;
-            }
-            selectedRegion = null;
-            updateFires();
-        });
-
-        document.getElementById('chk-deepstate').addEventListener('change', updateDeepstate);
-        document.getElementById('color-fill').addEventListener('input', updateDeepstate);
-        document.getElementById('color-line').addEventListener('input', updateDeepstate);
-        document.getElementById('opacity-fill').addEventListener('input', function() {
-            document.getElementById('val-opacity-fill').textContent = (this.value / 100).toFixed(2);
-            updateDeepstate();
-        });
-        document.getElementById('opacity-line').addEventListener('input', function() {
-            document.getElementById('val-opacity-line').textContent = (this.value / 100).toFixed(2);
-            updateDeepstate();
-        });
-
         document.getElementById('chk-fires').addEventListener('change', updateFires);
         document.getElementById('frp-slider').addEventListener('input', function() {
             document.getElementById('val-frp').textContent = this.value;
             updateFires();
         });
 
-        document.getElementById('chk-terrain').addEventListener('change', updateTerrain);
-        document.getElementById('pitch-slider').addEventListener('input', function() {
-            document.getElementById('val-pitch').textContent = this.value;
-            updateTerrain();
+        // ============================================================
+        // INICIALIZACIÓN
+        // ============================================================
+        map.on('load', function() {
+            console.log('🗺️ Mapa cargado');
+            setTimeout(initThree, 500);
         });
 
-        // Ventanas
-        makeWindowDraggable(document.getElementById('panel'), document.getElementById('panel-header'));
-        makeWindowMinimizable(document.getElementById('panel-body'), document.getElementById('panel-min'));
+        if (map.loaded()) {
+            console.log('ℹ️ Mapa ya cargado');
+            setTimeout(initThree, 500);
+        }
 
-        makeWindowDraggable(document.getElementById('legend-regions'), document.getElementById('legend-header'));
-        makeWindowMinimizable(document.getElementById('legend-body'), document.getElementById('legend-min'));
+        console.log('🚀 Visor iniciado');
     </script>
 </body>
 </html>
