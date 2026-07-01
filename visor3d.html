@@ -11,7 +11,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
 
     <style>
-        /* ===== ESTILOS (MANTENIDOS) ===== */
         * {
             margin: 0;
             padding: 0;
@@ -548,6 +547,31 @@
         map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
         // ============================================================
+        // FUNCIÓN PARA ELIMINAR CAPAS (IMPORTANTE)
+        // ============================================================
+        function removeAllLayers() {
+            const allLayers = map.getStyle().layers || [];
+            const layerIds = allLayers.map(l => l.id);
+            
+            // Eliminar SOLO nuestras capas, no las del mapa base
+            const ourLayers = layerIds.filter(id => 
+                id.includes('fires') || 
+                id.includes('deepstate') ||
+                id === 'satellite-layer' ||
+                id === 'osm-layer' ||
+                id === 'topo-layer'
+            );
+            
+            ourLayers.forEach(id => {
+                if (map.getLayer(id)) map.removeLayer(id);
+            });
+            
+            ['fires', 'fires-backup', 'deepstate', 'satellite-source', 'osm-source', 'topo-source'].forEach(id => {
+                if (map.getSource(id)) map.removeSource(id);
+            });
+        }
+
+        // ============================================================
         // FUNCIONES DE MAPLIBRE
         // ============================================================
         function updateDeepstate() {
@@ -558,6 +582,7 @@
             const fillOpacity = parseInt(document.getElementById('opacity-fill').value) / 100;
             const lineOpacity = parseInt(document.getElementById('opacity-line').value) / 100;
 
+            // Eliminar capas anteriores
             ['deepstate-fill', 'deepstate-line'].forEach(id => {
                 if (map.getLayer(id)) map.removeLayer(id);
             });
@@ -602,14 +627,12 @@
             const frpMin = parseInt(document.getElementById('frp-slider').value) || 0;
             const timeRange = parseInt(document.getElementById('time-range-selector').value) || 48;
 
-            // ELIMINAR TODAS LAS CAPAS ANTIGUAS
-            const layerIds = ['fires-3d', 'fires-glow', 'fires-core', 'fires-layer', 'fires-backup-layer'];
+            // ELIMINAR TODAS LAS CAPAS DE INCENDIOS
+            const layerIds = ['fires-glow-outer', 'fires-glow-inner', 'fires-core', 'fires-shadow'];
             layerIds.forEach(id => {
                 if (map.getLayer(id)) map.removeLayer(id);
             });
-            ['fires', 'fires-backup'].forEach(id => {
-                if (map.getSource(id)) map.removeSource(id);
-            });
+            if (map.getSource('fires')) map.removeSource('fires');
 
             if (!enabled || firesData.length === 0) {
                 currentFiresFiltered = [];
@@ -671,10 +694,10 @@
             });
 
             // ============================================================
-            // CAPA 1: GLOW (círculo grande y difuso)
+            // CAPA 1: SOMBRA (efecto 3D - desplazada abajo)
             // ============================================================
             map.addLayer({
-                id: 'fires-glow',
+                id: 'fires-shadow',
                 type: 'circle',
                 source: 'fires',
                 paint: {
@@ -682,9 +705,33 @@
                         'interpolate',
                         ['linear'],
                         ['get', 'frp'],
-                        10, 30,
-                        100, 60,
-                        500, 120
+                        10, 15,
+                        100, 30,
+                        500, 60
+                    ],
+                    'circle-color': '#000000',
+                    'circle-opacity': 0.4,
+                    'circle-blur': 0.5,
+                    'circle-translate': [0, 8],
+                    'circle-translate-anchor': 'map'
+                }
+            });
+
+            // ============================================================
+            // CAPA 2: GLOW EXTERIOR (círculo grande difuso)
+            // ============================================================
+            map.addLayer({
+                id: 'fires-glow-outer',
+                type: 'circle',
+                source: 'fires',
+                paint: {
+                    'circle-radius': [
+                        'interpolate',
+                        ['linear'],
+                        ['get', 'frp'],
+                        10, 25,
+                        100, 50,
+                        500, 100
                     ],
                     'circle-color': [
                         'interpolate',
@@ -694,13 +741,42 @@
                         100, '#FF4400',
                         500, '#FF0000'
                     ],
-                    'circle-opacity': 0.15,
+                    'circle-opacity': 0.2,
                     'circle-blur': 0.9
                 }
             });
 
             // ============================================================
-            // CAPA 2: NÚCLEO (círculo pequeño y brillante)
+            // CAPA 3: GLOW INTERIOR (círculo medio)
+            // ============================================================
+            map.addLayer({
+                id: 'fires-glow-inner',
+                type: 'circle',
+                source: 'fires',
+                paint: {
+                    'circle-radius': [
+                        'interpolate',
+                        ['linear'],
+                        ['get', 'frp'],
+                        10, 12,
+                        100, 25,
+                        500, 50
+                    ],
+                    'circle-color': [
+                        'interpolate',
+                        ['linear'],
+                        ['get', 'frp'],
+                        10, '#FFAA00',
+                        100, '#FF6600',
+                        500, '#FF2200'
+                    ],
+                    'circle-opacity': 0.4,
+                    'circle-blur': 0.6
+                }
+            });
+
+            // ============================================================
+            // CAPA 4: NÚCLEO (círculo pequeño y brillante)
             // ============================================================
             map.addLayer({
                 id: 'fires-core',
@@ -711,51 +787,27 @@
                         'interpolate',
                         ['linear'],
                         ['get', 'frp'],
-                        10, 8,
-                        100, 18,
-                        500, 35
+                        10, 5,
+                        100, 12,
+                        500, 25
                     ],
                     'circle-color': [
                         'interpolate',
                         ['linear'],
                         ['get', 'frp'],
                         10, '#FFDD00',
-                        100, '#FF8800',
-                        500, '#FF2200'
+                        100, '#FF9900',
+                        500, '#FF3300'
                     ],
-                    'circle-opacity': 0.9,
+                    'circle-opacity': 0.95,
                     'circle-stroke-width': 2,
                     'circle-stroke-color': '#FFFFFF',
-                    'circle-stroke-opacity': 0.3
+                    'circle-stroke-opacity': 0.5
                 }
             });
 
             // ============================================================
-            // CAPA 3: SOMBRA (para efecto 3D)
-            // ============================================================
-            map.addLayer({
-                id: 'fires-3d',
-                type: 'circle',
-                source: 'fires',
-                paint: {
-                    'circle-radius': [
-                        'interpolate',
-                        ['linear'],
-                        ['get', 'frp'],
-                        10, 12,
-                        100, 25,
-                        500, 45
-                    ],
-                    'circle-color': '#000000',
-                    'circle-opacity': 0.3,
-                    'circle-blur': 0.4,
-                    'circle-translate': [0, 5],
-                    'circle-translate-anchor': 'map'
-                }
-            });
-
-            // ============================================================
-            // POPUPS
+            // POPUPS (en el núcleo)
             // ============================================================
             map.off('click', 'fires-core');
             map.on('click', 'fires-core', function(e) {
@@ -974,14 +1026,8 @@
 
             const selected = document.getElementById('map-style-selector').value;
 
-            ['satellite-layer', 'osm-layer', 'topo-layer', 'deepstate-fill', 'deepstate-line', 'fires-3d',
-                'fires-glow', 'fires-core', 'fires-backup-layer'
-            ].forEach(id => {
-                if (map.getLayer(id)) map.removeLayer(id);
-            });
-            ['satellite-source', 'osm-source', 'topo-source', 'deepstate', 'fires', 'fires-backup'].forEach(id => {
-                if (map.getSource(id)) map.removeSource(id);
-            });
+            // Eliminar capas personalizadas
+            removeAllLayers();
 
             const attributionText = document.getElementById('attribution-text');
             const sources = {
