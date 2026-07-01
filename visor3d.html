@@ -1,21 +1,49 @@
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Visor Ucrania 3D - Debug</title>
+    <title>Prueba Three.js + MapLibre</title>
     <script src="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.js">
     </script>
     <link href="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js">
     </script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body { width: 100%; height: 100%; overflow: hidden; }
-        #map { width: 100%; height: 100vh; position: relative; }
-        #three-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
-        #info { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; background: rgba(0,0,0,0.8); padding: 8px 20px; border-radius: 20px; color: #fff; font-family: monospace; font-size: 12px; }
-        #debug { position: absolute; top: 10px; right: 10px; z-index: 1000; background: rgba(0,0,0,0.9); padding: 10px; border-radius: 8px; color: #0f0; font-family: monospace; font-size: 11px; max-width: 300px; max-height: 200px; overflow: auto; pointer-events: none; }
+        * {
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #map {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+        #three-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+        #info {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-family: monospace;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -23,32 +51,10 @@
     <div id="map">
         <div id="three-container"></div>
     </div>
-    <div id="info">🌍 Visor 3D - Debug</div>
-    <div id="debug">Cargando...</div>
+    <div id="info">🔴 ¿Ves el cubo rojo?</div>
 
     <script>
-        console.log('🚀 INICIANDO...');
-
-        // ============================================================
-        // CONFIGURACIÓN
-        // ============================================================
-        const FIRMS_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires_polygons.geojson';
-        let firesData = [];
-        let currentFires = [];
-        let fireMeshes = [];
-        let scene, camera, renderer;
-        let threeReady = false;
-        let frameCount = 0;
-
-        const debugEl = document.getElementById('debug');
-
-        function logDebug(msg) {
-            console.log(msg);
-            debugEl.innerHTML = msg + '<br>' + debugEl.innerHTML;
-            if (debugEl.innerHTML.split('<br>').length > 20) {
-                debugEl.innerHTML = debugEl.innerHTML.split('<br>').slice(0, 20).join('<br>');
-            }
-        }
+        console.log('🚀 INICIANDO PRUEBA...');
 
         // ============================================================
         // MAPA
@@ -58,306 +64,93 @@
             style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
             center: [32.0, 48.5],
             zoom: 6,
-            pitch: 60,
-            antialias: true
+            pitch: 0
         });
-
-        map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
         // ============================================================
         // THREE.JS
         // ============================================================
         function initThree() {
-            if (threeReady) return;
-            logDebug('🔄 Inicializando Three.js...');
+            console.log('🔧 Inicializando Three.js...');
 
             const container = document.getElementById('three-container');
 
-            scene = new THREE.Scene();
+            // ESCENA
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x000000); // Fondo negro para verlo bien
 
-            const aspect = window.innerWidth / window.innerHeight;
-            camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 10000000);
+            // CÁMARA
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 0, 5);
+            camera.lookAt(0, 0, 0);
 
-            renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            // RENDERER
+            const renderer = new THREE.WebGLRenderer({
+                alpha: true,
+                antialias: true
+            });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            renderer.setClearColor(0x000000, 0);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setClearColor(0xff0000, 0.3); // Fondo rojo semi-transparente para depurar
             container.appendChild(renderer.domElement);
 
-            // Luces
-            const ambient = new THREE.AmbientLight(0x404060);
-            scene.add(ambient);
-            const light1 = new THREE.DirectionalLight(0xffffff, 1);
-            light1.position.set(1, 1, 1);
-            scene.add(light1);
+            // ============================================================
+            // CUBO ROJO GIGANTE
+            // ============================================================
+            const geometry = new THREE.BoxGeometry(2, 2, 2);
+            const material = new THREE.MeshBasicMaterial({
+                color: 0xff0000,
+                transparent: true,
+                opacity: 1.0
+            });
+            const cube = new THREE.Mesh(geometry, material);
+            scene.add(cube);
 
-            threeReady = true;
-            logDebug('✅ Three.js listo');
+            // ============================================================
+            // ANIMACIÓN
+            // ============================================================
+            function animate() {
+                requestAnimationFrame(animate);
 
-            // Iniciar animación
+                // Rotar el cubo
+                cube.rotation.x += 0.01;
+                cube.rotation.y += 0.01;
+
+                renderer.render(scene, camera);
+            }
+
             animate();
-        }
 
-        // ============================================================
-        // COORDENADAS
-        // ============================================================
-        function lngLatToMeters(lng, lat) {
-            const R = 6378137;
-            const x = R * lng * Math.PI / 180;
-            const y = R * Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360));
-            return { x, y };
-        }
+            console.log('✅ Three.js funcionando');
+            document.getElementById('info').textContent = '🔴 ¿Ves el cubo rojo girando? (Fondo rojo semi-transparente)';
 
-        // ============================================================
-        // SINCRONIZAR CÁMARA (VERSIÓN SIMPLIFICADA)
-        // ============================================================
-        function syncCamera() {
-            if (!map || !camera || !threeReady) return;
-
-            try {
-                const center = map.getCenter();
-                const zoom = map.getZoom();
-                const pitch = map.getPitch();
-                const bearing = map.getBearing();
-
-                const centerMeters = lngLatToMeters(center.lng, center.lat);
-
-                // Calcular altura basada en zoom
-                const canvas = map.getCanvas();
-                const height = canvas.height;
-                const fov = camera.fov * Math.PI / 180;
-                const metersPerPixel = 156543.03392 * Math.cos(center.lat * Math.PI / 180) / Math.pow(2, zoom);
-                const cameraHeight = (height / 2) / Math.tan(fov / 2) * metersPerPixel;
-
-                const pitchRad = pitch * Math.PI / 180;
-                const bearingRad = -bearing * Math.PI / 180;
-
-                const hDist = cameraHeight * Math.sin(pitchRad);
-                const vDist = cameraHeight * Math.cos(pitchRad);
-
-                const offsetX = hDist * Math.sin(bearingRad);
-                const offsetY = hDist * Math.cos(bearingRad);
-                const offsetZ = vDist;
-
-                camera.position.set(
-                    centerMeters.x + offsetX,
-                    centerMeters.y + offsetY,
-                    offsetZ
-                );
-
-                camera.lookAt(centerMeters.x, centerMeters.y, 0);
+            // ============================================================
+            // REDIMENSIONAR
+            // ============================================================
+            window.addEventListener('resize', () => {
+                const w = window.innerWidth;
+                const h = window.innerHeight;
+                camera.aspect = w / h;
                 camera.updateProjectionMatrix();
-
-                // Ajustar clipping
-                const dist = Math.sqrt(offsetX*offsetX + offsetY*offsetY + offsetZ*offsetZ);
-                camera.near = Math.max(0.1, dist * 0.001);
-                camera.far = Math.max(100000, dist * 20);
-                camera.updateProjectionMatrix();
-
-                // Log cada 60 frames
-                frameCount++;
-                if (frameCount % 60 === 0) {
-                    logDebug(`📍 Zoom: ${zoom.toFixed(2)} | Altura: ${(cameraHeight/1000).toFixed(1)}km | Dist: ${(dist/1000).toFixed(1)}km`);
-                }
-
-            } catch (e) {
-                logDebug('❌ Error syncCamera: ' + e.message);
-            }
+                renderer.setSize(w, h);
+            });
         }
 
-        // ============================================================
-        // CREAR SEMIESFERA DE PRUEBA (fija en Kyiv)
-        // ============================================================
-        function createTestSphere() {
-            // Kyiv: 30.5234, 50.4501
-            const pos = lngLatToMeters(30.5234, 50.4501);
-            const radius = 500;
-
-            const geometry = new THREE.SphereGeometry(radius, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
-
-            const material = new THREE.MeshPhongMaterial({
-                color: 0xff6600,
-                emissive: 0xff3300,
-                emissiveIntensity: 1.0,
-                transparent: true,
-                opacity: 0.8,
-                side: THREE.DoubleSide,
-                blending: THREE.AdditiveBlending,
-                depthWrite: false,
-                shininess: 40
-            });
-
-            const sphere = new THREE.Mesh(geometry, material);
-            sphere.position.set(pos.x, pos.y, radius * 0.9);
-            scene.add(sphere);
-            fireMeshes.push(sphere);
-
-            // Glow
-            const glowGeom = new THREE.SphereGeometry(radius * 2.5, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
-            const glowMat = new THREE.MeshBasicMaterial({
-                color: 0xff4400,
-                transparent: true,
-                opacity: 0.15,
-                blending: THREE.AdditiveBlending,
-                depthWrite: false
-            });
-            const glow = new THREE.Mesh(glowGeom, glowMat);
-            glow.position.copy(sphere.position);
-            scene.add(glow);
-            fireMeshes.push(glow);
-
-            logDebug(`✅ Semiesfera de prueba en Kyiv (${pos.x.toFixed(0)}, ${pos.y.toFixed(0)})`);
-        }
-
-        // ============================================================
-        // CREAR SEMIESFERAS DESDE DATOS
-        // ============================================================
-        function createFireSpheres() {
-            // Limpiar anteriores
-            fireMeshes.forEach(obj => {
-                scene.remove(obj);
-                if (obj.geometry) obj.geometry.dispose();
-                if (obj.material) obj.material.dispose();
-            });
-            fireMeshes = [];
-
-            // SIEMPRE crear la de prueba para ver algo
-            createTestSphere();
-
-            if (currentFires.length === 0) {
-                logDebug('⚠️ No hay datos de incendios');
-                return;
-            }
-
-            const toRender = currentFires.slice(0, 100);
-            logDebug(`🔥 Creando ${toRender.length} semiesferas...`);
-
-            toRender.forEach((f, i) => {
-                try {
-                    const frp = f.properties?.frp || 50;
-                    const coords = f.geometry.coordinates;
-                    const lon = coords[0];
-                    const lat = coords[1];
-
-                    const pos = lngLatToMeters(lon, lat);
-                    const t = Math.min(frp / 500, 1);
-                    const radius = 200 + t * 800;
-
-                    const r = 255;
-                    const g = Math.round(255 * (1 - t * 0.9));
-                    const b = Math.round(80 * (1 - t * 0.8));
-
-                    const geom = new THREE.SphereGeometry(radius, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2);
-                    const mat = new THREE.MeshPhongMaterial({
-                        color: new THREE.Color(`rgb(${r},${g},${b})`),
-                        emissive: new THREE.Color(`rgb(${r},${Math.round(g*0.5)},${Math.round(b*0.3)})`),
-                        emissiveIntensity: 0.5 + t * 0.5,
-                        transparent: true,
-                        opacity: 0.6 + t * 0.3,
-                        side: THREE.DoubleSide,
-                        blending: THREE.AdditiveBlending,
-                        depthWrite: false
-                    });
-
-                    const sphere = new THREE.Mesh(geom, mat);
-                    sphere.position.set(pos.x, pos.y, radius * 0.9);
-                    scene.add(sphere);
-                    fireMeshes.push(sphere);
-
-                    // Glow
-                    const gGeom = new THREE.SphereGeometry(radius * 2, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2);
-                    const gMat = new THREE.MeshBasicMaterial({
-                        color: new THREE.Color(`rgb(${r},${Math.round(g*0.4)},${Math.round(b*0.2)})`),
-                        transparent: true,
-                        opacity: 0.1 + t * 0.15,
-                        blending: THREE.AdditiveBlending,
-                        depthWrite: false
-                    });
-                    const glow = new THREE.Mesh(gGeom, gMat);
-                    glow.position.copy(sphere.position);
-                    scene.add(glow);
-                    fireMeshes.push(glow);
-
-                } catch (e) {
-                    logDebug('❌ Error creando esfera: ' + e.message);
-                }
-            });
-
-            logDebug(`✅ ${fireMeshes.length} objetos en escena`);
-        }
-
-        // ============================================================
-        // ANIMACIÓN
-        // ============================================================
-        function animate() {
-            requestAnimationFrame(animate);
-
-            if (!threeReady) return;
-
-            syncCamera();
-
-            // Rotación lenta
-            fireMeshes.forEach((obj, i) => {
-                if (i % 2 === 0) { // Solo las esferas principales, no los glows
-                    obj.rotation.y += 0.002;
-                }
-            });
-
-            renderer.render(scene, camera);
-        }
-
-        // ============================================================
-        // CARGAR DATOS
-        // ============================================================
+        // Iniciar Three.js cuando el mapa esté listo
         map.on('load', function() {
-            logDebug('🗺️ Mapa cargado');
+            console.log('🗺️ Mapa cargado');
+            setTimeout(initThree, 500);
+        });
 
-            // Inicializar Three.js
-            setTimeout(() => {
+        // También intentar después de 2 segundos por si el mapa ya estaba cargado
+        setTimeout(() => {
+            if (typeof map.loaded === 'function' && map.loaded()) {
+                console.log('ℹ️ Mapa ya cargado, iniciando Three.js...');
                 initThree();
+            }
+        }, 2000);
 
-                // Crear esfera de prueba inmediatamente
-                setTimeout(() => {
-                    createTestSphere();
-                    logDebug('🔴 Esfera de prueba creada');
-                }, 100);
-
-            }, 300);
-
-            // Cargar FIRMS
-            fetch(FIRMS_URL)
-                .then(r => r.json())
-                .then(data => {
-                    firesData = data.features || [];
-                    currentFires = firesData.slice(0, 100);
-                    logDebug(`✅ FIRMS: ${firesData.length} incendios`);
-
-                    // Crear esferas de datos
-                    setTimeout(() => {
-                        createFireSpheres();
-                    }, 500);
-                })
-                .catch(e => logDebug('❌ Error FIRMS: ' + e.message));
-
-            // Sincronizar cámara cada segundo
-            setInterval(() => {
-                if (threeReady) syncCamera();
-            }, 100);
-        });
-
-        // ============================================================
-        // REDIMENSIONAR
-        // ============================================================
-        window.addEventListener('resize', () => {
-            if (!threeReady) return;
-            const w = window.innerWidth;
-            const h = window.innerHeight;
-            camera.aspect = w / h;
-            camera.updateProjectionMatrix();
-            renderer.setSize(w, h);
-        });
-
-        logDebug('🚀 Visor iniciado');
+        console.log('✅ Prueba iniciada');
     </script>
 </body>
 </html>
