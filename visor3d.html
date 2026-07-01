@@ -541,7 +541,7 @@
             style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
             center: [32.0, 48.5],
             zoom: 5.5,
-            pitch: 45,
+            pitch: 60, // ✅ Aumentado para ver mejor las semiesferas
             renderWorldCopies: false,
             antialias: true,
             preserveDrawingBuffer: true
@@ -769,6 +769,9 @@
             });
         }
 
+        // ============================================================
+        // ✅ FUNCIÓN PRINCIPAL CON SEMIESFERAS 3D Y HALO DE FUEGO
+        // ============================================================
         function updateFires() {
             if (activePopup) {
                 activePopup.remove();
@@ -777,10 +780,11 @@
 
             const enabled = document.getElementById('chk-fires').checked;
             const frpMin = parseInt(document.getElementById('frp-slider').value) || 0;
-            // ✅ Leer el valor del selector (24, 48 o 72 horas)
             const timeRange = parseInt(document.getElementById('time-range-selector').value) || 48;
 
+            // ✅ Eliminar capas y fuentes antiguas
             if (map.getLayer('fires-layer')) map.removeLayer('fires-layer');
+            if (map.getLayer('fires-halo')) map.removeLayer('fires-halo');
             if (map.getSource('fires')) map.removeSource('fires');
 
             if (!enabled || firesData.length === 0) {
@@ -790,27 +794,15 @@
                 return;
             }
 
-            // ✅ Obtener la hora ACTUAL del usuario en milisegundos (timestamp)
             const ahora = Date.now();
-
-            // ✅ Calcular el límite: ahora - (horas * 60 * 60 * 1000)
             const limite = ahora - (timeRange * 60 * 60 * 1000);
-
-            console.log(`🕒 Filtro: últimas ${timeRange}h`);
-            console.log(`📅 Desde: ${new Date(limite).toLocaleString()}`);
-            console.log(`📅 Hasta: ${new Date(ahora).toLocaleString()}`);
 
             // ✅ Filtrar los incendios
             const filtered = firesData.filter(f => {
-                // 1. Filtrar por FRP
                 if ((f.properties?.frp || 0) < frpMin) return false;
-
-                // 2. Obtener fecha y hora en UTC
                 const acqDate = f.properties?.acq_date;
                 const acqTime = f.properties?.acq_time;
                 if (!acqDate) return false;
-
-                // 3. Convertir acq_time (ej: 58 -> 00:58) a horas y minutos
                 let horaUTC = 0,
                     minutosUTC = 0;
                 if (acqTime) {
@@ -818,8 +810,6 @@
                     horaUTC = parseInt(timeStr.substring(0, 2));
                     minutosUTC = parseInt(timeStr.substring(2, 4));
                 }
-
-                // 4. Crear fecha en UTC (en milisegundos)
                 const fechaUTC = new Date(Date.UTC(
                     parseInt(acqDate.split('-')[0]),
                     parseInt(acqDate.split('-')[1]) - 1,
@@ -827,20 +817,15 @@
                     horaUTC,
                     minutosUTC
                 ));
-
-                // 5. ✅ Comparar con el límite usando el timestamp del usuario
                 return fechaUTC.getTime() >= limite;
             });
-
-            console.log(`✅ Filtrados: ${filtered.length} de ${firesData.length} puntos`);
 
             // ✅ Filtrar por región seleccionada
             const filteredByRegion = filtered.filter(f => {
                 if (!selectedRegion) return true;
                 if (selectedRegion === 'Otras ubicaciones') {
                     const region = f.properties?.NAME_1 || '';
-                    return !region || region === '' || region === 'N/A' || region.toLowerCase() ===
-                        'desconocida';
+                    return !region || region === '' || region === 'N/A' || region.toLowerCase() === 'desconocida';
                 }
                 const region = f.properties?.NAME_1 || '';
                 return region === selectedRegion;
@@ -855,23 +840,55 @@
                 return;
             }
 
+            // ✅ Añadir fuente de datos
             map.addSource('fires', {
                 type: 'geojson',
                 data: { type: 'FeatureCollection', features: finalFiltered }
             });
 
+            // ✅ CAPA 1: SEMIESFERA 3D (fill-extrusion)
             map.addLayer({
                 id: 'fires-layer',
+                type: 'fill-extrusion',
+                source: 'fires',
+                paint: {
+                    'fill-extrusion-height': ['interpolate', ['linear'], ['get', 'frp'], 
+                        10, 80,      // FRP 10 → altura 80 metros
+                        50, 200,     // FRP 50 → altura 200 metros
+                        100, 350,    // FRP 100 → altura 350 metros
+                        500, 800     // FRP 500 → altura 800 metros
+                    ],
+                    'fill-extrusion-color': ['interpolate', ['linear'], ['get', 'frp'], 
+                        10, '#FFDD00',   // Amarillo (fuegos pequeños)
+                        50, '#FF8800',   // Naranja (fuegos medios)
+                        150, '#FF3300',  // Rojo-naranja
+                        500, '#CC0000'   // Rojo intenso (grandes incendios)
+                    ],
+                    'fill-extrusion-opacity': 0.85,
+                    'fill-extrusion-base': 0,
+                    'fill-extrusion-vertical-gradient': true // ✅ Crea el degradado vertical (efecto semiesfera)
+                }
+            });
+
+            // ✅ CAPA 2: HALO DE FUEGO (blur alrededor de la semiesfera)
+            map.addLayer({
+                id: 'fires-halo',
                 type: 'circle',
                 source: 'fires',
                 paint: {
-                    'circle-radius': ['interpolate', ['linear'], ['get', 'frp'], 10, 4, 100, 12, 500, 22],
-                    'circle-color': ['interpolate', ['linear'], ['get', 'frp'], 10, '#ffcc00', 100, '#ff6600', 500,
-                        '#ff0000'
+                    'circle-radius': ['interpolate', ['linear'], ['get', 'frp'], 
+                        10, 20, 
+                        100, 45, 
+                        500, 80
                     ],
-                    'circle-opacity': 0.85,
-                    'circle-stroke-color': '#ffffff',
-                    'circle-stroke-width': 1,
+                    'circle-color': ['interpolate', ['linear'], ['get', 'frp'], 
+                        10, '#FFDD00', 
+                        100, '#FF6600', 
+                        500, '#CC0000'
+                    ],
+                    'circle-opacity': 0.4,
+                    'circle-blur': 0.6, // ✅ Mucho blur para el halo
+                    'circle-pitch-alignment': 'map'
                 }
             });
 
@@ -879,7 +896,9 @@
             // ✅ POPUP CON HORA LOCAL DEL USUARIO
             // ============================================================
             map.off('click', 'fires-layer');
-            map.on('click', 'fires-layer', function(e) {
+            map.off('click', 'fires-halo');
+            
+            const showPopup = function(e) {
                 if (activePopup) {
                     activePopup.remove();
                     activePopup = null;
@@ -895,7 +914,6 @@
                 const acqDate = p.acq_date || 'N/A';
                 const acqTime = p.acq_time || '0';
 
-                // ✅ Convertir UTC a hora local del usuario
                 let horaUTC = 0,
                     minutosUTC = 0;
                 if (acqTime !== 'N/A') {
@@ -912,7 +930,6 @@
                     minutosUTC
                 ));
 
-                // ✅ Mostrar en la zona horaria del usuario
                 const horaLocal = fechaUTC.toLocaleString('es-ES', {
                     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                     dateStyle: 'medium',
@@ -997,7 +1014,10 @@
                 } else {
                     console.error('No se pudo obtener el elemento del popup');
                 }
-            });
+            };
+
+            map.on('click', 'fires-layer', showPopup);
+            map.on('click', 'fires-halo', showPopup);
 
             map.on('mouseenter', 'fires-layer', () => map.getCanvas().style.cursor = 'pointer');
             map.on('mouseleave', 'fires-layer', () => map.getCanvas().style.cursor = '');
@@ -1131,7 +1151,7 @@
 
             updateAttribution(selected);
 
-            ['satellite-layer', 'osm-layer', 'topo-layer', 'deepstate-fill', 'deepstate-line', 'fires-layer'].forEach(
+            ['satellite-layer', 'osm-layer', 'topo-layer', 'deepstate-fill', 'deepstate-line', 'fires-layer', 'fires-halo'].forEach(
             id => {
                 if (map.getLayer(id)) map.removeLayer(id);
             });
@@ -1196,7 +1216,7 @@
         }
 
         // ============================================================
-        // ✅ CARGAR DATOS - ESPERANDO A QUE EL MAPA ESTÉ LISTO (CORREGIDO)
+        // ✅ CARGAR DATOS - ESPERANDO A QUE EL MAPA ESTÉ LISTO
         // ============================================================
 
         whenMapLoaded(function() {
