@@ -1,942 +1,1190 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Visor Ucrania 3D</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>">
-    <script src="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.js">
-    </script>
-    <link href="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Visor Ucrania 3D</title>
+<!-- ✅ Favicon para evitar error 404 -->
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>">
+<script src="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.js">
+</script>
+<link href="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.css" rel="stylesheet">
 
-    <style>
-        /* ===== ESTILOS ===== */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        html,
-        body {
-            width: 100%;
-            height: 100%;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            overflow: hidden;
-        }
-        #map {
-            width: 100%;
-            height: 100vh;
-            position: relative;
-        }
-        #panel {
-            position: absolute;
-            top: 12px;
-            left: 12px;
-            z-index: 1000;
-            background: rgba(13, 17, 23, 0.92);
-            border: 1px solid #30363d;
-            border-radius: 10px;
-            padding: 14px 16px;
-            min-width: 220px;
-            max-width: 220px;
-            font-size: 12px;
-            color: #e6edf3;
-            font-family: 'Inter', sans-serif;
-        }
-        #panel.minimized {
-            min-width: auto;
-            max-width: auto;
-            padding-bottom: 0;
-        }
-        .window-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: #161b22;
-            padding: 6px 8px 6px 10px;
-            cursor: grab;
-            user-select: none;
-            border-bottom: 1px solid #21262d;
-            border-radius: 8px 8px 0 0;
-            margin: -14px -16px 10px -16px;
-        }
-        .window-header:active {
-            cursor: grabbing;
-        }
-        #legend-regions .window-header {
-            margin: -8px -12px 8px -12px;
-        }
-        .window-title {
-            font-size: 10px;
-            font-weight: 600;
-            color: #58a6ff;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-        .window-body.minimized {
-            display: none;
-        }
-        #panel.minimized,
-        #legend-regions.minimized {
-            width: auto;
-            min-width: 140px;
-            max-height: none;
-            padding-bottom: 0;
-        }
-        .control-group {
-            margin-bottom: 10px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #21262d;
-        }
-        .control-group:last-child {
-            border-bottom: none;
-            margin-bottom: 0;
-            padding-bottom: 0;
-        }
-        .control-group label {
-            display: block;
-            font-size: 10px;
-            color: #8b949e;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-            font-weight: 600;
-            margin-bottom: 3px;
-        }
-        .control-group select {
-            width: 100%;
-            padding: 4px 6px;
-            background: #1c2333;
-            color: #e6edf3;
-            border: 1px solid #30363d;
-            border-radius: 4px;
-            font-size: 11px;
-            font-family: 'Inter', sans-serif;
-            cursor: pointer;
-            outline: none;
-        }
-        .control-group select:focus {
-            border-color: #58a6ff;
-        }
-        .control-group input[type="range"] {
-            width: 100%;
-            margin: 4px 0;
-            accent-color: #58a6ff;
-            background: #30363d;
-            height: 3px;
-            border-radius: 2px;
-            cursor: pointer;
-        }
-        .control-group input[type="color"] {
-            width: 24px;
-            height: 24px;
-            border: 2px solid #30363d;
-            border-radius: 4px;
-            padding: 0;
-            cursor: pointer;
-            background: transparent;
-        }
-        .checkbox-group {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            margin: 2px 0;
-        }
-        .checkbox-group input[type="checkbox"] {
-            accent-color: #58a6ff;
-            width: 14px;
-            height: 14px;
-            cursor: pointer;
-        }
-        .checkbox-group label {
-            text-transform: none !important;
-            font-size: 11px !important;
-            color: #e6edf3 !important;
-            font-weight: 400 !important;
-            letter-spacing: 0 !important;
-            margin-bottom: 0 !important;
-        }
-        .color-row {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            margin-top: 2px;
-        }
-        .color-row span {
-            font-size: 10px;
-            color: #8b949e;
-        }
-        .slider-value {
-            float: right;
-            font-size: 10px;
-            color: #58a6ff;
-            font-weight: 500;
-        }
-        .stats-row {
-            display: flex;
-            justify-content: space-between;
-            font-size: 10px;
-            color: #8b949e;
-            margin-top: 4px;
-            padding-top: 8px;
-            border-top: 1px solid #21262d;
-            font-weight: 500;
-        }
-        .stats-row span {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-        }
-        #legend-regions {
-            position: absolute;
-            bottom: 80px;
-            right: 12px;
-            z-index: 1000;
-            background: rgba(13, 17, 23, 0.92);
-            border: 1px solid #30363d;
-            border-radius: 10px;
-            padding: 8px 12px;
-            color: #e6edf3;
-            font-size: 10px;
-            min-width: 120px;
-            max-width: 180px;
-            max-height: 200px;
-            display: flex;
-            flex-direction: column;
-            pointer-events: auto;
-            font-family: 'Inter', sans-serif;
-        }
-        #legend-regions.minimized {
-            min-width: auto;
-            max-width: auto;
-            max-height: none;
-            padding-bottom: 0;
-        }
-        #region-list {
-            overflow-y: auto;
-            flex-grow: 1;
-            max-height: 150px;
-        }
-        #region-list::-webkit-scrollbar {
-            width: 3px;
-        }
-        #region-list::-webkit-scrollbar-track {
-            background: #21262d;
-            border-radius: 4px;
-        }
-        #region-list::-webkit-scrollbar-thumb {
-            background: #58a6ff;
-            border-radius: 4px;
-        }
-        .region-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 2px 4px;
-            border-bottom: 1px solid #21262d;
-            font-size: 10px;
-            font-weight: 400;
-            cursor: pointer;
-            border-radius: 4px;
-            transition: background 0.15s ease;
-        }
-        .region-item:last-child {
-            border-bottom: none;
-        }
-        .region-item:hover {
-            background: rgba(88, 166, 255, 0.1);
-        }
-        .region-item.active {
-            background: rgba(88, 166, 255, 0.15);
-            border-left: 2px solid #58a6ff;
-        }
-        .region-item .count {
-            color: #58a6ff;
-            font-weight: 600;
-        }
-        .region-item .region-name {
-            color: #e6edf3;
-        }
-        .region-item .region-name:hover {
-            color: #58a6ff;
-        }
-        .region-item.all-regions {
-            border-bottom: 1px solid #58a6ff !important;
-            margin-bottom: 2px;
-        }
-        .region-item.all-regions .region-name {
-            color: #58a6ff;
-            font-weight: 600;
-        }
-        .maplibregl-popup-content {
-            padding: 0 !important;
-            overflow: hidden;
-            background: #0d1117 !important;
-            border: 1px solid #30363d !important;
-            border-radius: 8px !important;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6) !important;
-            min-width: 200px !important;
-            font-family: 'Inter', sans-serif !important;
-        }
-        .maplibregl-popup-tip {
-            border-top-color: #30363d !important;
-        }
-        .maplibregl-popup-close-button {
-            display: none !important;
-        }
-        .popup-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: #161b22;
-            padding: 6px 8px 6px 10px;
-            cursor: grab;
-            user-select: none;
-            border-bottom: 1px solid #21262d;
-            border-radius: 8px 8px 0 0;
-            pointer-events: auto !important;
-        }
-        .popup-header:active {
-            cursor: grabbing;
-        }
-        .popup-title {
-            font-size: 11px;
-            font-weight: 600;
-            color: #ff6600;
-        }
-        .popup-controls {
-            display: flex;
-            gap: 4px;
-        }
-        .popup-btn {
-            width: 18px;
-            height: 18px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #21262d;
-            border-radius: 4px;
-            color: #e6edf3;
-            font-size: 12px;
-            cursor: pointer;
-            line-height: 1;
-            border: none;
-            transition: background 0.15s ease;
-            pointer-events: auto !important;
-        }
-        .popup-btn:hover {
-            background: #30363d;
-        }
-        .popup-body {
-            padding: 8px 12px;
-            font-size: 11px;
-            line-height: 1.5;
-            color: #e6edf3;
-        }
-        .popup-body.minimized {
-            display: none;
-        }
-        .maplibregl-popup {
-            pointer-events: auto !important;
-        }
-        #info {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 1000;
-            background: rgba(13, 17, 23, 0.85);
-            padding: 6px 18px;
-            border-radius: 20px;
-            border: 1px solid #30363d;
-            color: #8b949e;
-            font-size: 11px;
-            pointer-events: none;
-            white-space: nowrap;
-            font-family: 'Inter', sans-serif;
-            font-weight: 400;
-            letter-spacing: 0.02em;
-        }
-        #attribution {
-            position: absolute;
-            bottom: 60px;
-            left: 12px;
-            z-index: 1000;
-            background: rgba(13, 17, 23, 0.7);
-            padding: 4px 10px;
-            border-radius: 12px;
-            border: 1px solid #30363d;
-            color: #8b949e;
-            font-size: 9px;
-            pointer-events: none;
-            font-family: 'Inter', sans-serif;
-            opacity: 0.7;
-        }
-        #attribution:hover {
-            opacity: 1;
-        }
-        @media (max-width: 640px) {
-            #panel {
-                min-width: 180px;
-                max-width: 180px;
-                padding: 10px 12px;
-                font-size: 11px;
-                top: 60px;
-                left: 6px;
-            }
-            #panel .window-header {
-                margin: -10px -12px 8px -12px;
-            }
-            #legend-regions {
-                bottom: 70px;
-                right: 6px;
-                min-width: 90px;
-                font-size: 9px;
-                max-width: 130px;
-                padding: 6px 8px;
-            }
-            #legend-regions .window-header {
-                margin: -6px -8px 6px -8px;
-            }
-            #region-list {
-                max-height: 120px;
-            }
-            .region-item {
-                font-size: 9px;
-                padding: 1px 3px;
-            }
-            #info {
-                font-size: 10px;
-                padding: 4px 12px;
-            }
-            #attribution {
-                bottom: 50px;
-                left: 6px;
-                font-size: 8px;
-                padding: 2px 8px;
-            }
-            .maplibregl-popup-content {
-                min-width: 160px !important;
-            }
-            .popup-body {
-                font-size: 10px !important;
-                padding: 6px 10px !important;
-            }
-            .popup-btn {
-                width: 16px;
-                height: 16px;
-                font-size: 10px;
-            }
-        }
-    </style>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { 
+    width: 100%; 
+    height: 100%; 
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  #map { width: 100%; height: 100vh; }
+
+  /* ✅ Panel de controles - CON CABECERA ARRASTRABLE */
+  #panel {
+    position: absolute; top: 12px; left: 12px; z-index: 1000;
+    background: rgba(13,17,23,0.92);
+    border: 1px solid #30363d; border-radius: 10px;
+    padding: 14px 16px;
+    min-width: 220px;
+    max-width: 220px;
+    font-size: 12px; color: #e6edf3;
+    font-family: 'Inter', sans-serif;
+    transition: none;
+  }
+  #panel.minimized {
+    min-width: auto;
+    max-width: auto;
+    padding-bottom: 0;
+  }
+
+  /* ✅ Cabecera arrastrable reutilizable para panel y leyenda */
+  .window-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #161b22;
+    padding: 6px 8px 6px 10px;
+    cursor: grab;
+    user-select: none;
+    border-bottom: 1px solid #21262d;
+    border-radius: 8px 8px 0 0;
+    margin: -14px -16px 10px -16px;
+  }
+  .window-header:active { cursor: grabbing; }
+
+  #legend-regions .window-header {
+    margin: -8px -12px 8px -12px;
+  }
+
+  .window-title {
+    font-size: 10px;
+    font-weight: 600;
+    color: #58a6ff;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .window-body.minimized { display: none; }
+
+  #panel.minimized, #legend-regions.minimized {
+    width: auto;
+    min-width: 140px;
+    max-height: none;
+    padding-bottom: 0;
+  }
+
+  .control-group { 
+    margin-bottom: 10px; 
+    padding-bottom: 10px; 
+    border-bottom: 1px solid #21262d; 
+  }
+  .control-group:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+
+  .control-group label { 
+    display: block; 
+    font-size: 10px; 
+    color: #8b949e; 
+    text-transform: uppercase; 
+    letter-spacing: 0.04em; 
+    font-weight: 600;
+    margin-bottom: 3px;
+  }
+
+  .control-group select {
+    width: 100%;
+    padding: 4px 6px;
+    background: #1c2333;
+    color: #e6edf3;
+    border: 1px solid #30363d;
+    border-radius: 4px;
+    font-size: 11px;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    outline: none;
+  }
+  .control-group select:focus {
+    border-color: #58a6ff;
+  }
+
+  .control-group input[type="range"] { 
+    width: 100%; 
+    margin: 4px 0; 
+    accent-color: #58a6ff; 
+    background: #30363d; 
+    height: 3px; 
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  
+  .control-group input[type="color"] { 
+    width: 24px; 
+    height: 24px; 
+    border: 2px solid #30363d; 
+    border-radius: 4px; 
+    padding: 0; 
+    cursor: pointer; 
+    background: transparent; 
+  }
+  
+  .checkbox-group { 
+    display: flex; 
+    align-items: center; 
+    gap: 6px; 
+    margin: 2px 0; 
+  }
+  .checkbox-group input[type="checkbox"] { 
+    accent-color: #58a6ff; 
+    width: 14px; 
+    height: 14px; 
+    cursor: pointer; 
+  }
+  .checkbox-group label {
+    text-transform: none !important;
+    font-size: 11px !important;
+    color: #e6edf3 !important;
+    font-weight: 400 !important;
+    letter-spacing: 0 !important;
+    margin-bottom: 0 !important;
+  }
+
+  .color-row { 
+    display: flex; 
+    align-items: center; 
+    gap: 6px; 
+    margin-top: 2px; 
+  }
+  .color-row span {
+    font-size: 10px;
+    color: #8b949e;
+  }
+  .slider-value { 
+    float: right; 
+    font-size: 10px; 
+    color: #58a6ff; 
+    font-weight: 500;
+  }
+
+  .stats-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: #8b949e;
+    margin-top: 4px;
+    padding-top: 8px;
+    border-top: 1px solid #21262d;
+    font-weight: 500;
+  }
+  .stats-row span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* ✅ Leyenda de regiones - CON CABECERA ARRASTRABLE */
+  #legend-regions {
+    position: absolute; bottom: 80px; right: 12px; z-index: 1000;
+    background: rgba(13,17,23,0.92);
+    border: 1px solid #30363d; border-radius: 10px;
+    padding: 8px 12px;
+    color: #e6edf3;
+    font-size: 10px;
+    min-width: 120px; 
+    max-width: 180px;
+    max-height: 200px;
+    display: flex;
+    flex-direction: column;
+    pointer-events: auto;
+    font-family: 'Inter', sans-serif;
+    transition: none;
+  }
+  #legend-regions.minimized {
+    min-width: auto;
+    max-width: auto;
+    max-height: none;
+    padding-bottom: 0;
+  }
+
+  #region-list {
+    overflow-y: auto;
+    flex-grow: 1;
+    max-height: 150px;
+  }
+
+  #region-list::-webkit-scrollbar {
+    width: 3px;
+  }
+  #region-list::-webkit-scrollbar-track {
+    background: #21262d;
+    border-radius: 4px;
+  }
+  #region-list::-webkit-scrollbar-thumb {
+    background: #58a6ff;
+    border-radius: 4px;
+  }
+
+  .region-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 2px 4px;
+    border-bottom: 1px solid #21262d;
+    font-size: 10px;
+    font-weight: 400;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.15s ease;
+  }
+  .region-item:last-child { border-bottom: none; }
+  .region-item:hover {
+    background: rgba(88, 166, 255, 0.1);
+  }
+  .region-item.active {
+    background: rgba(88, 166, 255, 0.15);
+    border-left: 2px solid #58a6ff;
+  }
+  .region-item .count {
+    color: #58a6ff;
+    font-weight: 600;
+  }
+  .region-item .region-name {
+    color: #e6edf3;
+  }
+  .region-item .region-name:hover {
+    color: #58a6ff;
+  }
+  .region-item.all-regions {
+    border-bottom: 1px solid #58a6ff !important;
+    margin-bottom: 2px;
+  }
+  .region-item.all-regions .region-name {
+    color: #58a6ff;
+    font-weight: 600;
+  }
+
+  /* ✅ POPUP CON CABECERA ARRASTRABLE Y MINIMIZABLE */
+  .maplibregl-popup-content {
+    padding: 0 !important;
+    overflow: hidden;
+    background: #0d1117 !important;
+    border: 1px solid #30363d !important;
+    border-radius: 8px !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6) !important;
+    min-width: 200px !important;
+    font-family: 'Inter', sans-serif !important;
+  }
+
+  .maplibregl-popup-tip {
+    border-top-color: #30363d !important;
+  }
+
+  .maplibregl-popup-close-button {
+    display: none !important;
+  }
+
+  .popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #161b22;
+    padding: 6px 8px 6px 10px;
+    cursor: grab;
+    user-select: none;
+    border-bottom: 1px solid #21262d;
+    border-radius: 8px 8px 0 0;
+    pointer-events: auto !important;
+  }
+  .popup-header:active {
+    cursor: grabbing;
+  }
+
+  .popup-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: #ff6600;
+  }
+
+  .popup-controls {
+    display: flex;
+    gap: 4px;
+  }
+
+  .popup-btn {
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #21262d;
+    border-radius: 4px;
+    color: #e6edf3;
+    font-size: 12px;
+    cursor: pointer;
+    line-height: 1;
+    border: none;
+    transition: background 0.15s ease;
+    pointer-events: auto !important;
+  }
+  .popup-btn:hover {
+    background: #30363d;
+  }
+
+  .popup-body {
+    padding: 8px 12px;
+    font-size: 11px;
+    line-height: 1.5;
+    color: #e6edf3;
+  }
+  .popup-body.minimized {
+    display: none;
+  }
+
+  .maplibregl-popup {
+    pointer-events: auto !important;
+  }
+
+  #info {
+    position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+    z-index: 1000; background: rgba(13,17,23,0.85); padding: 6px 18px;
+    border-radius: 20px; border: 1px solid #30363d; color: #8b949e;
+    font-size: 11px; pointer-events: none; white-space: nowrap;
+    font-family: 'Inter', sans-serif;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+  }
+
+  #attribution {
+    position: absolute;
+    bottom: 60px;
+    left: 12px;
+    z-index: 1000;
+    background: rgba(13,17,23,0.7);
+    padding: 4px 10px;
+    border-radius: 12px;
+    border: 1px solid #30363d;
+    color: #8b949e;
+    font-size: 9px;
+    pointer-events: none;
+    font-family: 'Inter', sans-serif;
+    opacity: 0.7;
+    transition: opacity 0.3s ease;
+  }
+  #attribution:hover {
+    opacity: 1;
+  }
+
+  @media (max-width: 640px) {
+    #panel { min-width: 180px; max-width: 180px; padding: 10px 12px; font-size: 11px; top: 60px; left: 6px; }
+    #panel .window-header { margin: -10px -12px 8px -12px; }
+    #legend-regions { bottom: 70px; right: 6px; min-width: 90px; font-size: 9px; max-width: 130px; padding: 6px 8px; }
+    #legend-regions .window-header { margin: -6px -8px 6px -8px; }
+    #region-list { max-height: 120px; }
+    .region-item { font-size: 9px; padding: 1px 3px; }
+    #info { font-size: 10px; padding: 4px 12px; }
+    #attribution { bottom: 50px; left: 6px; font-size: 8px; padding: 2px 8px; }
+    .maplibregl-popup-content {
+      min-width: 160px !important;
+    }
+    .popup-body {
+      font-size: 10px !important;
+      padding: 6px 10px !important;
+    }
+    .popup-btn {
+      width: 16px;
+      height: 16px;
+      font-size: 10px;
+    }
+  }
+</style>
 </head>
 <body>
 
-    <div id="panel">
-        <div class="window-header" id="panel-header">
-            <span class="window-title">⚙️ Controles</span>
-            <div class="popup-controls">
-                <span class="popup-btn" id="panel-min">─</span>
-            </div>
-        </div>
-        <div class="window-body" id="panel-body">
-            <div class="control-group">
-                <label>🗺️ Mapa base</label>
-                <select id="map-style-selector">
-                    <option value="satellite">🛰️ Satélite</option>
-                    <option value="dark" selected>🌍 CartoDB Dark</option>
-                    <option value="osm">🌍 OpenStreetMap</option>
-                    <option value="topo">🗺️ Topográfico</option>
-                </select>
-            </div>
-
-            <div class="control-group">
-                <label>🕒 Registros existentes de las últimas:</label>
-                <select id="time-range-selector">
-                    <option value="48" selected>48 horas</option>
-                    <option value="24">24 horas</option>
-                    <option value="72">72 horas</option>
-                </select>
-            </div>
-
-            <div class="control-group">
-                <div class="checkbox-group">
-                    <input type="checkbox" id="chk-deepstate" checked>
-                    <label for="chk-deepstate">🟥 Línea del frente</label>
-                </div>
-                <div class="color-row">
-                    <input type="color" id="color-fill" value="#cc2200">
-                    <span>Relleno</span>
-                    <span style="margin-left:auto;">Opacidad <span class="slider-value" id="val-opacity-fill">0.45</span></span>
-                </div>
-                <input type="range" id="opacity-fill" min="0" max="100" value="45">
-                <div class="color-row">
-                    <input type="color" id="color-line" value="#ffffff">
-                    <span>Borde</span>
-                    <span style="margin-left:auto;">Opacidad <span class="slider-value" id="val-opacity-line">0.90</span></span>
-                </div>
-                <input type="range" id="opacity-line" min="0" max="100" value="90">
-            </div>
-
-            <div class="control-group">
-                <div class="checkbox-group">
-                    <input type="checkbox" id="chk-fires" checked>
-                    <label for="chk-fires">🔥 Incendios</label>
-                </div>
-                <label>FRP mínimo <span class="slider-value" id="val-frp">10</span></label>
-                <input type="range" id="frp-slider" min="0" max="100" value="10">
-            </div>
-
-            <div class="control-group">
-                <div class="checkbox-group">
-                    <input type="checkbox" id="chk-terrain" checked>
-                    <label for="chk-terrain">🏔️ Terreno 3D</label>
-                </div>
-                <label>Inclinación <span class="slider-value" id="val-pitch">45</span></label>
-                <input type="range" id="pitch-slider" min="0" max="85" value="45">
-            </div>
-
-            <div class="stats-row">
-                <span id="stats-fires">🔥 0</span>
-            </div>
-        </div>
+<!-- ✅ PANEL DE CONTROLES CON CABECERA ARRASTRABLE -->
+<div id="panel">
+  <div class="window-header" id="panel-header">
+    <span class="window-title">⚙️ Controles</span>
+    <div class="popup-controls">
+      <span class="popup-btn" id="panel-min">─</span>
+    </div>
+  </div>
+  <div class="window-body" id="panel-body">
+    <div class="control-group">
+      <label>🗺️ Mapa base</label>
+      <select id="map-style-selector">
+        <option value="satellite">🛰️ Satélite</option>
+        <option value="dark" selected>🌍 CartoDB Dark</option>
+        <option value="osm">🌍 OpenStreetMap</option>
+        <option value="topo">🗺️ Topográfico</option>
+      </select>
     </div>
 
-    <div id="legend-regions">
-        <div class="window-header" id="legend-header">
-            <span class="window-title">🔥 Focos por región</span>
-            <div class="popup-controls">
-                <span class="popup-btn" id="legend-min">─</span>
-            </div>
-        </div>
-        <div class="window-body" id="legend-body">
-            <div id="region-list">
-                <div class="region-item">Cargando...</div>
-            </div>
-        </div>
+    <div class="control-group">
+      <label>⏱️ Rango temporal</label>
+      <select id="time-range-selector">
+        <option value="48" selected>Últimas 48 horas</option>
+        <option value="24">Últimas 24 horas</option>
+      </select>
     </div>
 
-    <div id="info">🌍 Visor 3D Ucrania · Clic en un incendio para detalles</div>
-    <div id="attribution">
-        <span id="attribution-text">🌍 Fuente: CartoDB (Dark Matter)</span>
+    <div class="control-group">
+      <div class="checkbox-group">
+        <input type="checkbox" id="chk-deepstate" checked>
+        <label for="chk-deepstate">🟥 Línea del frente</label>
+      </div>
+      <div class="color-row">
+        <input type="color" id="color-fill" value="#cc2200">
+        <span>Relleno</span>
+        <span style="margin-left:auto;">Opacidad <span class="slider-value" id="val-opacity-fill">0.45</span></span>
+      </div>
+      <input type="range" id="opacity-fill" min="0" max="100" value="45">
+      <div class="color-row">
+        <input type="color" id="color-line" value="#ffffff">
+        <span>Borde</span>
+        <span style="margin-left:auto;">Opacidad <span class="slider-value" id="val-opacity-line">0.90</span></span>
+      </div>
+      <input type="range" id="opacity-line" min="0" max="100" value="90">
     </div>
-    <div id="map"></div>
 
-    <script>
-        // ============================================================
-        // CONFIGURACIÓN
-        // ============================================================
-        const DEEPSTATE_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/deepstate_actual.geojson';
-        const FIRMS_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires_polygons.geojson';
+    <div class="control-group">
+      <div class="checkbox-group">
+        <input type="checkbox" id="chk-fires" checked>
+        <label for="chk-fires">🔥 Incendios</label>
+      </div>
+      <label>FRP mínimo <span class="slider-value" id="val-frp">10</span></label>
+      <input type="range" id="frp-slider" min="0" max="100" value="10">
+    </div>
 
-        let deepstateData = null;
-        let firesData = [];
-        let currentFiresFiltered = [];
-        let selectedRegion = null;
-        let activePopup = null;
+    <div class="control-group">
+      <div class="checkbox-group">
+        <input type="checkbox" id="chk-terrain" checked>
+        <label for="chk-terrain">🏔️ Terreno 3D</label>
+      </div>
+      <label>Inclinación <span class="slider-value" id="val-pitch">45</span></label>
+      <input type="range" id="pitch-slider" min="0" max="85" value="45">
+    </div>
 
-        const map = new maplibregl.Map({
-            container: 'map',
-            style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
-            center: [32.0, 48.5],
-            zoom: 5.5,
-            pitch: 65,
-            renderWorldCopies: false,
-            antialias: true,
-            preserveDrawingBuffer: true
+    <div class="stats-row">
+      <span id="stats-fires">🔥 0</span>
+    </div>
+  </div>
+</div>
+
+<!-- ✅ LEYENDA DE REGIONES CON CABECERA ARRASTRABLE -->
+<div id="legend-regions">
+  <div class="window-header" id="legend-header">
+    <span class="window-title">🔥 Focos por región</span>
+    <div class="popup-controls">
+      <span class="popup-btn" id="legend-min">─</span>
+    </div>
+  </div>
+  <div class="window-body" id="legend-body">
+    <div id="region-list">
+      <div class="region-item">Cargando...</div>
+    </div>
+  </div>
+</div>
+
+<div id="info">🌍 Visor 3D Ucrania · Clic en un incendio para detalles</div>
+
+<div id="attribution">
+  <span id="attribution-text">🌍 Fuente: CartoDB (Dark Matter)</span>
+</div>
+
+<div id="map"></div>
+
+<script>
+// ============================================================
+// CONFIGURACIÓN
+// ============================================================
+const DEEPSTATE_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/deepstate_actual.geojson';
+const FIRMS_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires.geojson';
+
+let deepstateData = null;
+let firesData = [];
+let currentFiresFiltered = [];
+let selectedRegion = null;
+let activePopup = null;
+
+const map = new maplibregl.Map({
+  container: 'map',
+  style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+  center: [32.0, 48.5],
+  zoom: 5.5,
+  pitch: 45,
+  renderWorldCopies: false,
+  antialias: true,
+  preserveDrawingBuffer: true
+});
+
+map.addControl(new maplibregl.NavigationControl(), 'top-right');
+
+// ============================================================
+// ✅ FUNCIÓN PARA ESPERAR A QUE EL MAPA ESTÉ CARGADO
+// ============================================================
+function whenMapLoaded(callback) {
+  if (map.loaded()) {
+    callback();
+  } else {
+    map.on('load', callback);
+  }
+}
+
+// ============================================================
+// ✅ FUNCIÓN PARA HACER ARRASTRABLE EL POPUP (VERSIÓN ROBUSTA)
+// ============================================================
+function makeDraggable(popupEl, handleEl) {
+  if (!handleEl) {
+    console.error('makeDraggable: no se encontró el elemento de cabecera (.popup-header)');
+    return;
+  }
+
+  let offsetX = 0, offsetY = 0, isDragging = false;
+
+  function getXY(e) {
+    if (e.touches && e.touches.length) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    return { x: e.clientX, y: e.clientY };
+  }
+
+  function onStart(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    isDragging = true;
+    const rect = popupEl.getBoundingClientRect();
+    const pos = getXY(e);
+    offsetX = pos.x - rect.left;
+    offsetY = pos.y - rect.top;
+
+    popupEl.style.transform = 'none';
+    popupEl.style.position = 'fixed';
+    popupEl.style.left = rect.left + 'px';
+    popupEl.style.top = rect.top + 'px';
+    popupEl.style.margin = '0';
+    popupEl.style.zIndex = '3000';
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onEnd);
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend', onEnd);
+  }
+
+  function onMove(e) {
+    if (!isDragging) return;
+    e.preventDefault();
+    const pos = getXY(e);
+    popupEl.style.left = (pos.x - offsetX) + 'px';
+    popupEl.style.top = (pos.y - offsetY) + 'px';
+  }
+
+  function onEnd(e) {
+    if (!isDragging) return;
+    isDragging = false;
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onEnd);
+    document.removeEventListener('touchmove', onMove);
+    document.removeEventListener('touchend', onEnd);
+  }
+
+  handleEl.addEventListener('mousedown', onStart);
+  handleEl.addEventListener('touchstart', onStart, { passive: false });
+}
+
+// ============================================================
+// ✅ ARRASTRE Y MINIMIZADO PARA VENTANAS FIJAS (panel y leyenda)
+// ============================================================
+function makeWindowDraggable(containerEl, handleEl) {
+  if (!containerEl || !handleEl) return;
+
+  let offsetX = 0, offsetY = 0, isDragging = false;
+
+  function getXY(e) {
+    if (e.touches && e.touches.length) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    return { x: e.clientX, y: e.clientY };
+  }
+
+  function onStart(e) {
+    // No arrastrar si el clic fue en el botón de minimizar
+    if (e.target.closest('.popup-btn')) return;
+
+    e.preventDefault();
+    isDragging = true;
+    const rect = containerEl.getBoundingClientRect();
+    const pos = getXY(e);
+    offsetX = pos.x - rect.left;
+    offsetY = pos.y - rect.top;
+
+    containerEl.style.position = 'fixed';
+    containerEl.style.left = rect.left + 'px';
+    containerEl.style.top = rect.top + 'px';
+    containerEl.style.right = 'auto';
+    containerEl.style.bottom = 'auto';
+    containerEl.style.margin = '0';
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onEnd);
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend', onEnd);
+  }
+
+  function onMove(e) {
+    if (!isDragging) return;
+    e.preventDefault();
+    const pos = getXY(e);
+    let left = pos.x - offsetX;
+    let top = pos.y - offsetY;
+
+    // Mantener la ventana dentro del viewport
+    left = Math.max(0, Math.min(left, window.innerWidth - 60));
+    top = Math.max(0, Math.min(top, window.innerHeight - 40));
+
+    containerEl.style.left = left + 'px';
+    containerEl.style.top = top + 'px';
+  }
+
+  function onEnd() {
+    isDragging = false;
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onEnd);
+    document.removeEventListener('touchmove', onMove);
+    document.removeEventListener('touchend', onEnd);
+  }
+
+  handleEl.addEventListener('mousedown', onStart);
+  handleEl.addEventListener('touchstart', onStart, { passive: false });
+}
+
+function makeWindowMinimizable(bodyEl, btnEl) {
+  if (!bodyEl || !btnEl) return;
+  btnEl.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    const parentPanel = bodyEl.closest('#panel') || bodyEl.closest('#legend-regions');
+    bodyEl.classList.toggle('minimized');
+    btnEl.textContent = bodyEl.classList.contains('minimized') ? '▢' : '─';
+    if (parentPanel) {
+      parentPanel.classList.toggle('minimized');
+    }
+  });
+}
+
+// ============================================================
+// FUNCIONES DE ESTILO
+// ============================================================
+
+function getStyleUrl(style) {
+  switch(style) {
+    case 'satellite': return null;
+    case 'dark': return 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
+    default: return 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
+  }
+}
+
+// ============================================================
+// ATRIBUCIÓN DE FUENTES CARTOGRÁFICAS
+// ============================================================
+function updateAttribution(style) {
+  const attributionText = document.getElementById('attribution-text');
+  const sources = {
+    'satellite': '🛰️ Fuente: Microsoft Bing Maps (World Imagery)',
+    'dark': '🌍 Fuente: CartoDB (Dark Matter)',
+    'osm': '🌍 Fuente: OpenStreetMap contributors',
+    'topo': '🗺️ Fuente: OpenTopoMap (© OpenStreetMap contributors)'
+  };
+  attributionText.textContent = sources[style] || sources['dark'];
+}
+
+// ============================================================
+// FUNCIONES DE ACTUALIZACIÓN
+// ============================================================
+
+function updateDeepstate() {
+  if (!deepstateData) return;
+  const enabled = document.getElementById('chk-deepstate').checked;
+  const fillColor = document.getElementById('color-fill').value;
+  const lineColor = document.getElementById('color-line').value;
+  const fillOpacity = parseInt(document.getElementById('opacity-fill').value) / 100;
+  const lineOpacity = parseInt(document.getElementById('opacity-line').value) / 100;
+
+  ['deepstate-fill', 'deepstate-line'].forEach(id => {
+    if (map.getLayer(id)) map.removeLayer(id);
+  });
+  if (map.getSource('deepstate')) map.removeSource('deepstate');
+
+  if (!enabled) return;
+
+  map.addSource('deepstate', {
+    type: 'geojson',
+    data: deepstateData
+  });
+
+  map.addLayer({
+    id: 'deepstate-fill',
+    type: 'fill',
+    source: 'deepstate',
+    paint: {
+      'fill-color': fillColor,
+      'fill-opacity': fillOpacity,
+    }
+  });
+
+  map.addLayer({
+    id: 'deepstate-line',
+    type: 'line',
+    source: 'deepstate',
+    paint: {
+      'line-color': lineColor,
+      'line-width': 2.5,
+      'line-opacity': lineOpacity,
+    }
+  });
+}
+
+function updateFires() {
+  if (activePopup) {
+    activePopup.remove();
+    activePopup = null;
+  }
+
+  const enabled = document.getElementById('chk-fires').checked;
+  const frpMin = parseInt(document.getElementById('frp-slider').value) || 0;
+  const timeRange = parseInt(document.getElementById('time-range-selector').value) || 48;
+
+  if (map.getLayer('fires-layer')) map.removeLayer('fires-layer');
+  if (map.getSource('fires')) map.removeSource('fires');
+
+  if (!enabled || firesData.length === 0) {
+    currentFiresFiltered = [];
+    updateRegionLegend();
+    document.getElementById('stats-fires').textContent = '🔥 0';
+    return;
+  }
+
+  const ahora = new Date();
+  const limite = new Date(ahora.getTime() - (timeRange * 60 * 60 * 1000));
+
+  const filtered = firesData.filter(f => {
+    if ((f.properties?.frp || 0) < frpMin) return false;
+    if (timeRange === 24) {
+      const acqDate = f.properties?.acq_date;
+      if (!acqDate) return false;
+      const parts = acqDate.split('-');
+      const fechaPunto = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+      if (fechaPunto < limite) return false;
+    }
+    return true;
+  });
+
+  const filteredByRegion = filtered.filter(f => {
+    if (!selectedRegion) return true;
+    if (selectedRegion === 'Otras ubicaciones') {
+      const region = f.properties?.NAME_1 || '';
+      return !region || region === '' || region === 'N/A' || region.toLowerCase() === 'desconocida';
+    }
+    const region = f.properties?.NAME_1 || '';
+    return region === selectedRegion;
+  });
+
+  const finalFiltered = filteredByRegion;
+  currentFiresFiltered = finalFiltered;
+
+  if (finalFiltered.length === 0) {
+    updateRegionLegend();
+    document.getElementById('stats-fires').textContent = '🔥 0';
+    return;
+  }
+
+  map.addSource('fires', {
+    type: 'geojson',
+    data: { type: 'FeatureCollection', features: finalFiltered }
+  });
+
+  map.addLayer({
+    id: 'fires-layer',
+    type: 'circle',
+    source: 'fires',
+    paint: {
+      'circle-radius': ['interpolate', ['linear'], ['get', 'frp'], 10, 4, 100, 12, 500, 22],
+      'circle-color': ['interpolate', ['linear'], ['get', 'frp'], 10, '#ffcc00', 100, '#ff6600', 500, '#ff0000'],
+      'circle-opacity': 0.85,
+      'circle-stroke-color': '#ffffff',
+      'circle-stroke-width': 1,
+    }
+  });
+
+  map.off('click', 'fires-layer');
+  map.on('click', 'fires-layer', function(e) {
+    if (activePopup) {
+      activePopup.remove();
+      activePopup = null;
+    }
+
+    const p = e.features[0].properties;
+    const coords = e.features[0].geometry.coordinates;
+    const lon = coords[0];
+    const lat = coords[1];
+    const frp = p.frp || 0;
+    const localidad = p.locality || 'N/A';
+    const oblast = p.NAME_1 || 'N/A';
+
+    const googleEarthUrl = `https://earth.google.com/web/search/${lat},${lon}`;
+    const yandexUrl = `https://yandex.com/maps/?pt=${lon},${lat}&z=15`;
+
+    activePopup = new maplibregl.Popup({
+      closeButton: false,
+      closeOnClick: false,
+      className: 'custom-popup'
+    })
+      .setLngLat(e.lngLat)
+      .setHTML(`
+        <div class="popup-header">
+          <span class="popup-title">🔥 Incendio</span>
+          <div class="popup-controls">
+            <span class="popup-btn" id="popup-min">─</span>
+            <span class="popup-btn" id="popup-close">✕</span>
+          </div>
+        </div>
+        <div class="popup-body" id="popup-body">
+          <div><span style="color:#ff6600; font-weight:600;">🔥 FRP:</span> ${frp} MW</div>
+          <div><span style="color:#8b949e;">LAT/LONG:</span> <span style="font-weight:500; font-family:'Courier New',monospace; color:#e6edf3;">${lat.toFixed(5)}, ${lon.toFixed(5)}</span></div>
+          <div><span style="color:#8b949e;">Localidad:</span> <span style="font-weight:500; color:#e6edf3;">${localidad}</span></div>
+          <div style="margin-bottom:4px;"><span style="color:#8b949e;">Región:</span> <span style="font-weight:500; color:#e6edf3;">${oblast}</span></div>
+          <div style="border-top:1px solid #21262d; padding-top:4px; display:flex; gap:6px; font-size:10px;">
+            <a href="${googleEarthUrl}" target="_blank" style="color:#58a6ff; text-decoration:none; font-weight:500;">🌍 Google Earth</a>
+            <span style="color:#30363d;">|</span>
+            <a href="${yandexUrl}" target="_blank" style="color:#58a6ff; text-decoration:none; font-weight:500;">🗺️ Yandex</a>
+          </div>
+        </div>
+      `)
+      .addTo(map);
+
+    activePopup.on('close', () => {
+      activePopup = null;
+    });
+
+    const popupEl = activePopup.getElement();
+
+    if (popupEl) {
+      popupEl.style.pointerEvents = 'auto';
+
+      const headerEl = popupEl.querySelector('.popup-header');
+      makeDraggable(popupEl, headerEl);
+
+      const closeBtn = popupEl.querySelector('#popup-close');
+      const minBtn = popupEl.querySelector('#popup-min');
+
+      if (closeBtn) {
+        closeBtn.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          activePopup.remove();
+          activePopup = null;
         });
+      }
 
-        map.addControl(new maplibregl.NavigationControl(), 'top-right');
+      if (minBtn) {
+        minBtn.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          const body = popupEl.querySelector('#popup-body');
+          body.classList.toggle('minimized');
+          ev.target.textContent = body.classList.contains('minimized') ? '▢' : '─';
+        });
+      }
 
-        // ============================================================
-        // ✅ FUNCIÓN PARA ESPERAR A QUE EL MAPA ESTÉ CARGADO
-        // ============================================================
-        function whenMapLoaded(callback) {
-            if (map.loaded()) {
-                callback();
-            } else {
-                map.on('load', callback);
-            }
+      if (window.innerWidth < 640) {
+        setTimeout(() => {
+          const rect = popupEl.getBoundingClientRect();
+          if (rect.right > window.innerWidth) {
+            popupEl.style.left = (window.innerWidth - rect.width - 10) + 'px';
+          }
+          if (rect.bottom > window.innerHeight) {
+            popupEl.style.top = (window.innerHeight - rect.height - 10) + 'px';
+          }
+        }, 10);
+      }
+    } else {
+      console.error('No se pudo obtener el elemento del popup');
+    }
+  });
+
+  map.on('mouseenter', 'fires-layer', () => map.getCanvas().style.cursor = 'pointer');
+  map.on('mouseleave', 'fires-layer', () => map.getCanvas().style.cursor = '');
+
+  document.getElementById('stats-fires').textContent = '🔥 ' + finalFiltered.length;
+  updateRegionLegend();
+}
+
+// ============================================================
+// LEYENDA DE REGIONES
+// ============================================================
+function updateRegionLegend() {
+  const regionList = document.getElementById('region-list');
+
+  if (currentFiresFiltered.length === 0) {
+    regionList.innerHTML = `
+      <div class="region-item" style="color:#8b949e; text-align:center; padding:4px 0; font-size:10px;">
+        No hay incendios
+      </div>`;
+    return;
+  }
+
+  const regionCounts = {};
+  let puntosSinRegion = 0;
+
+  currentFiresFiltered.forEach(f => {
+    const region = f.properties?.NAME_1;
+    if (region && region !== '' && region !== 'N/A' && region.toLowerCase() !== 'desconocida') {
+      regionCounts[region] = (regionCounts[region] || 0) + 1;
+    } else {
+      puntosSinRegion++;
+    }
+  });
+
+  const sortedRegions = Object.entries(regionCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 15);
+
+  let html = '';
+
+  html += `<div class="region-item all-regions ${!selectedRegion ? 'active' : ''}" data-region="all">
+            <span class="region-name">⬅️ Ver todos</span>
+            <span class="count">${currentFiresFiltered.length}</span>
+          </div>`;
+
+  if (sortedRegions.length > 0) {
+    sortedRegions.forEach(([region, count]) => {
+      const isActive = (selectedRegion === region);
+      html += `<div class="region-item ${isActive ? 'active' : ''}" data-region="${region}">
+                <span class="region-name">${region}</span>
+                <span class="count">${count}</span>
+              </div>`;
+    });
+  }
+
+  if (puntosSinRegion > 0) {
+    const isActive = (selectedRegion === 'Otras ubicaciones');
+    html += `<div class="region-item ${isActive ? 'active' : ''}" data-region="Otras ubicaciones" style="border-top:1px solid #30363d; margin-top:2px; padding-top:3px;">
+              <span class="region-name" style="color:#8b949e;">❓ Otras ubicaciones</span>
+              <span class="count">${puntosSinRegion}</span>
+            </div>`;
+  }
+
+  if (sortedRegions.length === 0 && puntosSinRegion === 0) {
+    html += `<div class="region-item" style="color:#8b949e; text-align:center; padding:2px 0; font-size:9px;">
+              (sin regiones disponibles)
+            </div>`;
+  }
+
+  regionList.innerHTML = html;
+
+  document.querySelectorAll('.region-item[data-region]').forEach(el => {
+    el.addEventListener('click', function() {
+      const region = this.dataset.region;
+      
+      if (region === 'all') {
+        selectedRegion = null;
+      } else if (region === 'Otras ubicaciones') {
+        if (selectedRegion === 'Otras ubicaciones') {
+          selectedRegion = null;
+        } else {
+          selectedRegion = 'Otras ubicaciones';
         }
-
-        // ============================================================
-        // ✅ FUNCIÓN PARA HACER ARRASTRABLE EL POPUP
-        // ============================================================
-        function makeDraggable(popupEl, handleEl) {
-            if (!handleEl) {
-                console.error('makeDraggable: no se encontró el elemento de cabecera (.popup-header)');
-                return;
-            }
-
-            let offsetX = 0,
-                offsetY = 0,
-                isDragging = false;
-
-            function getXY(e) {
-                if (e.touches && e.touches.length) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
-                return { x: e.clientX, y: e.clientY };
-            }
-
-            function onStart(e) {
-                e.preventDefault();
-                e.stopPropagation();
-
-                isDragging = true;
-                const rect = popupEl.getBoundingClientRect();
-                const pos = getXY(e);
-                offsetX = pos.x - rect.left;
-                offsetY = pos.y - rect.top;
-
-                popupEl.style.transform = 'none';
-                popupEl.style.position = 'fixed';
-                popupEl.style.left = rect.left + 'px';
-                popupEl.style.top = rect.top + 'px';
-                popupEl.style.margin = '0';
-                popupEl.style.zIndex = '3000';
-
-                document.addEventListener('mousemove', onMove);
-                document.addEventListener('mouseup', onEnd);
-                document.addEventListener('touchmove', onMove, { passive: false });
-                document.addEventListener('touchend', onEnd);
-            }
-
-            function onMove(e) {
-                if (!isDragging) return;
-                e.preventDefault();
-                const pos = getXY(e);
-                popupEl.style.left = (pos.x - offsetX) + 'px';
-                popupEl.style.top = (pos.y - offsetY) + 'px';
-            }
-
-            function onEnd(e) {
-                if (!isDragging) return;
-                isDragging = false;
-                document.removeEventListener('mousemove', onMove);
-                document.removeEventListener('mouseup', onEnd);
-                document.removeEventListener('touchmove', onMove);
-                document.removeEventListener('touchend', onEnd);
-            }
-
-            handleEl.addEventListener('mousedown', onStart);
-            handleEl.addEventListener('touchstart', onStart, { passive: false });
+      } else {
+        if (selectedRegion === region) {
+          selectedRegion = null;
+        } else {
+          selectedRegion = region;
         }
+      }
+      
+      updateFires();
+    });
+  });
+}
 
-        // ============================================================
-        // ✅ ARRASTRE Y MINIMIZADO PARA VENTANAS FIJAS (panel y leyenda)
-        // ============================================================
-        function makeWindowDraggable(containerEl, handleEl) {
-            if (!containerEl || !handleEl) return;
+function updateTerrain() {
+  const enabled = document.getElementById('chk-terrain').checked;
+  const pitch = parseInt(document.getElementById('pitch-slider').value);
 
-            let offsetX = 0,
-                offsetY = 0,
-                isDragging = false;
+  if (enabled) {
+    if (!map.getSource('terrainSource')) {
+      map.addSource('terrainSource', {
+        type: 'raster-dem',
+        tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
+        tileSize: 256,
+        encoding: 'terrarium',
+        maxzoom: 14
+      });
+    }
+    map.setTerrain({ source: 'terrainSource', exaggeration: 2.0 });
+    map.setPitch(pitch);
+  } else {
+    map.setTerrain(null);
+    map.setPitch(0);
+  }
+}
 
-            function getXY(e) {
-                if (e.touches && e.touches.length) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
-                return { x: e.clientX, y: e.clientY };
-            }
+// ============================================================
+// ✅ MAPA BASE - CORREGIDO para evitar error "style diff"
+// ============================================================
 
-            function onStart(e) {
-                if (e.target.closest('.popup-btn')) return;
+function updateBaseMap() {
+  if (activePopup) {
+    activePopup.remove();
+    activePopup = null;
+  }
 
-                e.preventDefault();
-                isDragging = true;
-                const rect = containerEl.getBoundingClientRect();
-                const pos = getXY(e);
-                offsetX = pos.x - rect.left;
-                offsetY = pos.y - rect.top;
+  const selected = document.getElementById('map-style-selector').value;
+  const currentDeepstate = deepstateData;
+  const currentFires = firesData;
 
-                containerEl.style.position = 'fixed';
-                containerEl.style.left = rect.left + 'px';
-                containerEl.style.top = rect.top + 'px';
-                containerEl.style.right = 'auto';
-                containerEl.style.bottom = 'auto';
-                containerEl.style.margin = '0';
+  updateAttribution(selected);
 
-                document.addEventListener('mousemove', onMove);
-                document.addEventListener('mouseup', onEnd);
-                document.addEventListener('touchmove', onMove, { passive: false });
-                document.addEventListener('touchend', onEnd);
-            }
+  // ✅ Limpiar capas y fuentes antiguas
+  ['satellite-layer', 'osm-layer', 'topo-layer', 'deepstate-fill', 'deepstate-line', 'fires-layer'].forEach(id => {
+    if (map.getLayer(id)) map.removeLayer(id);
+  });
+  ['satellite-source', 'osm-source', 'topo-source', 'deepstate', 'fires'].forEach(id => {
+    if (map.getSource(id)) map.removeSource(id);
+  });
 
-            function onMove(e) {
-                if (!isDragging) return;
-                e.preventDefault();
-                const pos = getXY(e);
-                let left = pos.x - offsetX;
-                let top = pos.y - offsetY;
+  // ✅ Si es el estilo oscuro de CartoDB, usar setStyle con diff: false
+  if (selected === 'dark') {
+    map.setStyle('https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json', { diff: false });
+    map.once('style.load', function() {
+      setTimeout(() => {
+        if (currentDeepstate) updateDeepstate();
+        if (currentFires.length > 0) updateFires();
+        updateTerrain();
+      }, 200);
+    });
+    return;
+  }
 
-                left = Math.max(0, Math.min(left, window.innerWidth - 60));
-                top = Math.max(0, Math.min(top, window.innerHeight - 40));
+  // ✅ Para otros estilos, usar el método alternativo
+  map.setStyle({ version: 8, sources: {}, layers: [] });
 
-                containerEl.style.left = left + 'px';
-                containerEl.style.top = top + 'px';
-            }
+  let tiles = [];
+  let layerId = '';
 
-            function onEnd() {
-                isDragging = false;
-                document.removeEventListener('mousemove', onMove);
-                document.removeEventListener('mouseup', onEnd);
-                document.removeEventListener('touchmove', onMove);
-                document.removeEventListener('touchend', onEnd);
-            }
+  switch(selected) {
+    case 'satellite':
+      tiles = ['https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'];
+      layerId = 'satellite-layer';
+      break;
+    case 'osm':
+      tiles = ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'];
+      layerId = 'osm-layer';
+      break;
+    case 'topo':
+      tiles = ['https://tile.opentopomap.org/{z}/{x}/{y}.png'];
+      layerId = 'topo-layer';
+      break;
+    default:
+      tiles = ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'];
+      layerId = 'osm-layer';
+  }
 
-            handleEl.addEventListener('mousedown', onStart);
-            handleEl.addEventListener('touchstart', onStart, { passive: false });
-        }
+  map.once('style.load', function() {
+    map.addSource(layerId.replace('-layer', '-source'), {
+      type: 'raster',
+      tiles: tiles,
+      tileSize: 256
+    });
 
-        function makeWindowMinimizable(bodyEl, btnEl) {
-            if (!bodyEl || !btnEl) return;
-            btnEl.addEventListener('click', (ev) => {
-                ev.stopPropagation();
-                const parentPanel = bodyEl.closest('#panel') || bodyEl.closest('#legend-regions');
-                bodyEl.classList.toggle('minimized');
-                btnEl.textContent = bodyEl.classList.contains('minimized') ? '▢' : '─';
-                if (parentPanel) {
-                    parentPanel.classList.toggle('minimized');
-                }
-            });
-        }
+    map.addLayer({
+      id: layerId,
+      type: 'raster',
+      source: layerId.replace('-layer', '-source')
+    });
 
-        // ============================================================
-        // FUNCIONES DE ESTILO
-        // ============================================================
-        function getStyleUrl(style) {
-            switch (style) {
-                case 'satellite':
-                    return null;
-                case 'dark':
-                    return 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
-                default:
-                    return 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
-            }
-        }
+    setTimeout(() => {
+      if (currentDeepstate) updateDeepstate();
+      if (currentFires.length > 0) updateFires();
+      updateTerrain();
+    }, 200);
+  });
+}
 
-        function updateAttribution(style) {
-            const attributionText = document.getElementById('attribution-text');
-            const sources = {
-                'satellite': '🛰️ Fuente: Microsoft Bing Maps (World Imagery)',
-                'dark': '🌍 Fuente: CartoDB (Dark Matter)',
-                'osm': '🌍 Fuente: OpenStreetMap contributors',
-                'topo': '🗺️ Fuente: OpenTopoMap (© OpenStreetMap contributors)'
-            };
-            attributionText.textContent = sources[style] || sources['dark'];
-        }
+// ============================================================
+// ✅ CARGAR DATOS CON whenMapLoaded
+// ============================================================
 
-        // ============================================================
-        // ✅ FUNCIONES DE ACTUALIZACIÓN
-        // ============================================================
-        function updateDeepstate() {
-            if (!deepstateData) return;
-            const enabled = document.getElementById('chk-deepstate').checked;
-            const fillColor = document.getElementById('color-fill').value;
-            const lineColor = document.getElementById('color-line').value;
-            const fillOpacity = parseInt(document.getElementById('opacity-fill').value) / 100;
-            const lineOpacity = parseInt(document.getElementById('opacity-line').value) / 100;
+fetch(DEEPSTATE_URL)
+  .then(r => r.json())
+  .then(data => {
+    deepstateData = data;
+    whenMapLoaded(function() {
+      updateDeepstate();
+      updateTerrain();
+    });
+  })
+  .catch(e => console.error('DeepState error:', e));
 
-            ['deepstate-fill', 'deepstate-line'].forEach(id => {
-                if (map.getLayer(id)) map.removeLayer(id);
-            });
-            if (map.getSource('deepstate')) map.removeSource('deepstate');
+fetch(FIRMS_URL)
+  .then(r => r.json())
+  .then(data => {
+    firesData = data.features || [];
+    whenMapLoaded(function() {
+      updateFires();
+    });
+  })
+  .catch(e => console.error('FIRMS error:', e));
 
-            if (!enabled) return;
+// ============================================================
+// ✅ ACTIVAR ARRASTRE Y MINIMIZADO EN PANEL Y LEYENDA
+// ============================================================
+makeWindowDraggable(document.getElementById('panel'), document.getElementById('panel-header'));
+makeWindowMinimizable(document.getElementById('panel-body'), document.getElementById('panel-min'));
 
-            map.addSource('deepstate', {
-                type: 'geojson',
-                data: deepstateData
-            });
+makeWindowDraggable(document.getElementById('legend-regions'), document.getElementById('legend-header'));
+makeWindowMinimizable(document.getElementById('legend-body'), document.getElementById('legend-min'));
 
-            map.addLayer({
-                id: 'deepstate-fill',
-                type: 'fill',
-                source: 'deepstate',
-                paint: {
-                    'fill-color': fillColor,
-                    'fill-opacity': fillOpacity,
-                }
-            });
+// ============================================================
+// CONTROLES
+// ============================================================
 
-            map.addLayer({
-                id: 'deepstate-line',
-                type: 'line',
-                source: 'deepstate',
-                paint: {
-                    'line-color': lineColor,
-                    'line-width': 2.5,
-                    'line-opacity': lineOpacity,
-                }
-            });
-        }
+document.getElementById('map-style-selector').addEventListener('change', updateBaseMap);
 
-        // ============================================================
-        // ✅ FUNCIÓN PRINCIPAL CON 3D (fill-extrusion)
-        // ============================================================
-        function updateFires() {
-            if (activePopup) {
-                activePopup.remove();
-                activePopup = null;
-            }
+document.getElementById('time-range-selector').addEventListener('change', function() {
+  if (activePopup) {
+    activePopup.remove();
+    activePopup = null;
+  }
+  selectedRegion = null;
+  updateFires();
+});
 
-            const enabled = document.getElementById('chk-fires').checked;
-            const frpMin = parseInt(document.getElementById('frp-slider').value) || 0;
-            const timeRange = parseInt(document.getElementById('time-range-selector').value) || 48;
+document.getElementById('chk-deepstate').addEventListener('change', updateDeepstate);
+document.getElementById('color-fill').addEventListener('input', updateDeepstate);
+document.getElementById('color-line').addEventListener('input', updateDeepstate);
+document.getElementById('opacity-fill').addEventListener('input', function() {
+  document.getElementById('val-opacity-fill').textContent = (this.value / 100).toFixed(2);
+  updateDeepstate();
+});
+document.getElementById('opacity-line').addEventListener('input', function() {
+  document.getElementById('val-opacity-line').textContent = (this.value / 100).toFixed(2);
+  updateDeepstate();
+});
 
-            // ✅ Eliminar capas y fuentes antiguas
-            if (map.getLayer('fires-layer')) map.removeLayer('fires-layer');
-            if (map.getSource('fires')) map.removeSource('fires');
+document.getElementById('chk-fires').addEventListener('change', updateFires);
+document.getElementById('frp-slider').addEventListener('input', function() {
+  document.getElementById('val-frp').textContent = this.value;
+  updateFires();
+});
 
-            if (!enabled || firesData.length === 0) {
-                currentFiresFiltered = [];
-                updateRegionLegend();
-                document.getElementById('stats-fires').textContent = '🔥 0';
-                return;
-            }
+document.getElementById('chk-terrain').addEventListener('change', updateTerrain);
+document.getElementById('pitch-slider').addEventListener('input', function() {
+  document.getElementById('val-pitch').textContent = this.value;
+  updateTerrain();
+});
 
-            const ahora = Date.now();
-            const limite = ahora - (timeRange * 60 * 60 * 1000);
+// ============================================================
+// INICIAR
+// ============================================================
 
-            // ✅ Filtrar los incendios
-            const filtered = firesData.filter(f => {
-                if ((f.properties?.frp || 0) < frpMin) return false;
-                const acqDate = f.properties?.acq_date;
-                const acqTime = f.properties?.acq_time;
-                if (!acqDate) return false;
-                let horaUTC = 0,
-                    minutosUTC = 0;
-                if (acqTime) {
-                    const timeStr = String(acqTime).padStart(4, '0');
-                    horaUTC = parseInt(timeStr.substring(0, 2));
-                    minutosUTC = parseInt(timeStr.substring(2, 4));
-                }
-                const fechaUTC = new Date(Date.UTC(
-                    parseInt(acqDate.split('-')[0]),
-                    parseInt(acqDate.split('-')[1]) - 1,
-                    parseInt(acqDate.split('-')[2]),
-                    horaUTC,
-                    minutosUTC
-                ));
-                return fechaUTC.getTime() >= limite;
-            });
-
-            // ✅ Filtrar por región seleccionada
-            const filteredByRegion = filtered.filter(f => {
-                if (!selectedRegion) return true;
-                if (selectedRegion === 'Otras ubicaciones') {
-                    const region = f.properties?.NAME_1 || '';
-                    return !region || region === '' || region === 'N/A' || region.toLowerCase() === 'desconocida';
-                }
-                const region = f.properties?.NAME_1 || '';
-                return region === selectedRegion;
-            });
-
-            const finalFiltered = filteredByRegion;
-            currentFiresFiltered = finalFiltered;
-
-            if (finalFiltered.length === 0) {
-                updateRegionLegend();
-                document.getElementById('stats-fires').textContent = '🔥 0';
-                return;
-            }
-
-            // ✅ Añadir fuente de datos (usa los polígonos)
-            map.addSource('fires', {
-                type: 'geojson',
-                data: { type: 'FeatureCollection', features: finalFiltered }
-            });
-
-            // ✅ CAPA 3D - COLUMNAS CON DEGRADADO
-            map.addLayer({
-                id: 'fires-layer',
-                type: 'fill-extrusion',
-                source: 'fires',
-                paint: {
-                    'fill-extrusion-height': [
-                        'interpolate',
-                        ['linear'],
-                        ['get', 'frp'],
-                        10, 60,
-                        100, 250,
-                        500, 600
-                    ],
-                    'fill-extrusion-color': [
-                        'interpolate',
-                        ['linear'],
-                        ['get', 'frp'],
-                        10, '#FFDD00',
-                        50, '#FF9900',
-                        150, '#FF4400',
-                        500, '#CC0000'
-                    ],
-                    'fill-extrusion-opacity': 0.6,
-                    'fill-extrusion-base': 0,
-                    'fill-extrusion-vertical-gradient': true
-                }
-            });
-
-            // ============================================================
-            // ✅ POPUP CON HORA LOCAL DEL USUARIO
-            // ============================================================
-            map.off('click', 'fires-layer');
-            map.on('click', 'fires-layer', function(e) {
-                if (activePopup) {
-                    activePopup.remove();
-                    activePopup = null;
-                }
-
-                const p = e.features[0].properties;
-                const coords = e.features[0].geometry.coordinates;
-                const lon = coords[0];
-                const lat = coords[1];
-                const frp = p.frp || 0;
-                const localidad = p.locality || 'N/A';
-                const oblast = p.NAME_1 || 'N/A';
-                const acqDate = p.acq_date || 'N/A';
-                const acqTime = p.acq_time || '0';
-
-                let horaUTC = 0,
-                    minutosUTC = 0;
-                if (acqTime !== 'N/A') {
-                    const timeStr = String(acqTime).padStart(4, '0');
-                    horaUTC = parseInt(timeStr.substring(0, 2));
-                    minutosUTC = parseInt(timeStr.substring(2, 4));
-                }
-
-                const fechaUTC = new Date(Date.UTC(
-                    parseInt(acqDate.split('-')[0]),
-                    parseInt(acqDate.split('-')[1]) - 1,
-                    parseInt(acqDate.split('-')[2]),
-                    horaUTC,
-                    minutosUTC
-                ));
-
-                const horaLocal = fechaUTC.toLocaleString('es-ES', {
-                    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    dateStyle: 'medium',
-                    timeStyle: 'short'
-                });
-
-                const googleEarthUrl = `https://earth.google.com/web/search/${lat},${lon}`;
-                const yandexUrl = `https://yandex.com/maps/?pt=${lon},${lat}&z=15`;
-
-                activePopup = new maplibregl.Popup({
-                    closeButton: false,
-                    closeOnClick: false,
-                    className: 'custom-popup'
-                })
-                    .setLngLat(e.lngLat)
-                    .setHTML(`
-                        <div class="popup-header">
-                            <span class="popup-title">🔥 Incendio</span>
-                            <div class="popup-controls">
-                                <span class="popup-btn" id="popup-min">─</span>
-                                <span class="popup-btn" id="popup-close">✕</span>
-                            </div>
-                        </div>
-                        <div class="popup-body" id="popup-body">
-                            <div><span style="color:#ff6600; font-weight:600;">🔥 FRP:</span> ${frp} MW</div>
-                            <div><span style="color:#8b949e;">LAT/LONG:</span> <span style="font-weight:500; font-family:'Courier New',monospace; color:#e6edf3;">${lat.toFixed(5)}, ${lon.toFixed(5)}</span></div>
-                            <div><span style="color:#8b949e;">Localidad:</span> <span style="font-weight:500; color:#e6edf3;">${localidad}</span></div>
-                            <div><span style="color:#8b949e;">Región:</span> <span style="font-weight:500; color:#e6edf3;">${oblast}</span></div>
-                            <div><span style="color:#8b949e;">🕒 Hora local:</span> <span style="font-weight:500; color:#e6edf3;">${horaLocal}</span></div>
-                            <div style="border-top:1px solid #21262d; padding-top:4px; display:flex; gap:6px; font-size:10px;">
-                                <a href="${googleEarthUrl}" target="_blank" style="color:#58a6ff; text-decoration:none; font-weight:500;">🌍 Google Earth</a>
-                                <span style
+map.on('load', function() {
+  updateTerrain();
+  updateAttribution('dark');
+  console.log('✅ Visor listo');
+});
+</script>
+</body>
+</html>
