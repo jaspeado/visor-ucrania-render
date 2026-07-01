@@ -24,6 +24,7 @@
             font-family: monospace;
             font-size: 14px;
             text-align: center;
+            border: 1px solid #0f0;
         }
         #debug {
             position: absolute;
@@ -45,7 +46,7 @@
 <body>
 
     <div id="cesium-container"></div>
-    <div id="info">🌍 Visor 3D - Semiesferas con Cesium</div>
+    <div id="info">🌍 Visor 3D - Semiesferas en el suelo</div>
     <div id="debug">Cargando...</div>
 
     <script>
@@ -61,7 +62,7 @@
         logDebug('🚀 INICIANDO CESIUM...');
 
         // ============================================================
-        // 1. CESIUM - SIN TOKEN, CON OSM
+        // 1. CESIUM - SIN TOKEN
         // ============================================================
         Cesium.Ion.defaultAccessToken = undefined;
 
@@ -86,11 +87,11 @@
             backgroundColor: new Cesium.Color(0.08, 0.1, 0.15, 1.0)
         });
 
-        // Cámara - Ucrania
+        // Cámara - Ucrania (más cerca)
         viewer.camera.setView({
-            destination: Cesium.Cartesian3.fromDegrees(32.0, 48.5, 600000),
+            destination: Cesium.Cartesian3.fromDegrees(32.0, 48.5, 200000),
             orientation: {
-                pitch: Cesium.Math.toRadians(-40),
+                pitch: Cesium.Math.toRadians(-45),
                 heading: Cesium.Math.toRadians(0),
                 roll: 0
             }
@@ -114,60 +115,79 @@
         }
 
         // ============================================================
-        // 3. CREAR SEMIESFERA 3D CON CESIUM
+        // 3. CREAR SEMIESFERA 3D - ¡EN EL SUELO!
         // ============================================================
         function createFireSphere(lon, lat, frp) {
             const t = Math.min(frp / 500, 1);
-            const radius = 2000 + t * 8000; // 2km a 10km
+            // Radio más moderado: 500m a 3000m
+            const radius = 500 + t * 2500;
 
             const r = 1.0;
             const g = 1.0 - t * 0.8;
             const b = 0.3 - t * 0.25;
 
+            // Posición en la superficie (altura 0)
             const position = Cesium.Cartesian3.fromDegrees(lon, lat, 0);
 
+            logDebug(`📍 Fuego en (${lon.toFixed(2)}, ${lat.toFixed(2)}) radio: ${(radius/1000).toFixed(1)}km`);
+
             // ============================================================
-            // SEMIESFERA PRINCIPAL
+            // SEMIESFERA PRINCIPAL - MITAD SUPERIOR
             // ============================================================
             const sphere = viewer.entities.add({
                 position: position,
                 ellipsoid: {
                     radii: new Cesium.Cartesian3(radius, radius, radius),
-                    material: new Cesium.Color(r, g, b, 0.7),
-                    emissiveColor: new Cesium.Color(r * 0.8, g * 0.5, b * 0.3, 0.8),
+                    material: new Cesium.Color(r, g, b, 0.8),
+                    emissiveColor: new Cesium.Color(r * 0.8, g * 0.5, b * 0.3, 1.0),
                     outline: false,
-                    slicePart: 0.5
+                    slicePart: 0.5 // SOLO MITAD SUPERIOR
                 }
             });
 
             // ============================================================
-            // GLOW (círculo en el suelo)
+            // GLOW - Círculo en el suelo
             // ============================================================
             const glow = viewer.entities.add({
                 position: position,
                 ellipse: {
-                    semiMinorAxis: radius * 3,
-                    semiMajorAxis: radius * 3,
-                    material: new Cesium.Color(r, g * 0.4, b * 0.2, 0.12),
+                    semiMinorAxis: radius * 2.5,
+                    semiMajorAxis: radius * 2.5,
+                    material: new Cesium.Color(r, g * 0.3, b * 0.15, 0.15),
                     outline: false,
-                    height: 10
+                    height: 1
                 }
             });
 
             // ============================================================
-            // NÚCLEO BRILLANTE
+            // NÚCLEO - En la cima
             // ============================================================
             const core = viewer.entities.add({
-                position: Cesium.Cartesian3.fromDegrees(lon, lat, radius * 0.3),
+                position: Cesium.Cartesian3.fromDegrees(lon, lat, radius * 0.7),
                 ellipsoid: {
-                    radii: new Cesium.Cartesian3(radius * 0.25, radius * 0.25, radius * 0.25),
-                    material: new Cesium.Color(1.0, Math.min(g + 0.3, 1.0), Math.min(b + 0.3, 1.0), 0.9),
+                    radii: new Cesium.Cartesian3(radius * 0.2, radius * 0.2, radius * 0.2),
+                    material: new Cesium.Color(1.0, Math.min(g + 0.3, 1.0), Math.min(b + 0.3, 1.0), 0.95),
                     outline: false
                 }
             });
 
-            logDebug(`🔥 Fuego en (${lon.toFixed(2)}, ${lat.toFixed(2)}) radio: ${(radius/1000).toFixed(1)}km`);
-            return { sphere, glow, core };
+            // ============================================================
+            // ANILLO EN EL SUELO
+            // ============================================================
+            const ring = viewer.entities.add({
+                position: position,
+                ellipse: {
+                    semiMinorAxis: radius * 0.8,
+                    semiMajorAxis: radius * 0.8,
+                    material: new Cesium.Color(r, g * 0.7, b * 0.4, 0.2),
+                    outline: true,
+                    outlineColor: new Cesium.Color(r, g * 0.7, b * 0.4, 0.4),
+                    outlineWidth: 2,
+                    height: 2
+                }
+            });
+
+            return { sphere, glow, core, ring };
         }
 
         // ============================================================
@@ -211,13 +231,14 @@
                     fireEntities.push(entities.sphere);
                     fireEntities.push(entities.glow);
                     fireEntities.push(entities.core);
+                    fireEntities.push(entities.ring);
                 } catch (e) {
-                    logDebug('❌ Error creando: ' + e.message);
+                    logDebug('❌ Error: ' + e.message);
                 }
             });
 
-            logDebug(`✅ ${fireEntities.length / 3} semiesferas creadas`);
-            document.getElementById('info').textContent = `🔥 ${fireEntities.length / 3} semiesferas 3D en Ucrania`;
+            logDebug(`✅ ${fireEntities.length / 4} semiesferas en el suelo`);
+            document.getElementById('info').textContent = `🔥 ${fireEntities.length / 4} semiesferas en Ucrania`;
         }
 
         function createTestFires() {
@@ -237,10 +258,11 @@
                 fireEntities.push(entities.sphere);
                 fireEntities.push(entities.glow);
                 fireEntities.push(entities.core);
+                fireEntities.push(entities.ring);
             });
 
-            logDebug(`✅ ${fireEntities.length / 3} semiesferas de prueba`);
-            document.getElementById('info').textContent = `🔥 ${fireEntities.length / 3} semiesferas de prueba en Kyiv`;
+            logDebug(`✅ ${fireEntities.length / 4} semiesferas de prueba`);
+            document.getElementById('info').textContent = `🔥 ${fireEntities.length / 4} semiesferas de prueba`;
         }
 
         // ============================================================
