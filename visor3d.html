@@ -869,15 +869,15 @@
                 }
             });
 
-            // ✅ SEMIESFERAS 3D (con transparencia y degradado)
+            // ✅ PRUEBA 3D EXTREMA - Columnas de 5000 metros
         map.addLayer({
             id: 'fires-layer',
             type: 'fill-extrusion',
             source: 'fires',
             paint: {
-                'fill-extrusion-height': ['interpolate', ['linear'], ['get', 'frp'], 10, 100, 100, 400, 500, 900],
-                'fill-extrusion-color': ['interpolate', ['linear'], ['get', 'frp'], 10, '#FFDD00', 100, '#FF6600', 500, '#CC0000'],
-                'fill-extrusion-opacity': 0.5,
+                'fill-extrusion-height': ['interpolate', ['linear'], ['get', 'frp'], 10, 2000, 100, 5000, 500, 10000],
+                'fill-extrusion-color': '#FF0000',
+                'fill-extrusion-opacity': 0.9,
                 'fill-extrusion-base': 0,
                 'fill-extrusion-vertical-gradient': true
             }
