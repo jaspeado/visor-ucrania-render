@@ -3,78 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Visor Ucrania 3D - Incendios</title>
+    <title>Visor Ucrania 3D - CORREGIDO</title>
     <script src="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.js">
     </script>
     <link href="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js">
     </script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body { width: 100%; height: 100%; font-family: 'Inter', sans-serif; overflow: hidden; }
+        html, body { width: 100%; height: 100%; overflow: hidden; }
         #map { width: 100%; height: 100vh; position: relative; }
         #three-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
-        
-        #panel {
-            position: absolute;
-            top: 12px;
-            left: 12px;
-            z-index: 1000;
-            background: rgba(13, 17, 23, 0.92);
-            border: 1px solid #30363d;
-            border-radius: 10px;
-            padding: 14px 16px;
-            min-width: 200px;
-            color: #e6edf3;
-            font-size: 12px;
-        }
-        .control-group { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #21262d; }
-        .control-group:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
-        .control-group label { display: block; font-size: 10px; color: #8b949e; text-transform: uppercase; font-weight: 600; margin-bottom: 3px; }
-        .control-group input[type="range"] { width: 100%; margin: 4px 0; accent-color: #58a6ff; background: #30363d; height: 3px; border-radius: 2px; cursor: pointer; }
-        .checkbox-group { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
-        .checkbox-group input[type="checkbox"] { accent-color: #58a6ff; width: 14px; height: 14px; cursor: pointer; }
-        .checkbox-group label { text-transform: none !important; font-size: 11px !important; color: #e6edf3 !important; font-weight: 400 !important; margin-bottom: 0 !important; }
-        .slider-value { float: right; font-size: 10px; color: #58a6ff; font-weight: 500; }
-        .stats-row { display: flex; justify-content: space-between; font-size: 10px; color: #8b949e; margin-top: 4px; padding-top: 8px; border-top: 1px solid #21262d; font-weight: 500; }
-        #info { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; background: rgba(13,17,23,0.85); padding: 6px 18px; border-radius: 20px; border: 1px solid #30363d; color: #8b949e; font-size: 11px; pointer-events: none; white-space: nowrap; }
+        #info { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; background: rgba(0,0,0,0.8); color: #fff; padding: 10px 20px; border-radius: 10px; font-family: monospace; font-size: 14px; }
+        #debug { position: absolute; top: 10px; right: 10px; z-index: 1000; background: rgba(0,0,0,0.9); color: #0f0; padding: 10px; border-radius: 8px; font-family: monospace; font-size: 11px; max-width: 350px; max-height: 300px; overflow: auto; }
     </style>
 </head>
 <body>
 
-    <div id="panel">
-        <div style="margin-bottom:10px; font-weight:600; color:#58a6ff; font-size:11px;">🔥 CONTROLES</div>
-        <div class="control-group">
-            <div class="checkbox-group">
-                <input type="checkbox" id="chk-fires" checked>
-                <label for="chk-fires">Mostrar incendios</label>
-            </div>
-            <label>FRP mínimo <span class="slider-value" id="val-frp">10</span></label>
-            <input type="range" id="frp-slider" min="0" max="100" value="10">
-        </div>
-        <div class="stats-row">
-            <span id="stats-fires">🔥 0</span>
-        </div>
-    </div>
-
-    <div id="info">🌍 Visor 3D Ucrania · Clic en un incendio para detalles</div>
     <div id="map">
         <div id="three-container"></div>
     </div>
+    <div id="info">🌍 Visor 3D - Incendios</div>
+    <div id="debug">Cargando...</div>
 
     <script>
-        // ============================================================
-        // CONFIGURACIÓN
-        // ============================================================
-        const FIRMS_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires_polygons.geojson';
-        
-        let firesData = [];
-        let currentFires = [];
-        let fireMeshes = [];
-        let scene, camera, renderer;
-        let threeReady = false;
-        let isUpdating = false;
+        console.log('🚀 INICIANDO...');
+        const debugEl = document.getElementById('debug');
+
+        function logDebug(msg) {
+            console.log(msg);
+            debugEl.innerHTML = msg + '<br>' + debugEl.innerHTML;
+            if (debugEl.innerHTML.split('<br>').length > 20) {
+                debugEl.innerHTML = debugEl.innerHTML.split('<br>').slice(0, 20).join('<br>');
+            }
+        }
 
         // ============================================================
         // MAPA
@@ -93,8 +55,14 @@
         // ============================================================
         // THREE.JS
         // ============================================================
+        let scene, camera, renderer;
+        let threeReady = false;
+        let fireMeshes = [];
+        let firesData = [];
+
         function initThree() {
             if (threeReady) return;
+            logDebug('🔄 Inicializando Three.js...');
 
             const container = document.getElementById('three-container');
 
@@ -120,7 +88,10 @@
             scene.add(light2);
 
             threeReady = true;
-            console.log('✅ Three.js listo');
+            logDebug('✅ Three.js listo');
+
+            // Cargar datos de incendios
+            loadFires();
 
             window.addEventListener('resize', () => {
                 if (!threeReady) return;
@@ -132,19 +103,21 @@
             });
 
             animate();
-            
-            // Actualizar incendios después de iniciar
-            setTimeout(updateFires, 500);
         }
 
         // ============================================================
-        // COORDENADAS
+        // FUNCIÓN CORRECTA PARA CONVERTIR COORDENADAS
         // ============================================================
         function lngLatToMeters(lng, lat) {
-            const R = 6378137;
-            const x = R * lng * Math.PI / 180;
-            const y = R * Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360));
-            return { x, y };
+            // Usar la proyección de MapLibre directamente
+            const mercator = maplibregl.MercatorCoordinate.fromLngLat(
+                new maplibregl.LngLat(lng, lat)
+            );
+            return {
+                x: mercator.x * 10000000, // Escalar para que sea visible
+                y: mercator.y * 10000000,
+                z: 0
+            };
         }
 
         // ============================================================
@@ -192,7 +165,7 @@
                 camera.updateProjectionMatrix();
 
             } catch (e) {
-                // Silencioso
+                logDebug('❌ Error sync: ' + e.message);
             }
         }
 
@@ -202,9 +175,9 @@
         function createFireSphere(lon, lat, frp) {
             const pos = lngLatToMeters(lon, lat);
             
-            // Tamaño proporcional al FRP (más grande)
+            // Tamaño proporcional al FRP
             const t = Math.min(frp / 500, 1);
-            const radius = 300 + t * 1200; // 300m a 1500m
+            const radius = 100 + t * 500;
 
             // Color: amarillo → naranja → rojo
             const r = 255;
@@ -231,7 +204,7 @@
             group.add(sphere);
 
             // Glow exterior
-            const glowGeom = new THREE.SphereGeometry(radius * 3, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+            const glowGeom = new THREE.SphereGeometry(radius * 2.5, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
             const glowMat = new THREE.MeshBasicMaterial({
                 color: new THREE.Color(`rgb(${r}, ${Math.round(g * 0.4)}, ${Math.round(b * 0.2)})`),
                 transparent: true,
@@ -257,7 +230,7 @@
             core.position.y += radius * 0.2;
             group.add(core);
 
-            // Anillo base (efecto de luz en el suelo)
+            // Anillo base
             const ringGeom = new THREE.RingGeometry(radius * 0.5, radius * 0.8, 32);
             const ringMat = new THREE.MeshBasicMaterial({
                 color: new THREE.Color(`rgb(${r}, ${Math.round(g * 0.7)}, ${Math.round(b * 0.4)})`),
@@ -273,22 +246,40 @@
             ring.rotation.x = -Math.PI / 2;
             group.add(ring);
 
-            group.userData = { frp, lon, lat, radius };
+            group.userData = { frp, lon, lat, radius, pos };
+
+            // LOG para verificar posición
+            logDebug(`📍 Fuego en (${lon}, ${lat}) → metros (${pos.x.toFixed(0)}, ${pos.y.toFixed(0)})`);
 
             return group;
         }
 
         // ============================================================
-        // ACTUALIZAR INCENDIOS
+        // CARGAR INCENDIOS
         // ============================================================
-        function updateFires() {
-            if (isUpdating) return;
-            isUpdating = true;
+        const FIRMS_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires_polygons.geojson';
 
-            const enabled = document.getElementById('chk-fires').checked;
-            const frpMin = parseInt(document.getElementById('frp-slider').value) || 0;
+        function loadFires() {
+            logDebug('📡 Cargando incendios...');
+            
+            fetch(FIRMS_URL)
+                .then(r => r.json())
+                .then(data => {
+                    firesData = data.features || [];
+                    logDebug(`✅ ${firesData.length} incendios cargados`);
+                    
+                    // Crear semiesferas
+                    createFires();
+                })
+                .catch(e => {
+                    logDebug('❌ Error cargando: ' + e.message);
+                    // Crear una de prueba si falla
+                    createTestFire();
+                });
+        }
 
-            // Limpiar objetos antiguos
+        function createFires() {
+            // Limpiar anteriores
             fireMeshes.forEach(obj => {
                 scene.remove(obj);
                 obj.children.forEach(child => {
@@ -298,24 +289,15 @@
             });
             fireMeshes = [];
 
-            if (!enabled || firesData.length === 0) {
-                document.getElementById('stats-fires').textContent = '🔥 0';
-                isUpdating = false;
+            if (firesData.length === 0) {
+                logDebug('⚠️ No hay datos, creando prueba...');
+                createTestFire();
                 return;
             }
 
-            // Filtrar por FRP
-            const filtered = firesData.filter(f => {
-                const frp = f.properties?.frp || 0;
-                return frp >= frpMin;
-            });
-
-            currentFires = filtered;
-            document.getElementById('stats-fires').textContent = '🔥 ' + filtered.length;
-
-            // Limitar a 200 para rendimiento
-            const toRender = filtered.slice(0, 200);
-            console.log(`🔥 Renderizando ${toRender.length} incendios`);
+            // Tomar los primeros 100
+            const toRender = firesData.slice(0, 100);
+            logDebug(`🔥 Creando ${toRender.length} semiesferas...`);
 
             toRender.forEach(f => {
                 try {
@@ -328,11 +310,31 @@
                     scene.add(group);
                     fireMeshes.push(group);
                 } catch (e) {
-                    console.warn('Error creando esfera:', e);
+                    logDebug('❌ Error: ' + e.message);
                 }
             });
 
-            isUpdating = false;
+            logDebug(`✅ ${fireMeshes.length} semiesferas creadas`);
+            
+            // Verificar posición de la primera
+            if (fireMeshes.length > 0) {
+                const pos = fireMeshes[0].position;
+                logDebug(`📍 Primera semiesfera en: (${pos.x.toFixed(0)}, ${pos.y.toFixed(0)})`);
+            }
+        }
+
+        // ============================================================
+        // CREAR INCENDIO DE PRUEBA (si falla la carga)
+        // ============================================================
+        function createTestFire() {
+            logDebug('🔥 Creando incendio de prueba en Kyiv...');
+            
+            // Kyiv: 30.5234, 50.4501
+            const group = createFireSphere(30.5234, 50.4501, 300);
+            scene.add(group);
+            fireMeshes.push(group);
+            
+            logDebug('✅ Incendio de prueba creado');
         }
 
         // ============================================================
@@ -345,16 +347,16 @@
 
             syncCamera();
 
-            // Animación suave de las semiesferas
             const time = Date.now() / 1000;
             fireMeshes.forEach((group, index) => {
-                const speed = 0.1 + (group.userData.frp / 500) * 0.3;
+                const speed = 0.1 + (group.userData?.frp || 100) / 500 * 0.3;
                 group.rotation.y += 0.003 * speed;
 
                 const pulse = Math.sin(time * 0.5 + index * 0.3) * 0.06 + 0.94;
                 group.children.forEach(child => {
                     if (child.material && child.material.opacity !== undefined) {
-                        if (!child.userData.baseOpacity) {
+                        if (!child.userData?.baseOpacity) {
+                            child.userData = child.userData || {};
                             child.userData.baseOpacity = child.material.opacity;
                         }
                         child.material.opacity = child.userData.baseOpacity * pulse;
@@ -366,58 +368,26 @@
         }
 
         // ============================================================
-        // CONTROLES
-        // ============================================================
-        document.getElementById('chk-fires').addEventListener('change', updateFires);
-        document.getElementById('frp-slider').addEventListener('input', function() {
-            document.getElementById('val-frp').textContent = this.value;
-            updateFires();
-        });
-
-        // ============================================================
         // INICIALIZACIÓN
         // ============================================================
         map.on('load', function() {
-            console.log('🗺️ Mapa cargado');
-            
-            // Iniciar Three.js
-            setTimeout(initThree, 300);
-
-            // Cargar datos
-            fetch(FIRMS_URL)
-                .then(r => r.json())
-                .then(data => {
-                    firesData = data.features || [];
-                    console.log(`✅ FIRMS cargado (${firesData.length} incendios)`);
-                    if (threeReady) {
-                        updateFires();
-                    } else {
-                        // Esperar a que Three.js esté listo
-                        const checkReady = setInterval(() => {
-                            if (threeReady) {
-                                clearInterval(checkReady);
-                                updateFires();
-                            }
-                        }, 100);
-                    }
-                })
-                .catch(e => console.error('Error FIRMS:', e));
+            logDebug('🗺️ Mapa cargado');
+            setTimeout(initThree, 500);
         });
 
-        // Si el mapa ya está cargado
         if (map.loaded()) {
-            console.log('ℹ️ Mapa ya cargado');
-            setTimeout(initThree, 300);
+            logDebug('ℹ️ Mapa ya cargado');
+            setTimeout(initThree, 500);
         }
 
-        // Recrear incendios al mover el mapa (opcional)
-        map.on('moveend', function() {
-            if (threeReady && !isUpdating) {
-                // No recreamos todo, solo sincronizamos cámara
+        setTimeout(() => {
+            if (!threeReady) {
+                logDebug('⏰ Forzando inicio...');
+                initThree();
             }
-        });
+        }, 3000);
 
-        console.log('🚀 Visor iniciado');
+        logDebug('🚀 Visor iniciado');
     </script>
 </body>
 </html>
