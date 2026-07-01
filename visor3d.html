@@ -11,7 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
 
     <style>
-        /* ===== ESTILOS (igual que antes, no los toco para no alargar) ===== */
+        /* ===== ESTILOS ===== */
         * {
             margin: 0;
             padding: 0;
@@ -450,7 +450,6 @@
                 </select>
             </div>
 
-            <!-- ✅ NUEVO SELECTOR DE HORAS CON TEXTO CLARO -->
             <div class="control-group">
                 <label>🕒 Registros existentes de las últimas:</label>
                 <select id="time-range-selector">
@@ -528,7 +527,7 @@
         // CONFIGURACIÓN
         // ============================================================
         const DEEPSTATE_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/deepstate_actual.geojson';
-        const FIRMS_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires.geojson';
+        const FIRMS_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires_polygons.geojson';
 
         let deepstateData = null;
         let firesData = [];
@@ -541,7 +540,7 @@
             style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
             center: [32.0, 48.5],
             zoom: 5.5,
-            pitch: 60, // ✅ Aumentado para ver mejor el 3D
+            pitch: 65,
             renderWorldCopies: false,
             antialias: true,
             preserveDrawingBuffer: true
@@ -725,7 +724,7 @@
         }
 
         // ============================================================
-        // ✅ FUNCIONES DE ACTUALIZACIÓN CON FILTRO POR HORAS EXACTAS
+        // ✅ FUNCIONES DE ACTUALIZACIÓN
         // ============================================================
         function updateDeepstate() {
             if (!deepstateData) return;
@@ -770,7 +769,7 @@
         }
 
         // ============================================================
-        // ✅ FUNCIÓN PRINCIPAL CON SEMIESFERAS 3D (fill-extrusion)
+        // ✅ FUNCIÓN PRINCIPAL CON 3D (fill-extrusion)
         // ============================================================
         function updateFires() {
             if (activePopup) {
@@ -839,49 +838,34 @@
                 return;
             }
 
-            // ✅ Añadir fuente de datos
+            // ✅ Añadir fuente de datos (usa los polígonos)
             map.addSource('fires', {
                 type: 'geojson',
                 data: { type: 'FeatureCollection', features: finalFiltered }
             });
 
-            // ✅ CAPA DE SEMIESFERAS 3D (fill-extrusion)
+            // ✅ CAPA 3D - COLUMNAS CON DEGRADADO
             map.addLayer({
                 id: 'fires-layer',
                 type: 'fill-extrusion',
                 source: 'fires',
                 paint: {
                     'fill-extrusion-height': ['interpolate', ['linear'], ['get', 'frp'], 
-                        10, 80,      // FRP 10 → altura 80 metros
-                        50, 200,     // FRP 50 → altura 200 metros
-                        100, 350,    // FRP 100 → altura 350 metros
-                        500, 800     // FRP 500 → altura 800 metros
+                        10, 100, 
+                        100, 400, 
+                        500, 900
                     ],
                     'fill-extrusion-color': ['interpolate', ['linear'], ['get', 'frp'], 
-                        10, '#FFDD00',   // Amarillo (fuegos pequeños)
-                        50, '#FF8800',   // Naranja (fuegos medios)
-                        150, '#FF3300',  // Rojo-naranja
-                        500, '#CC0000'   // Rojo intenso (grandes incendios)
+                        10, '#FFDD00', 
+                        100, '#FF6600', 
+                        500, '#CC0000'
                     ],
-                    'fill-extrusion-opacity': 0.85,
+                    'fill-extrusion-opacity': 0.7,
                     'fill-extrusion-base': 0,
-                    'fill-extrusion-vertical-gradient': true // ✅ Crea el degradado vertical (efecto semiesfera)
+                    'fill-extrusion-vertical-gradient': true
                 }
             });
 
-            // ✅ PRUEBA 3D EXTREMA - Columnas de 5000 metros
-        map.addLayer({
-            id: 'fires-layer',
-            type: 'fill-extrusion',
-            source: 'fires',
-            paint: {
-                'fill-extrusion-height': ['interpolate', ['linear'], ['get', 'frp'], 10, 2000, 100, 5000, 500, 10000],
-                'fill-extrusion-color': '#FF0000',
-                'fill-extrusion-opacity': 0.9,
-                'fill-extrusion-base': 0,
-                'fill-extrusion-vertical-gradient': true
-            }
-        });
             // ============================================================
             // ✅ POPUP CON HORA LOCAL DEL USUARIO
             // ============================================================
@@ -1201,7 +1185,7 @@
         }
 
         // ============================================================
-        // ✅ CARGAR DATOS - ESPERANDO A QUE EL MAPA ESTÉ LISTO
+        // ✅ CARGAR DATOS
         // ============================================================
 
         whenMapLoaded(function() {
@@ -1228,7 +1212,7 @@
         });
 
         // ============================================================
-        // ACTIVAR ARRASTRE Y MINIMIZADO EN PANEL Y LEYENDA
+        // ACTIVAR ARRASTRE Y MINIMIZADO
         // ============================================================
         makeWindowDraggable(document.getElementById('panel'), document.getElementById('panel-header'));
         makeWindowMinimizable(document.getElementById('panel-body'), document.getElementById('panel-min'));
