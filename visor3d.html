@@ -454,9 +454,9 @@
             <div class="control-group">
                 <label>🕒 Registros existentes de las últimas:</label>
                 <select id="time-range-selector">
-                    <option value="72" selected>72 horas</option>
-                    <option value="48">48 horas</option>
+                    <option value="48" selected>48 horas</option>
                     <option value="24">24 horas</option>
+                    <option value="72">72 horas</option>
                 </select>
             </div>
 
@@ -778,7 +778,7 @@
             const enabled = document.getElementById('chk-fires').checked;
             const frpMin = parseInt(document.getElementById('frp-slider').value) || 0;
             // ✅ Leer el valor del selector (24, 48 o 72 horas)
-            const timeRange = parseInt(document.getElementById('time-range-selector').value) || 72;
+            const timeRange = parseInt(document.getElementById('time-range-selector').value) || 48;
 
             if (map.getLayer('fires-layer')) map.removeLayer('fires-layer');
             if (map.getSource('fires')) map.removeSource('fires');
@@ -1196,28 +1196,31 @@
         }
 
         // ============================================================
-        // CARGAR DATOS CON whenMapLoaded
+        // ✅ CARGAR DATOS - ESPERANDO A QUE EL MAPA ESTÉ LISTO (CORREGIDO)
         // ============================================================
-        fetch(DEEPSTATE_URL)
-            .then(r => r.json())
-            .then(data => {
-                deepstateData = data;
-                whenMapLoaded(function() {
+
+        whenMapLoaded(function() {
+            // Cargar DeepState (línea del frente)
+            fetch(DEEPSTATE_URL)
+                .then(r => r.json())
+                .then(data => {
+                    deepstateData = data;
                     updateDeepstate();
                     updateTerrain();
-                });
-            })
-            .catch(e => console.error('DeepState error:', e));
+                    console.log('✅ DeepState cargado');
+                })
+                .catch(e => console.error('DeepState error:', e));
 
-        fetch(FIRMS_URL)
-            .then(r => r.json())
-            .then(data => {
-                firesData = data.features || [];
-                whenMapLoaded(function() {
+            // Cargar FIRMS (incendios)
+            fetch(FIRMS_URL)
+                .then(r => r.json())
+                .then(data => {
+                    firesData = data.features || [];
                     updateFires();
-                });
-            })
-            .catch(e => console.error('FIRMS error:', e));
+                    console.log('✅ FIRMS cargado');
+                })
+                .catch(e => console.error('FIRMS error:', e));
+        });
 
         // ============================================================
         // ACTIVAR ARRASTRE Y MINIMIZADO EN PANEL Y LEYENDA
