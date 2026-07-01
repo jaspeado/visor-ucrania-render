@@ -8,6 +8,8 @@
     <script src="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.js">
     </script>
     <link href="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js">
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
 
     <style>
@@ -22,10 +24,21 @@
             width: 100%;
             height: 100%;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            overflow: hidden;
         }
         #map {
             width: 100%;
             height: 100vh;
+            position: relative;
+        }
+        #three-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
         }
         #panel {
             position: absolute;
@@ -520,7 +533,9 @@
     <div id="attribution">
         <span id="attribution-text">🌍 Fuente: CartoDB (Dark Matter)</span>
     </div>
-    <div id="map"></div>
+    <div id="map">
+        <div id="three-container"></div>
+    </div>
 
     <script>
         // ============================================================
@@ -534,6 +549,8 @@
         let currentFiresFiltered = [];
         let selectedRegion = null;
         let activePopup = null;
+        let fireMeshes = [];
+        let scene, camera, renderer, threeContainer;
 
         const map = new maplibregl.Map({
             container: 'map',
@@ -547,6 +564,245 @@
         });
 
         map.addControl(new maplibregl.NavigationControl(), 'top-right');
+
+        // ============================================================
+        // THREE.JS SETUP
+        // ============================================================
+        function initThree() {
+            threeContainer = document.getElementById('three-container');
+
+            scene = new THREE.Scene();
+
+            // Cámara
+            const aspect = window.innerWidth / window.innerHeight;
+            camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 1000000);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({
+                alpha: true,
+                antialias: true
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setClearColor(0x000000, 0);
+            threeContainer.appendChild(renderer.domElement);
+
+            // Luces
+            const ambientLight = new THREE.AmbientLight(0x404060);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+            dirLight.position.set(1, 1, 1);
+            scene.add(dirLight);
+
+            const dirLight2 = new THREE.DirectionalLight(0xff8844, 0.5);
+            dirLight2.position.set(-1, 0.5, -1);
+            scene.add(dirLight2);
+
+            // Resize
+            window.addEventListener('resize', () => {
+                const w = window.innerWidth;
+                const h = window.innerHeight;
+                camera.aspect = w / h;
+                camera.updateProjectionMatrix();
+                renderer.setSize(w, h);
+            });
+        }
+
+        // ============================================================
+        // FUNCIONES DE PROYECCIÓN Y SINCRONIZACIÓN
+        // ============================================================
+        function lngLatToMeters(lng, lat) {
+            const R = 6371000;
+            const x = R * lng * Math.PI / 180 * Math.cos(lat * Math.PI / 180);
+            const y = R * lat * Math.PI / 180;
+            return { x, y };
+        }
+
+        function syncCamera() {
+            if (!map || !camera) return;
+
+            const center = map.getCenter();
+            const zoom = map.getZoom();
+            const pitch = map.getPitch();
+            const bearing = map.getBearing();
+
+            // Obtener la posición de la cámara en coordenadas del mundo
+            const canvas = map.getCanvas();
+            const width = canvas.width;
+            const height = canvas.height;
+
+            // Proyectar el centro a metros
+            const centerMeters = lngLatToMeters(center.lng, center.lat);
+
+            // Calcular altura basada en zoom
+            const metersPerPixel = 156543.03392 * Math.cos(center.lat * Math.PI / 180) / Math.pow(2, zoom);
+            const altitude = metersPerPixel * height / (2 * Math.tan(camera.fov / 2 * Math.PI / 180));
+
+            // Posicionar cámara de Three
+            const pitchRad = pitch * Math.PI / 180;
+            const bearingRad = -bearing * Math.PI / 180;
+
+            const offsetX = altitude * Math.sin(pitchRad) * Math.sin(bearingRad);
+            const offsetY = altitude * Math.sin(pitchRad) * Math.cos(bearingRad);
+            const offsetZ = altitude * Math.cos(pitchRad);
+
+            camera.position.set(
+                centerMeters.x + offsetX,
+                centerMeters.y + offsetY,
+                offsetZ
+            );
+
+            camera.lookAt(centerMeters.x, centerMeters.y, 0);
+
+            // Actualizar matriz de proyección
+            camera.updateProjectionMatrix();
+        }
+
+        // ============================================================
+        // CREAR SEMIESFERAS 3D CON GLOW
+        // ============================================================
+        function createGlowSphere(lon, lat, frp) {
+            const pos = lngLatToMeters(lon, lat);
+
+            // Radio basado en FRP (10-500 → 50-400 metros)
+            const radius = 50 + (frp / 500) * 350;
+
+            // Altura máxima (para que no se hundan)
+            const maxHeight = 800;
+
+            // Color basado en FRP (amarillo → naranja → rojo)
+            const hue = 40 - (frp / 500) * 25;
+            const saturation = 100;
+            const lightness = 50 + (frp / 500) * 30;
+
+            // SEMIESFERA PRINCIPAL
+            const geometry = new THREE.SphereGeometry(radius, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+
+            const material = new THREE.MeshPhongMaterial({
+                color: new THREE.Color(`hsl(${hue}, ${saturation}%, ${lightness}%)`),
+                emissive: new THREE.Color(`hsl(${hue}, 100%, ${lightness * 0.6}%)`),
+                emissiveIntensity: 0.3 + (frp / 500) * 0.7,
+                transparent: true,
+                opacity: 0.4 + (frp / 500) * 0.4,
+                side: THREE.DoubleSide,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false,
+                shininess: 30
+            });
+
+            const sphere = new THREE.Mesh(geometry, material);
+            sphere.position.set(pos.x, pos.y, radius * 0.9);
+
+            // GLOW EXTERIOR (más grande y difuso)
+            const glowRadius = radius * 1.8;
+            const glowGeometry = new THREE.SphereGeometry(glowRadius, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+
+            const glowMaterial = new THREE.MeshBasicMaterial({
+                color: new THREE.Color(`hsl(${hue}, 100%, ${lightness * 0.7}%)`),
+                transparent: true,
+                opacity: 0.08 + (frp / 500) * 0.12,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+
+            const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+            glow.position.copy(sphere.position);
+
+            // GLOW INTERIOR (punto brillante)
+            const coreRadius = radius * 0.4;
+            const coreGeometry = new THREE.SphereGeometry(coreRadius, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+
+            const coreMaterial = new THREE.MeshBasicMaterial({
+                color: new THREE.Color(`hsl(${hue + 10}, 100%, ${lightness + 20}%)`),
+                transparent: true,
+                opacity: 0.3 + (frp / 500) * 0.4,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+
+            const core = new THREE.Mesh(coreGeometry, coreMaterial);
+            core.position.copy(sphere.position);
+            core.position.y += radius * 0.2;
+
+            // Agrupar todo
+            const group = new THREE.Group();
+            group.add(sphere);
+            group.add(glow);
+            group.add(core);
+            group.userData = { frp, lon, lat, radius, pos };
+
+            return group;
+        }
+
+        // ============================================================
+        // ACTUALIZAR FOCOS EN THREE.JS
+        // ============================================================
+        function updateThreeFires() {
+            // Limpiar objetos antiguos
+            fireMeshes.forEach(obj => {
+                scene.remove(obj);
+                // Liberar geometrías y materiales
+                obj.children.forEach(child => {
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) child.material.dispose();
+                });
+            });
+            fireMeshes = [];
+
+            const enabled = document.getElementById('chk-fires').checked;
+            if (!enabled || currentFiresFiltered.length === 0) return;
+
+            // Tomar solo los primeros 300 para rendimiento
+            const toRender = currentFiresFiltered.slice(0, 300);
+
+            toRender.forEach(f => {
+                const frp = f.properties?.frp || 10;
+                const coords = f.geometry.coordinates;
+                const lon = coords[0];
+                const lat = coords[1];
+
+                const group = createGlowSphere(lon, lat, frp);
+                scene.add(group);
+                fireMeshes.push(group);
+            });
+        }
+
+        // ============================================================
+        // ANIMACIÓN
+        // ============================================================
+        let lastTime = 0;
+
+        function animate(time) {
+            requestAnimationFrame(animate);
+
+            // Sincronizar cámara
+            syncCamera();
+
+            // Animación suave de las semiesferas
+            const delta = (time - lastTime) / 1000;
+            lastTime = time;
+
+            fireMeshes.forEach((group, index) => {
+                // Rotación lenta y pulsación
+                const speed = 0.2 + (group.userData.frp / 500) * 0.3;
+                group.rotation.y += delta * speed * 0.5;
+
+                // Pulsación de opacidad
+                const pulse = Math.sin(time / 1000 + index) * 0.05 + 0.95;
+                group.children.forEach(child => {
+                    if (child.material && child.material.opacity !== undefined) {
+                        // Guardar opacidad base en userData
+                        if (!child.userData.baseOpacity) {
+                            child.userData.baseOpacity = child.material.opacity;
+                        }
+                        child.material.opacity = child.userData.baseOpacity * pulse;
+                    }
+                });
+            });
+
+            renderer.render(scene, camera);
+        }
 
         // ============================================================
         // ✅ FUNCIÓN PARA ESPERAR A QUE EL MAPA ESTÉ CARGADO
@@ -622,7 +878,7 @@
         }
 
         // ============================================================
-        // ✅ ARRASTRE Y MINIMIZADO PARA VENTANAS FIJAS (panel y leyenda)
+        // ✅ ARRASTRE Y MINIMIZADO PARA VENTANAS FIJAS
         // ============================================================
         function makeWindowDraggable(containerEl, handleEl) {
             if (!containerEl || !handleEl) return;
@@ -701,17 +957,6 @@
         // ============================================================
         // FUNCIONES DE ESTILO
         // ============================================================
-        function getStyleUrl(style) {
-            switch (style) {
-                case 'satellite':
-                    return null;
-                case 'dark':
-                    return 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
-                default:
-                    return 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
-            }
-        }
-
         function updateAttribution(style) {
             const attributionText = document.getElementById('attribution-text');
             const sources = {
@@ -769,7 +1014,7 @@
         }
 
         // ============================================================
-        // ✅ FUNCIÓN PRINCIPAL CON 3D (fill-extrusion)
+        // ✅ FUNCIÓN PRINCIPAL CON THREE.JS
         // ============================================================
         function updateFires() {
             if (activePopup) {
@@ -781,7 +1026,7 @@
             const frpMin = parseInt(document.getElementById('frp-slider').value) || 0;
             const timeRange = parseInt(document.getElementById('time-range-selector').value) || 48;
 
-            // ✅ Eliminar capas y fuentes antiguas
+            // Eliminar capas antiguas de MapLibre (ya no las usamos para 3D)
             if (map.getLayer('fires-layer')) map.removeLayer('fires-layer');
             if (map.getSource('fires')) map.removeSource('fires');
 
@@ -789,13 +1034,14 @@
                 currentFiresFiltered = [];
                 updateRegionLegend();
                 document.getElementById('stats-fires').textContent = '🔥 0';
+                updateThreeFires();
                 return;
             }
 
             const ahora = Date.now();
             const limite = ahora - (timeRange * 60 * 60 * 1000);
 
-            // ✅ Filtrar los incendios
+            // Filtrar los incendios
             const filtered = firesData.filter(f => {
                 if ((f.properties?.frp || 0) < frpMin) return false;
                 const acqDate = f.properties?.acq_date;
@@ -818,7 +1064,7 @@
                 return fechaUTC.getTime() >= limite;
             });
 
-            // ✅ Filtrar por región seleccionada
+            // Filtrar por región seleccionada
             const filteredByRegion = filtered.filter(f => {
                 if (!selectedRegion) return true;
                 if (selectedRegion === 'Otras ubicaciones') {
@@ -835,172 +1081,34 @@
             if (finalFiltered.length === 0) {
                 updateRegionLegend();
                 document.getElementById('stats-fires').textContent = '🔥 0';
+                updateThreeFires();
                 return;
             }
 
-            // ✅ Añadir fuente de datos (usa los polígonos)
-            map.addSource('fires', {
-                type: 'geojson',
-                data: { type: 'FeatureCollection', features: finalFiltered }
-            });
-
-            // ✅ CAPA 3D - COLUMNAS CON DEGRADADO
-            // ✅ SEMIESFERAS 3D CON TRANSPARENCIA (molonas)
-            map.addLayer({
-                id: 'fires-layer',
-                type: 'fill-extrusion',
-                source: 'fires',
-                paint: {
-                    'fill-extrusion-height': [
-                    'interpolate',
-                    ['linear'],
-                    ['get', 'frp'],
-                    10, 60,
-                    100, 250,
-                    500, 600
-                ],
-                'fill-extrusion-color': [
-                    'interpolate',
-                    ['linear'],
-                    ['get', 'frp'],
-                    10, '#FFDD00',
-                    50, '#FF9900',
-                    150, '#FF4400',
-                    500, '#CC0000'
-                ],
-                'fill-extrusion-opacity': 0.6,
-                'fill-extrusion-base': 0,
-                'fill-extrusion-vertical-gradient': true
-                }
-            });
-
-            // ============================================================
-            // ✅ POPUP CON HORA LOCAL DEL USUARIO
-            // ============================================================
-            map.off('click', 'fires-layer');
-            map.on('click', 'fires-layer', function(e) {
-                if (activePopup) {
-                    activePopup.remove();
-                    activePopup = null;
-                }
-
-                const p = e.features[0].properties;
-                const coords = e.features[0].geometry.coordinates;
-                const lon = coords[0];
-                const lat = coords[1];
-                const frp = p.frp || 0;
-                const localidad = p.locality || 'N/A';
-                const oblast = p.NAME_1 || 'N/A';
-                const acqDate = p.acq_date || 'N/A';
-                const acqTime = p.acq_time || '0';
-
-                let horaUTC = 0,
-                    minutosUTC = 0;
-                if (acqTime !== 'N/A') {
-                    const timeStr = String(acqTime).padStart(4, '0');
-                    horaUTC = parseInt(timeStr.substring(0, 2));
-                    minutosUTC = parseInt(timeStr.substring(2, 4));
-                }
-
-                const fechaUTC = new Date(Date.UTC(
-                    parseInt(acqDate.split('-')[0]),
-                    parseInt(acqDate.split('-')[1]) - 1,
-                    parseInt(acqDate.split('-')[2]),
-                    horaUTC,
-                    minutosUTC
-                ));
-
-                const horaLocal = fechaUTC.toLocaleString('es-ES', {
-                    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    dateStyle: 'medium',
-                    timeStyle: 'short'
-                });
-
-                const googleEarthUrl = `https://earth.google.com/web/search/${lat},${lon}`;
-                const yandexUrl = `https://yandex.com/maps/?pt=${lon},${lat}&z=15`;
-
-                activePopup = new maplibregl.Popup({
-                    closeButton: false,
-                    closeOnClick: false,
-                    className: 'custom-popup'
-                })
-                    .setLngLat(e.lngLat)
-                    .setHTML(`
-                        <div class="popup-header">
-                            <span class="popup-title">🔥 Incendio</span>
-                            <div class="popup-controls">
-                                <span class="popup-btn" id="popup-min">─</span>
-                                <span class="popup-btn" id="popup-close">✕</span>
-                            </div>
-                        </div>
-                        <div class="popup-body" id="popup-body">
-                            <div><span style="color:#ff6600; font-weight:600;">🔥 FRP:</span> ${frp} MW</div>
-                            <div><span style="color:#8b949e;">LAT/LONG:</span> <span style="font-weight:500; font-family:'Courier New',monospace; color:#e6edf3;">${lat.toFixed(5)}, ${lon.toFixed(5)}</span></div>
-                            <div><span style="color:#8b949e;">Localidad:</span> <span style="font-weight:500; color:#e6edf3;">${localidad}</span></div>
-                            <div><span style="color:#8b949e;">Región:</span> <span style="font-weight:500; color:#e6edf3;">${oblast}</span></div>
-                            <div><span style="color:#8b949e;">🕒 Hora local:</span> <span style="font-weight:500; color:#e6edf3;">${horaLocal}</span></div>
-                            <div style="border-top:1px solid #21262d; padding-top:4px; display:flex; gap:6px; font-size:10px;">
-                                <a href="${googleEarthUrl}" target="_blank" style="color:#58a6ff; text-decoration:none; font-weight:500;">🌍 Google Earth</a>
-                                <span style="color:#30363d;">|</span>
-                                <a href="${yandexUrl}" target="_blank" style="color:#58a6ff; text-decoration:none; font-weight:500;">🗺️ Yandex</a>
-                            </div>
-                        </div>
-                    `)
-                    .addTo(map);
-
-                activePopup.on('close', () => {
-                    activePopup = null;
-                });
-
-                const popupEl = activePopup.getElement();
-
-                if (popupEl) {
-                    popupEl.style.pointerEvents = 'auto';
-
-                    const headerEl = popupEl.querySelector('.popup-header');
-                    makeDraggable(popupEl, headerEl);
-
-                    const closeBtn = popupEl.querySelector('#popup-close');
-                    const minBtn = popupEl.querySelector('#popup-min');
-
-                    if (closeBtn) {
-                        closeBtn.addEventListener('click', (ev) => {
-                            ev.stopPropagation();
-                            activePopup.remove();
-                            activePopup = null;
-                        });
-                    }
-
-                    if (minBtn) {
-                        minBtn.addEventListener('click', (ev) => {
-                            ev.stopPropagation();
-                            const body = popupEl.querySelector('#popup-body');
-                            body.classList.toggle('minimized');
-                            ev.target.textContent = body.classList.contains('minimized') ? '▢' : '─';
-                        });
-                    }
-
-                    if (window.innerWidth < 640) {
-                        setTimeout(() => {
-                            const rect = popupEl.getBoundingClientRect();
-                            if (rect.right > window.innerWidth) {
-                                popupEl.style.left = (window.innerWidth - rect.width - 10) + 'px';
-                            }
-                            if (rect.bottom > window.innerHeight) {
-                                popupEl.style.top = (window.innerHeight - rect.height - 10) + 'px';
-                            }
-                        }, 10);
-                    }
-                } else {
-                    console.error('No se pudo obtener el elemento del popup');
-                }
-            });
-
-            map.on('mouseenter', 'fires-layer', () => map.getCanvas().style.cursor = 'pointer');
-            map.on('mouseleave', 'fires-layer', () => map.getCanvas().style.cursor = '');
-
             document.getElementById('stats-fires').textContent = '🔥 ' + finalFiltered.length;
             updateRegionLegend();
+            updateThreeFires();
+
+            // AÑADIR CÍRCULOS 2D DE APOYO EN MAPLIBRE (opcional, para referencia)
+            // Esto da un respaldo visual si Three.js falla
+            if (enabled && finalFiltered.length > 0) {
+                map.addSource('fires-backup', {
+                    type: 'geojson',
+                    data: { type: 'FeatureCollection', features: finalFiltered }
+                });
+
+                map.addLayer({
+                    id: 'fires-backup-layer',
+                    type: 'circle',
+                    source: 'fires-backup',
+                    paint: {
+                        'circle-radius': 3,
+                        'circle-color': '#ff4400',
+                        'circle-opacity': 0.3,
+                        'circle-blur': 0.5
+                    }
+                });
+            }
         }
 
         // ============================================================
@@ -1128,11 +1236,12 @@
 
             updateAttribution(selected);
 
-            ['satellite-layer', 'osm-layer', 'topo-layer', 'deepstate-fill', 'deepstate-line', 'fires-layer'].forEach(
-            id => {
+            ['satellite-layer', 'osm-layer', 'topo-layer', 'deepstate-fill', 'deepstate-line', 'fires-layer',
+                'fires-backup-layer'
+            ].forEach(id => {
                 if (map.getLayer(id)) map.removeLayer(id);
             });
-            ['satellite-source', 'osm-source', 'topo-source', 'deepstate', 'fires'].forEach(id => {
+            ['satellite-source', 'osm-source', 'topo-source', 'deepstate', 'fires', 'fires-backup'].forEach(id => {
                 if (map.getSource(id)) map.removeSource(id);
             });
 
@@ -1193,11 +1302,14 @@
         }
 
         // ============================================================
-        // ✅ CARGAR DATOS
+        // ✅ CARGAR DATOS E INICIALIZAR
         // ============================================================
 
         whenMapLoaded(function() {
-            // Cargar DeepState (línea del frente)
+            // Inicializar Three.js
+            initThree();
+
+            // Cargar DeepState
             fetch(DEEPSTATE_URL)
                 .then(r => r.json())
                 .then(data => {
@@ -1208,7 +1320,7 @@
                 })
                 .catch(e => console.error('DeepState error:', e));
 
-            // Cargar FIRMS (incendios)
+            // Cargar FIRMS
             fetch(FIRMS_URL)
                 .then(r => r.json())
                 .then(data => {
@@ -1217,6 +1329,9 @@
                     console.log('✅ FIRMS cargado');
                 })
                 .catch(e => console.error('FIRMS error:', e));
+
+            // Iniciar animación
+            animate(0);
         });
 
         // ============================================================
@@ -1254,7 +1369,9 @@
             updateDeepstate();
         });
 
-        document.getElementById('chk-fires').addEventListener('change', updateFires);
+        document.getElementById('chk-fires').addEventListener('change', function() {
+            updateFires();
+        });
         document.getElementById('frp-slider').addEventListener('input', function() {
             document.getElementById('val-frp').textContent = this.value;
             updateFires();
