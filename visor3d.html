@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Visor Ucrania 3D</title>
+    <title>Visor Ucrania 3D - Semiesferas</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>">
     <script src="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.js">
     </script>
@@ -13,7 +13,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
 
     <style>
-        /* ===== ESTILOS ===== */
         * {
             margin: 0;
             padding: 0;
@@ -612,7 +611,7 @@
         }
 
         // ============================================================
-        // PROYECCIÓN Y SINCRONIZACIÓN
+        // PROYECCIÓN Y SINCRONIZACIÓN (CORREGIDA)
         // ============================================================
         function lngLatToMeters(lng, lat) {
             const R = 6378137;
@@ -624,48 +623,62 @@
         function syncCamera() {
             if (!map || !camera || !threeReady) return;
 
-            const center = map.getCenter();
-            const zoom = map.getZoom();
-            const pitch = map.getPitch();
-            const bearing = map.getBearing();
+            try {
+                const center = map.getCenter();
+                const zoom = map.getZoom();
+                const pitch = map.getPitch();
+                const bearing = map.getBearing();
 
-            const centerMeters = lngLatToMeters(center.lng, center.lat);
+                const centerMeters = lngLatToMeters(center.lng, center.lat);
 
-            const canvas = map.getCanvas();
-            const height = canvas.height;
-            const fov = camera.fov * Math.PI / 180;
+                const canvas = map.getCanvas();
+                const height = canvas.height;
+                const fov = camera.fov * Math.PI / 180;
 
-            const metersPerPixel = 156543.03392 * Math.cos(center.lat * Math.PI / 180) / Math.pow(2, zoom);
-            const cameraHeight = (height / 2) / Math.tan(fov / 2) * metersPerPixel;
+                // Altura de cámara basada en zoom
+                const metersPerPixel = 156543.03392 * Math.cos(center.lat * Math.PI / 180) / Math.pow(2, zoom);
+                const cameraHeight = (height / 2) / Math.tan(fov / 2) * metersPerPixel;
 
-            const pitchRad = pitch * Math.PI / 180;
-            const bearingRad = -bearing * Math.PI / 180;
+                const pitchRad = pitch * Math.PI / 180;
+                const bearingRad = -bearing * Math.PI / 180;
 
-            const horizontalDistance = cameraHeight * Math.sin(pitchRad);
-            const verticalDistance = cameraHeight * Math.cos(pitchRad);
+                const horizontalDistance = cameraHeight * Math.sin(pitchRad);
+                const verticalDistance = cameraHeight * Math.cos(pitchRad);
 
-            const offsetX = horizontalDistance * Math.sin(bearingRad);
-            const offsetY = horizontalDistance * Math.cos(bearingRad);
-            const offsetZ = verticalDistance;
+                const offsetX = horizontalDistance * Math.sin(bearingRad);
+                const offsetY = horizontalDistance * Math.cos(bearingRad);
+                const offsetZ = verticalDistance;
 
-            camera.position.set(
-                centerMeters.x + offsetX,
-                centerMeters.y + offsetY,
-                offsetZ
-            );
+                camera.position.set(
+                    centerMeters.x + offsetX,
+                    centerMeters.y + offsetY,
+                    offsetZ
+                );
 
-            camera.lookAt(centerMeters.x, centerMeters.y, 0);
-            camera.updateProjectionMatrix();
+                camera.lookAt(centerMeters.x, centerMeters.y, 0);
+                camera.updateProjectionMatrix();
+
+                // Ajustar near/far para evitar clipping
+                const distance = Math.sqrt(offsetX * offsetX + offsetY * offsetY + offsetZ * offsetZ);
+                const near = Math.max(0.1, distance * 0.001);
+                const far = Math.max(100000, distance * 10);
+                camera.near = near;
+                camera.far = far;
+                camera.updateProjectionMatrix();
+
+            } catch (error) {
+                console.warn('⚠️ Error en syncCamera:', error);
+            }
         }
 
         // ============================================================
-        // CREAR SEMIESFERA 3D - VERSIÓN GIGANTE
+        // CREAR SEMIESFERA 3D
         // ============================================================
         function createGlowSphere(lon, lat, frp) {
             const pos = lngLatToMeters(lon, lat);
 
             const t = Math.min(frp / 500, 1);
-            // Radio: de 200m a 1500m (visible desde lejos)
+            // Radio: de 200m a 1500m
             const radius = 200 + t * 1300;
 
             const r = 255;
@@ -764,7 +777,6 @@
             const enabled = document.getElementById('chk-fires').checked;
             if (!enabled || currentFiresFiltered.length === 0) return;
 
-            // Renderizar hasta 200 focos
             const toRender = currentFiresFiltered.slice(0, 200);
 
             toRender.forEach(f => {
@@ -875,7 +887,6 @@
             const frpMin = parseInt(document.getElementById('frp-slider').value) || 0;
             const timeRange = parseInt(document.getElementById('time-range-selector').value) || 48;
 
-            // Eliminar capas de respaldo de MapLibre
             ['fires-backup-layer'].forEach(id => {
                 if (map.getLayer(id)) map.removeLayer(id);
             });
@@ -938,7 +949,6 @@
 
             updateThreeFires();
 
-            // CAPA DE RESPALDO (invisible para popups)
             map.addSource('fires-backup', {
                 type: 'geojson',
                 data: { type: 'FeatureCollection', features: filteredByRegion }
