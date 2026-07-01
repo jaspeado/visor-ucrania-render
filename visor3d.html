@@ -541,7 +541,7 @@
             style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
             center: [32.0, 48.5],
             zoom: 5.5,
-            pitch: 60, // ✅ Aumentado para ver mejor las semiesferas
+            pitch: 60, // ✅ Aumentado para ver mejor el 3D
             renderWorldCopies: false,
             antialias: true,
             preserveDrawingBuffer: true
@@ -770,7 +770,7 @@
         }
 
         // ============================================================
-        // ✅ FUNCIÓN PRINCIPAL CON SEMIESFERAS 3D Y HALO DE FUEGO
+        // ✅ FUNCIÓN PRINCIPAL CON SEMIESFERAS 3D (fill-extrusion)
         // ============================================================
         function updateFires() {
             if (activePopup) {
@@ -784,7 +784,6 @@
 
             // ✅ Eliminar capas y fuentes antiguas
             if (map.getLayer('fires-layer')) map.removeLayer('fires-layer');
-            if (map.getLayer('fires-halo')) map.removeLayer('fires-halo');
             if (map.getSource('fires')) map.removeSource('fires');
 
             if (!enabled || firesData.length === 0) {
@@ -846,7 +845,7 @@
                 data: { type: 'FeatureCollection', features: finalFiltered }
             });
 
-            // ✅ CAPA 1: SEMIESFERA 3D (fill-extrusion)
+            // ✅ CAPA DE SEMIESFERAS 3D (fill-extrusion)
             map.addLayer({
                 id: 'fires-layer',
                 type: 'fill-extrusion',
@@ -870,35 +869,11 @@
                 }
             });
 
-            // ✅ CAPA 2: HALO DE FUEGO (blur alrededor de la semiesfera)
-            map.addLayer({
-                id: 'fires-halo',
-                type: 'circle',
-                source: 'fires',
-                paint: {
-                    'circle-radius': ['interpolate', ['linear'], ['get', 'frp'], 
-                        10, 20, 
-                        100, 45, 
-                        500, 80
-                    ],
-                    'circle-color': ['interpolate', ['linear'], ['get', 'frp'], 
-                        10, '#FFDD00', 
-                        100, '#FF6600', 
-                        500, '#CC0000'
-                    ],
-                    'circle-opacity': 0.4,
-                    'circle-blur': 0.6, // ✅ Mucho blur para el halo
-                    'circle-pitch-alignment': 'map'
-                }
-            });
-
             // ============================================================
             // ✅ POPUP CON HORA LOCAL DEL USUARIO
             // ============================================================
             map.off('click', 'fires-layer');
-            map.off('click', 'fires-halo');
-            
-            const showPopup = function(e) {
+            map.on('click', 'fires-layer', function(e) {
                 if (activePopup) {
                     activePopup.remove();
                     activePopup = null;
@@ -1014,10 +989,7 @@
                 } else {
                     console.error('No se pudo obtener el elemento del popup');
                 }
-            };
-
-            map.on('click', 'fires-layer', showPopup);
-            map.on('click', 'fires-halo', showPopup);
+            });
 
             map.on('mouseenter', 'fires-layer', () => map.getCanvas().style.cursor = 'pointer');
             map.on('mouseleave', 'fires-layer', () => map.getCanvas().style.cursor = '');
@@ -1151,7 +1123,7 @@
 
             updateAttribution(selected);
 
-            ['satellite-layer', 'osm-layer', 'topo-layer', 'deepstate-fill', 'deepstate-line', 'fires-layer', 'fires-halo'].forEach(
+            ['satellite-layer', 'osm-layer', 'topo-layer', 'deepstate-fill', 'deepstate-line', 'fires-layer'].forEach(
             id => {
                 if (map.getLayer(id)) map.removeLayer(id);
             });
