@@ -10,35 +10,11 @@
     <link href="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js">
     </script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
-
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        html,
-        body {
-            width: 100%;
-            height: 100%;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            overflow: hidden;
-        }
-        #map {
-            width: 100%;
-            height: 100vh;
-            position: relative;
-        }
-        #three-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 10;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; font-family: 'Inter', sans-serif; overflow: hidden; }
+        #map { width: 100%; height: 100vh; position: relative; }
+        #three-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
         #panel {
             position: absolute;
             top: 12px;
@@ -49,89 +25,19 @@
             border-radius: 10px;
             padding: 14px 16px;
             min-width: 200px;
-            max-width: 220px;
-            font-size: 12px;
             color: #e6edf3;
-            font-family: 'Inter', sans-serif;
+            font-size: 12px;
         }
-        .control-group {
-            margin-bottom: 10px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #21262d;
-        }
-        .control-group:last-child {
-            border-bottom: none;
-            margin-bottom: 0;
-            padding-bottom: 0;
-        }
-        .control-group label {
-            display: block;
-            font-size: 10px;
-            color: #8b949e;
-            text-transform: uppercase;
-            font-weight: 600;
-            margin-bottom: 3px;
-        }
-        .control-group input[type="range"] {
-            width: 100%;
-            margin: 4px 0;
-            accent-color: #58a6ff;
-            background: #30363d;
-            height: 3px;
-            border-radius: 2px;
-            cursor: pointer;
-        }
-        .checkbox-group {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            margin: 2px 0;
-        }
-        .checkbox-group input[type="checkbox"] {
-            accent-color: #58a6ff;
-            width: 14px;
-            height: 14px;
-            cursor: pointer;
-        }
-        .checkbox-group label {
-            text-transform: none !important;
-            font-size: 11px !important;
-            color: #e6edf3 !important;
-            font-weight: 400 !important;
-            margin-bottom: 0 !important;
-        }
-        .slider-value {
-            float: right;
-            font-size: 10px;
-            color: #58a6ff;
-            font-weight: 500;
-        }
-        .stats-row {
-            display: flex;
-            justify-content: space-between;
-            font-size: 10px;
-            color: #8b949e;
-            margin-top: 4px;
-            padding-top: 8px;
-            border-top: 1px solid #21262d;
-            font-weight: 500;
-        }
-        #info {
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 1000;
-            background: rgba(13, 17, 23, 0.85);
-            padding: 6px 18px;
-            border-radius: 20px;
-            border: 1px solid #30363d;
-            color: #8b949e;
-            font-size: 11px;
-            pointer-events: none;
-            white-space: nowrap;
-            font-family: 'Inter', sans-serif;
-        }
+        .control-group { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #21262d; }
+        .control-group:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        .control-group label { display: block; font-size: 10px; color: #8b949e; text-transform: uppercase; font-weight: 600; margin-bottom: 3px; }
+        .control-group input[type="range"] { width: 100%; margin: 4px 0; accent-color: #58a6ff; background: #30363d; height: 3px; border-radius: 2px; cursor: pointer; }
+        .checkbox-group { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
+        .checkbox-group input[type="checkbox"] { accent-color: #58a6ff; width: 14px; height: 14px; cursor: pointer; }
+        .checkbox-group label { text-transform: none !important; font-size: 11px !important; color: #e6edf3 !important; font-weight: 400 !important; margin-bottom: 0 !important; }
+        .slider-value { float: right; font-size: 10px; color: #58a6ff; font-weight: 500; }
+        .stats-row { display: flex; justify-content: space-between; font-size: 10px; color: #8b949e; margin-top: 4px; padding-top: 8px; border-top: 1px solid #21262d; font-weight: 500; }
+        #info { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; background: rgba(13,17,23,0.85); padding: 6px 18px; border-radius: 20px; border: 1px solid #30363d; color: #8b949e; font-size: 11px; pointer-events: none; white-space: nowrap; }
     </style>
 </head>
 <body>
@@ -163,11 +69,11 @@
         const FIRMS_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires_polygons.geojson';
         
         let firesData = [];
-        let currentFires = [];
         let fireMeshes = [];
         let scene, camera, renderer;
         let threeReady = false;
         let isUpdating = false;
+        let frameCount = 0;
 
         // ============================================================
         // MAPA
@@ -195,7 +101,7 @@
             scene = new THREE.Scene();
 
             const aspect = window.innerWidth / window.innerHeight;
-            camera = new THREE.PerspectiveCamera(45, aspect, 0.01, 1000);
+            camera = new THREE.PerspectiveCamera(45, aspect, 0.00001, 1000);
 
             renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
@@ -224,14 +130,12 @@
                 renderer.setSize(w, h);
             });
 
-            // Cargar incendios
             loadFires();
-            
             animate(0);
         }
 
         // ============================================================
-        // CALCULAR CENTROIDE DE POLÍGONO
+        // CALCULAR CENTROIDE
         // ============================================================
         function getPolygonCenter(coords) {
             const ring = coords[0] || coords;
@@ -245,7 +149,7 @@
         }
 
         // ============================================================
-        // SINCRONIZAR CÁMARA - CORREGIDA
+        // SINCRONIZAR CÁMARA - CON NEAR/FAR DINÁMICO
         // ============================================================
         function syncCamera() {
             if (!map || !camera || !threeReady) return;
@@ -256,19 +160,16 @@
                 const pitch = map.getPitch();
                 const bearing = map.getBearing();
 
-                // Obtener centro en coordenadas Mercator
                 const centerMercator = maplibregl.MercatorCoordinate.fromLngLat(
                     new maplibregl.LngLat(center.lng, center.lat)
                 );
 
-                // Calcular distancia de la cámara al centro
                 const canvas = map.getCanvas();
                 const height = canvas.height;
                 const halfFov = camera.fov * Math.PI / 360;
                 const pixelsPerMeter = 1 / (Math.pow(2, zoom) * 256);
                 const cameraToCenterDistance = (height / 2) / Math.tan(halfFov) / pixelsPerMeter;
 
-                // Aplicar pitch y bearing
                 const pitchRad = pitch * Math.PI / 180;
                 const bearingRad = -bearing * Math.PI / 180;
 
@@ -276,21 +177,37 @@
                 const yOffset = cameraToCenterDistance * Math.sin(pitchRad) * Math.cos(bearingRad);
                 const zOffset = cameraToCenterDistance * Math.cos(pitchRad);
 
-                // Posicionar cámara
                 camera.position.set(
                     centerMercator.x + xOffset,
                     centerMercator.y + yOffset,
                     centerMercator.z + zOffset
                 );
 
-                // Mirar al centro
                 camera.lookAt(
                     centerMercator.x,
                     centerMercator.y,
                     centerMercator.z
                 );
                 
+                // ============================================================
+                // AJUSTE DINÁMICO DE NEAR/FAR - EVITA QUE DESAPAREZCAN
+                // ============================================================
+                const dist = Math.sqrt(xOffset*xOffset + yOffset*yOffset + zOffset*zOffset);
+                
+                // Near: muy pequeño para ver objetos cercanos
+                const near = Math.max(0.0000001, dist * 0.000001);
+                // Far: muy grande para ver objetos lejanos
+                const far = Math.max(100, dist * 20);
+                
+                camera.near = near;
+                camera.far = far;
                 camera.updateProjectionMatrix();
+                
+                // Log cada 60 frames
+                frameCount++;
+                if (frameCount % 60 === 0) {
+                    console.log(`📐 Zoom: ${zoom.toFixed(2)}, Near: ${near.toExponential(2)}, Far: ${far.toFixed(0)}`);
+                }
 
             } catch (e) {
                 // Silencioso
@@ -298,7 +215,7 @@
         }
 
         // ============================================================
-        // CREAR SEMIESFERA - CORREGIDA
+        // CREAR SEMIESFERA
         // ============================================================
         function createFireSphere(lon, lat, frp) {
             const mercator = maplibregl.MercatorCoordinate.fromLngLat(
@@ -373,7 +290,6 @@
             const enabled = document.getElementById('chk-fires').checked;
             const frpMin = parseInt(document.getElementById('frp-slider').value) || 0;
 
-            // Limpiar objetos antiguos
             fireMeshes.forEach(obj => {
                 scene.remove(obj);
                 obj.children.forEach(child => {
@@ -394,11 +310,9 @@
                 return frp >= frpMin;
             });
 
-            currentFires = filtered;
             document.getElementById('stats-fires').textContent = '🔥 ' + filtered.length;
 
             const toRender = filtered.slice(0, 200);
-            console.log(`🔥 Renderizando ${toRender.length} incendios`);
 
             toRender.forEach(f => {
                 try {
@@ -410,7 +324,7 @@
                     scene.add(group);
                     fireMeshes.push(group);
                 } catch (e) {
-                    console.warn('Error:', e);
+                    // Silencioso
                 }
             });
 
@@ -418,14 +332,14 @@
         }
 
         // ============================================================
-        // CARGAR INCENDIOS
+        // CARGAR DATOS
         // ============================================================
         function loadFires() {
             fetch(FIRMS_URL)
                 .then(r => r.json())
                 .then(data => {
                     firesData = data.features || [];
-                    console.log(`✅ FIRMS cargado (${firesData.length} incendios)`);
+                    console.log(`✅ FIRMS: ${firesData.length} incendios`);
                     updateFires();
                 })
                 .catch(e => console.error('Error:', e));
