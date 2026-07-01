@@ -1,15 +1,14 @@
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Visor Ucrania 3D</title>
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.117/Build/Cesium/Cesium.js">
     </script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.117/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; }
-        body { width: 100vw; height: 100vh; overflow: hidden; background: #1a1a2e; }
+        body { width: 100vw; height: 100vh; overflow: hidden; background: #000; }
         #cesium-container { width: 100vw; height: 100vh; position: relative; }
         #info {
             position: absolute;
@@ -24,21 +23,7 @@
             font-family: monospace;
             font-size: 14px;
             text-align: center;
-        }
-        #debug {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            z-index: 1000;
-            background: rgba(0,0,0,0.9);
-            color: #0f0;
-            padding: 10px;
-            border-radius: 8px;
-            font-family: monospace;
-            font-size: 11px;
-            max-width: 350px;
-            max-height: 300px;
-            overflow: auto;
+            border: 1px solid #0f0;
         }
         .cesium-viewer-bottom { display: none !important; }
     </style>
@@ -46,30 +31,27 @@
 <body>
 
     <div id="cesium-container"></div>
-    <div id="info">🔥 Visor 3D - Incendios Ucrania</div>
-    <div id="debug">Cargando...</div>
+    <div id="info">🌍 Visor 3D - Incendios Ucrania</div>
 
     <script>
-        const debugEl = document.getElementById('debug');
-        function logDebug(msg) {
-            console.log(msg);
-            debugEl.innerHTML = msg + '<br>' + debugEl.innerHTML;
-            if (debugEl.innerHTML.split('<br>').length > 20) {
-                debugEl.innerHTML = debugEl.innerHTML.split('<br>').slice(0, 20).join('<br>');
-            }
-        }
-
-        logDebug('🚀 INICIANDO...');
+        console.log('🚀 INICIANDO CESIUM SIN TOKEN...');
 
         // ============================================================
-        // 1. CESIUM SIN TOKEN
+        // 1. CESIUM SIN NINGÚN TOKEN
         // ============================================================
+        // Configuración manual sin Ion
+        Cesium.Ion.defaultAccessToken = undefined;
+
         const viewer = new Cesium.Viewer('cesium-container', {
+            // Usar OSM como mapa base
             imageryProvider: new Cesium.UrlTemplateImageryProvider({
-                url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                credit: 'OpenStreetMap'
+                url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                subdomains: ['a', 'b', 'c'],
+                credit: '© OpenStreetMap contributors'
             }),
+            // Sin terreno 3D (más rápido y visible)
             terrainProvider: new Cesium.EllipsoidTerrainProvider(),
+            // Desactivar todo lo innecesario
             animation: false,
             timeline: false,
             infoBox: false,
@@ -80,12 +62,14 @@
             sceneModePicker: false,
             navigationHelpButton: false,
             fullscreenButton: false,
-            vrButton: false
+            vrButton: false,
+            // Fondo transparente NO, queremos ver el mapa
+            backgroundColor: new Cesium.Color(0.1, 0.1, 0.15, 1.0)
         });
 
         // Configurar cámara (Ucrania)
         viewer.camera.setView({
-            destination: Cesium.Cartesian3.fromDegrees(32.0, 48.5, 500000),
+            destination: Cesium.Cartesian3.fromDegrees(32.0, 48.5, 800000),
             orientation: {
                 pitch: Cesium.Math.toRadians(-45),
                 heading: Cesium.Math.toRadians(0),
@@ -93,7 +77,10 @@
             }
         });
 
-        logDebug('✅ Cesium listo');
+        // Forzar el renderizado
+        viewer.scene.requestRender();
+
+        console.log('✅ Cesium listo');
 
         // ============================================================
         // 2. FUNCIONES
@@ -109,118 +96,146 @@
             return [lon / count, lat / count];
         }
 
+        // ============================================================
+        // 3. CREAR SEMIESFERA 3D
+        // ============================================================
         function createFireSphere(lon, lat, frp) {
             const t = Math.min(frp / 500, 1);
-            const radius = 2000 + t * 8000;
+            const radius = 3000 + t * 10000; // 3km a 13km
             
             const r = 1.0;
             const g = 1.0 - t * 0.8;
             const b = 0.3 - t * 0.25;
 
             const position = Cesium.Cartesian3.fromDegrees(lon, lat, 0);
-            
-            // Usar Entity en lugar de geometría manual (más simple y funciona mejor)
-            const entity = viewer.entities.add({
+
+            // ============================================================
+            // SEMIESFERA PRINCIPAL
+            // ============================================================
+            const sphere = viewer.entities.add({
                 position: position,
                 ellipsoid: {
                     radii: new Cesium.Cartesian3(radius, radius, radius),
-                    material: new Cesium.Color(r, g, b, 0.6),
+                    material: new Cesium.Color(r, g, b, 0.7),
                     emissiveColor: new Cesium.Color(r * 0.8, g * 0.5, b * 0.3, 0.8),
                     outline: false,
-                    // Solo la mitad superior
-                    slicePart: 0.5
+                    slicePart: 0.5 // Solo la mitad superior
                 }
             });
 
-            // Glow (círculo en el suelo)
-            const glowEntity = viewer.entities.add({
+            // ============================================================
+            // GLOW (círculo en el suelo)
+            // ============================================================
+            const glow = viewer.entities.add({
                 position: position,
                 ellipse: {
                     semiMinorAxis: radius * 3,
                     semiMajorAxis: radius * 3,
                     material: new Cesium.Color(r, g * 0.4, b * 0.2, 0.15),
+                    outline: false,
+                    height: 10
+                }
+            });
+
+            // ============================================================
+            // NÚCLEO BRILLANTE
+            // ============================================================
+            const core = viewer.entities.add({
+                position: Cesium.Cartesian3.fromDegrees(lon, lat, radius * 0.3),
+                ellipsoid: {
+                    radii: new Cesium.Cartesian3(radius * 0.3, radius * 0.3, radius * 0.3),
+                    material: new Cesium.Color(1.0, Math.min(g + 0.3, 1.0), Math.min(b + 0.3, 1.0), 0.9),
                     outline: false
                 }
             });
 
-            return { sphere: entity, glow: glowEntity };
+            return { sphere, glow, core };
         }
 
         // ============================================================
-        // 3. CARGAR INCENDIOS
+        // 4. DATOS DE PRUEBA
+        // ============================================================
+        function createTestFires() {
+            console.log('🔥 Creando semiesferas de prueba...');
+            
+            const testFires = [
+                [30.5234, 50.4501, 400], // Kyiv
+                [30.6, 50.5, 300],
+                [30.4, 50.4, 200],
+                [30.7, 50.3, 150],
+                [30.3, 50.6, 100],
+                [30.8, 50.6, 250],
+                [30.2, 50.3, 180],
+                [30.9, 50.7, 350],
+                [30.1, 50.2, 120]
+            ];
+
+            let count = 0;
+            testFires.forEach(([lon, lat, frp]) => {
+                try {
+                    createFireSphere(lon, lat, frp);
+                    count++;
+                } catch (e) {
+                    console.error('Error:', e);
+                }
+            });
+
+            document.getElementById('info').textContent = `🔥 ${count} semiesferas 3D en Kyiv`;
+            console.log(`✅ ${count} semiesferas creadas`);
+        }
+
+        // ============================================================
+        // 5. CARGAR INCENDIOS REALES
         // ============================================================
         const FIRMS_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires_polygons.geojson';
-        let fireEntities = [];
 
         function loadFires() {
-            logDebug('📡 Cargando incendios...');
+            console.log('📡 Cargando incendios reales...');
 
             fetch(FIRMS_URL)
                 .then(r => r.json())
                 .then(data => {
                     const features = data.features || [];
-                    logDebug(`✅ ${features.length} incendios cargados`);
-                    createFires(features);
+                    console.log(`✅ ${features.length} incendios cargados`);
+                    
+                    if (features.length === 0) {
+                        createTestFires();
+                        return;
+                    }
+
+                    const toRender = features.slice(0, 100);
+                    let count = 0;
+
+                    toRender.forEach(f => {
+                        try {
+                            const frp = f.properties?.frp || 10;
+                            const coords = f.geometry.coordinates;
+                            const [lon, lat] = getPolygonCenter(coords);
+
+                            createFireSphere(lon, lat, frp);
+                            count++;
+                        } catch (e) {
+                            console.warn('Error:', e);
+                        }
+                    });
+
+                    document.getElementById('info').textContent = `🔥 ${count} semiesferas 3D en Ucrania`;
+                    console.log(`✅ ${count} semiesferas creadas`);
                 })
                 .catch(e => {
-                    logDebug('❌ Error: ' + e.message + ' - Usando prueba');
+                    console.error('Error cargando datos:', e);
                     createTestFires();
                 });
         }
 
-        function createFires(features) {
-            // Limpiar anteriores
-            fireEntities.forEach(entity => {
-                viewer.entities.remove(entity);
-            });
-            fireEntities = [];
-
-            const toRender = features.slice(0, 100);
-
-            toRender.forEach(f => {
-                try {
-                    const frp = f.properties?.frp || 10;
-                    const coords = f.geometry.coordinates;
-                    const [lon, lat] = getPolygonCenter(coords);
-
-                    const entities = createFireSphere(lon, lat, frp);
-                    fireEntities.push(entities.sphere);
-                    fireEntities.push(entities.glow);
-                } catch (e) {
-                    logDebug('❌ Error creando: ' + e.message);
-                }
-            });
-
-            logDebug(`✅ ${fireEntities.length / 2} semiesferas creadas`);
-        }
-
-        function createTestFires() {
-            logDebug('🔥 Usando datos de prueba...');
-            const testFires = [
-                [30.5234, 50.4501, 400],
-                [30.6, 50.5, 300],
-                [30.4, 50.4, 200],
-                [30.7, 50.3, 150],
-                [30.3, 50.6, 100]
-            ];
-
-            testFires.forEach(([lon, lat, frp]) => {
-                const entities = createFireSphere(lon, lat, frp);
-                fireEntities.push(entities.sphere);
-                fireEntities.push(entities.glow);
-            });
-
-            logDebug(`✅ ${fireEntities.length / 2} semiesferas de prueba en Kyiv`);
-        }
-
         // ============================================================
-        // 4. INICIAR
+        // 6. INICIAR
         // ============================================================
         setTimeout(() => {
             loadFires();
-        }, 1000);
+        }, 1500);
 
-        logDebug('🚀 Visor iniciado');
+        console.log('🚀 Visor iniciado');
     </script>
 </body>
 </html>
