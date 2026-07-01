@@ -845,24 +845,32 @@
             });
 
             // ✅ CAPA 3D - COLUMNAS CON DEGRADADO
+            // ✅ SEMIESFERAS 3D CON TRANSPARENCIA (molonas)
             map.addLayer({
                 id: 'fires-layer',
                 type: 'fill-extrusion',
                 source: 'fires',
                 paint: {
-                    'fill-extrusion-height': ['interpolate', ['linear'], ['get', 'frp'], 
-                        10, 100, 
-                        100, 400, 
-                        500, 900
-                    ],
-                    'fill-extrusion-color': ['interpolate', ['linear'], ['get', 'frp'], 
-                        10, '#FFDD00', 
-                        100, '#FF6600', 
-                        500, '#CC0000'
-                    ],
-                    'fill-extrusion-opacity': 0.7,
-                    'fill-extrusion-base': 0,
-                    'fill-extrusion-vertical-gradient': true
+                    'fill-extrusion-height': [
+                    'interpolate',
+                    ['linear'],
+                    ['get', 'frp'],
+                    10, 60,
+                    100, 250,
+                    500, 600
+                ],
+                'fill-extrusion-color': [
+                    'interpolate',
+                    ['linear'],
+                    ['get', 'frp'],
+                    10, '#FFDD00',
+                    50, '#FF9900',
+                    150, '#FF4400',
+                    500, '#CC0000'
+                ],
+                'fill-extrusion-opacity': 0.6,
+                'fill-extrusion-base': 0,
+                'fill-extrusion-vertical-gradient': true
                 }
             });
 
