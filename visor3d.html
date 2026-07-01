@@ -8,12 +8,10 @@
     <script src="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.js">
     </script>
     <link href="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js">
-    </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
 
     <style>
-        /* ===== ESTILOS ===== */
+        /* ===== ESTILOS (MANTENIDOS) ===== */
         * {
             margin: 0;
             padding: 0;
@@ -30,15 +28,6 @@
             width: 100%;
             height: 100vh;
             position: relative;
-        }
-        #three-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 10;
         }
         #panel {
             position: absolute;
@@ -530,9 +519,7 @@
     <div id="attribution">
         <span id="attribution-text">🌍 Fuente: CartoDB (Dark Matter)</span>
     </div>
-    <div id="map">
-        <div id="three-container"></div>
-    </div>
+    <div id="map"></div>
 
     <script>
         // ============================================================
@@ -546,9 +533,6 @@
         let currentFiresFiltered = [];
         let selectedRegion = null;
         let activePopup = null;
-        let fireMeshes = [];
-        let scene, camera, renderer, threeContainer;
-        let threeInitialized = false;
 
         const map = new maplibregl.Map({
             container: 'map',
@@ -562,245 +546,6 @@
         });
 
         map.addControl(new maplibregl.NavigationControl(), 'top-right');
-
-        // ============================================================
-        // THREE.JS SETUP (VERSIÓN SIMPLIFICADA)
-        // ============================================================
-        function initThree() {
-            if (threeInitialized) return;
-            
-            threeContainer = document.getElementById('three-container');
-
-            scene = new THREE.Scene();
-
-            const aspect = window.innerWidth / window.innerHeight;
-            camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 1000000);
-
-            renderer = new THREE.WebGLRenderer({
-                alpha: true,
-                antialias: true
-            });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            renderer.setClearColor(0x000000, 0);
-            threeContainer.appendChild(renderer.domElement);
-
-            // Luces
-            const ambientLight = new THREE.AmbientLight(0x404060);
-            scene.add(ambientLight);
-
-            const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-            dirLight.position.set(1, 1, 1);
-            scene.add(dirLight);
-
-            const dirLight2 = new THREE.DirectionalLight(0xff8844, 0.5);
-            dirLight2.position.set(-1, 0.5, -1);
-            scene.add(dirLight2);
-
-            threeInitialized = true;
-
-            // Resize
-            window.addEventListener('resize', () => {
-                if (!threeInitialized) return;
-                const w = window.innerWidth;
-                const h = window.innerHeight;
-                camera.aspect = w / h;
-                camera.updateProjectionMatrix();
-                renderer.setSize(w, h);
-            });
-
-            // Iniciar animación
-            animate(0);
-        }
-
-        // ============================================================
-        // FUNCIONES DE PROYECCIÓN
-        // ============================================================
-        function lngLatToMeters(lng, lat) {
-            const R = 6378137;
-            const x = R * lng * Math.PI / 180;
-            const y = R * Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360));
-            return { x, y };
-        }
-
-        function syncCamera() {
-            if (!map || !camera || !threeInitialized) return;
-
-            const center = map.getCenter();
-            const zoom = map.getZoom();
-            const pitch = map.getPitch();
-            const bearing = map.getBearing();
-
-            // Convertir centro a metros
-            const centerMeters = lngLatToMeters(center.lng, center.lat);
-
-            // Calcular altura de cámara
-            const canvas = map.getCanvas();
-            const height = canvas.height;
-            const fov = camera.fov * Math.PI / 180;
-
-            const metersPerPixel = 156543.03392 * Math.cos(center.lat * Math.PI / 180) / Math.pow(2, zoom);
-            const cameraHeight = (height / 2) / Math.tan(fov / 2) * metersPerPixel;
-
-            // Aplicar rotaciones
-            const pitchRad = pitch * Math.PI / 180;
-            const bearingRad = -bearing * Math.PI / 180;
-
-            const horizontalDistance = cameraHeight * Math.sin(pitchRad);
-            const verticalDistance = cameraHeight * Math.cos(pitchRad);
-
-            const offsetX = horizontalDistance * Math.sin(bearingRad);
-            const offsetY = horizontalDistance * Math.cos(bearingRad);
-            const offsetZ = verticalDistance;
-
-            camera.position.set(
-                centerMeters.x + offsetX,
-                centerMeters.y + offsetY,
-                offsetZ
-            );
-
-            camera.lookAt(centerMeters.x, centerMeters.y, 0);
-            camera.updateProjectionMatrix();
-        }
-
-        // ============================================================
-        // CREAR SEMIESFERAS
-        // ============================================================
-        function createGlowSphere(lon, lat, frp) {
-            const pos = lngLatToMeters(lon, lat);
-
-            // Radio proporcional al FRP
-            const radius = 80 + (frp / 500) * 400;
-
-            // Color: amarillo → naranja → rojo
-            const hue = 45 - (frp / 500) * 30;
-            const lightness = 55 + (frp / 500) * 25;
-
-            // Semiesfera principal
-            const geometry = new THREE.SphereGeometry(radius, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
-
-            const material = new THREE.MeshPhongMaterial({
-                color: new THREE.Color(`hsl(${hue}, 100%, ${lightness}%)`),
-                emissive: new THREE.Color(`hsl(${hue}, 100%, ${lightness * 0.5}%)`),
-                emissiveIntensity: 0.4 + (frp / 500) * 0.6,
-                transparent: true,
-                opacity: 0.5 + (frp / 500) * 0.3,
-                side: THREE.DoubleSide,
-                blending: THREE.AdditiveBlending,
-                depthWrite: false,
-                shininess: 20
-            });
-
-            const sphere = new THREE.Mesh(geometry, material);
-            sphere.position.set(pos.x, pos.y, radius * 0.8);
-
-            // Glow exterior
-            const glowRadius = radius * 2.5;
-            const glowGeometry = new THREE.SphereGeometry(glowRadius, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
-
-            const glowMaterial = new THREE.MeshBasicMaterial({
-                color: new THREE.Color(`hsl(${hue}, 100%, ${lightness * 0.6}%)`),
-                transparent: true,
-                opacity: 0.08 + (frp / 500) * 0.12,
-                blending: THREE.AdditiveBlending,
-                depthWrite: false
-            });
-
-            const glow = new THREE.Mesh(glowGeometry, glowMaterial);
-            glow.position.copy(sphere.position);
-
-            // Núcleo brillante
-            const coreRadius = radius * 0.3;
-            const coreGeometry = new THREE.SphereGeometry(coreRadius, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
-
-            const coreMaterial = new THREE.MeshBasicMaterial({
-                color: new THREE.Color(`hsl(${hue + 10}, 100%, ${lightness + 20}%)`),
-                transparent: true,
-                opacity: 0.5 + (frp / 500) * 0.4,
-                blending: THREE.AdditiveBlending,
-                depthWrite: false
-            });
-
-            const core = new THREE.Mesh(coreGeometry, coreMaterial);
-            core.position.copy(sphere.position);
-            core.position.y += radius * 0.2;
-
-            const group = new THREE.Group();
-            group.add(sphere);
-            group.add(glow);
-            group.add(core);
-            group.userData = { frp, lon, lat, radius, pos };
-
-            return group;
-        }
-
-        // ============================================================
-        // ACTUALIZAR FOCOS EN THREE.JS
-        // ============================================================
-        function updateThreeFires() {
-            if (!threeInitialized) return;
-
-            // Limpiar objetos antiguos
-            fireMeshes.forEach(obj => {
-                scene.remove(obj);
-                obj.children.forEach(child => {
-                    if (child.geometry) child.geometry.dispose();
-                    if (child.material) child.material.dispose();
-                });
-            });
-            fireMeshes = [];
-
-            const enabled = document.getElementById('chk-fires').checked;
-            if (!enabled || currentFiresFiltered.length === 0) return;
-
-            // Límite de 200 para rendimiento
-            const toRender = currentFiresFiltered.slice(0, 200);
-
-            toRender.forEach(f => {
-                const frp = f.properties?.frp || 10;
-                const coords = f.geometry.coordinates;
-                const lon = coords[0];
-                const lat = coords[1];
-
-                const group = createGlowSphere(lon, lat, frp);
-                scene.add(group);
-                fireMeshes.push(group);
-            });
-        }
-
-        // ============================================================
-        // ANIMACIÓN
-        // ============================================================
-        let lastTime = 0;
-
-        function animate(time) {
-            if (!threeInitialized) return;
-            
-            requestAnimationFrame(animate);
-
-            syncCamera();
-
-            const delta = (time - lastTime) / 1000;
-            lastTime = time;
-
-            // Animación: rotación y pulsación
-            fireMeshes.forEach((group, index) => {
-                const speed = 0.2 + (group.userData.frp / 500) * 0.3;
-                group.rotation.y += delta * speed * 0.5;
-
-                const pulse = Math.sin(time / 1000 + index * 0.5) * 0.08 + 0.92;
-                group.children.forEach(child => {
-                    if (child.material && child.material.opacity !== undefined) {
-                        if (!child.userData.baseOpacity) {
-                            child.userData.baseOpacity = child.material.opacity;
-                        }
-                        child.material.opacity = child.userData.baseOpacity * pulse;
-                    }
-                });
-            });
-
-            renderer.render(scene, camera);
-        }
 
         // ============================================================
         // FUNCIONES DE MAPLIBRE
@@ -857,8 +602,9 @@
             const frpMin = parseInt(document.getElementById('frp-slider').value) || 0;
             const timeRange = parseInt(document.getElementById('time-range-selector').value) || 48;
 
-            // ELIMINAR COLUMNAS ANTIGUAS
-            ['fires-layer', 'fires-glow', 'fires-backup-layer'].forEach(id => {
+            // ELIMINAR TODAS LAS CAPAS ANTIGUAS
+            const layerIds = ['fires-3d', 'fires-glow', 'fires-core', 'fires-layer', 'fires-backup-layer'];
+            layerIds.forEach(id => {
                 if (map.getLayer(id)) map.removeLayer(id);
             });
             ['fires', 'fires-backup'].forEach(id => {
@@ -869,7 +615,6 @@
                 currentFiresFiltered = [];
                 updateRegionLegend();
                 document.getElementById('stats-fires').textContent = '🔥 0';
-                updateThreeFires();
                 return;
             }
 
@@ -913,37 +658,107 @@
             if (filteredByRegion.length === 0) {
                 updateRegionLegend();
                 document.getElementById('stats-fires').textContent = '🔥 0';
-                updateThreeFires();
                 return;
             }
 
             document.getElementById('stats-fires').textContent = '🔥 ' + filteredByRegion.length;
             updateRegionLegend();
 
-            // ACTUALIZAR THREE.JS
-            updateThreeFires();
-
-            // CAPA DE RESPALDO (círculos 2D por si Three.js falla)
-            map.addSource('fires-backup', {
+            // AÑADIR FUENTE DE DATOS
+            map.addSource('fires', {
                 type: 'geojson',
                 data: { type: 'FeatureCollection', features: filteredByRegion }
             });
 
+            // ============================================================
+            // CAPA 1: GLOW (círculo grande y difuso)
+            // ============================================================
             map.addLayer({
-                id: 'fires-backup-layer',
+                id: 'fires-glow',
                 type: 'circle',
-                source: 'fires-backup',
+                source: 'fires',
                 paint: {
-                    'circle-radius': 4,
-                    'circle-color': '#ff4400',
-                    'circle-opacity': 0.2,
-                    'circle-blur': 0.8
+                    'circle-radius': [
+                        'interpolate',
+                        ['linear'],
+                        ['get', 'frp'],
+                        10, 30,
+                        100, 60,
+                        500, 120
+                    ],
+                    'circle-color': [
+                        'interpolate',
+                        ['linear'],
+                        ['get', 'frp'],
+                        10, '#FF8800',
+                        100, '#FF4400',
+                        500, '#FF0000'
+                    ],
+                    'circle-opacity': 0.15,
+                    'circle-blur': 0.9
                 }
             });
 
+            // ============================================================
+            // CAPA 2: NÚCLEO (círculo pequeño y brillante)
+            // ============================================================
+            map.addLayer({
+                id: 'fires-core',
+                type: 'circle',
+                source: 'fires',
+                paint: {
+                    'circle-radius': [
+                        'interpolate',
+                        ['linear'],
+                        ['get', 'frp'],
+                        10, 8,
+                        100, 18,
+                        500, 35
+                    ],
+                    'circle-color': [
+                        'interpolate',
+                        ['linear'],
+                        ['get', 'frp'],
+                        10, '#FFDD00',
+                        100, '#FF8800',
+                        500, '#FF2200'
+                    ],
+                    'circle-opacity': 0.9,
+                    'circle-stroke-width': 2,
+                    'circle-stroke-color': '#FFFFFF',
+                    'circle-stroke-opacity': 0.3
+                }
+            });
+
+            // ============================================================
+            // CAPA 3: SOMBRA (para efecto 3D)
+            // ============================================================
+            map.addLayer({
+                id: 'fires-3d',
+                type: 'circle',
+                source: 'fires',
+                paint: {
+                    'circle-radius': [
+                        'interpolate',
+                        ['linear'],
+                        ['get', 'frp'],
+                        10, 12,
+                        100, 25,
+                        500, 45
+                    ],
+                    'circle-color': '#000000',
+                    'circle-opacity': 0.3,
+                    'circle-blur': 0.4,
+                    'circle-translate': [0, 5],
+                    'circle-translate-anchor': 'map'
+                }
+            });
+
+            // ============================================================
             // POPUPS
-            map.off('click', 'fires-backup-layer');
-            map.on('click', 'fires-backup-layer', function(e) {
+            // ============================================================
+            map.off('click', 'fires-core');
+            map.on('click', 'fires-core', function(e) {
                 if (activePopup) {
                     activePopup.remove();
                     activePopup = null;
@@ -1045,8 +860,8 @@
                 }
             });
 
-            map.on('mouseenter', 'fires-backup-layer', () => map.getCanvas().style.cursor = 'pointer');
-            map.on('mouseleave', 'fires-backup-layer', () => map.getCanvas().style.cursor = '');
+            map.on('mouseenter', 'fires-core', () => map.getCanvas().style.cursor = 'pointer');
+            map.on('mouseleave', 'fires-core', () => map.getCanvas().style.cursor = '');
         }
 
         function updateRegionLegend() {
@@ -1159,8 +974,8 @@
 
             const selected = document.getElementById('map-style-selector').value;
 
-            ['satellite-layer', 'osm-layer', 'topo-layer', 'deepstate-fill', 'deepstate-line', 'fires-layer',
-                'fires-glow', 'fires-backup-layer'
+            ['satellite-layer', 'osm-layer', 'topo-layer', 'deepstate-fill', 'deepstate-line', 'fires-3d',
+                'fires-glow', 'fires-core', 'fires-backup-layer'
             ].forEach(id => {
                 if (map.getLayer(id)) map.removeLayer(id);
             });
@@ -1363,9 +1178,6 @@
         // INICIALIZACIÓN
         // ============================================================
         map.on('load', function() {
-            // Inicializar Three.js
-            initThree();
-
             // Cargar datos
             fetch(DEEPSTATE_URL)
                 .then(r => r.json())
