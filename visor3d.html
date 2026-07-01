@@ -1,57 +1,155 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Visor Ucrania 3D</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visor Ucrania 3D - Cesium</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>">
     <script src="https://cesium.com/downloads/cesiumjs/releases/1.117/Build/Cesium/Cesium.js">
     </script>
     <link href="https://cesium.com/downloads/cesiumjs/releases/1.117/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; }
-        body { width: 100vw; height: 100vh; overflow: hidden; background: #000; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; font-family: 'Inter', sans-serif; overflow: hidden; background: #0d1117; }
         #cesium-container { width: 100vw; height: 100vh; position: relative; }
+        
+        #panel {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            z-index: 1000;
+            background: rgba(13, 17, 23, 0.95);
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            padding: 14px 16px;
+            min-width: 200px;
+            max-width: 220px;
+            color: #e6edf3;
+            font-size: 12px;
+            font-family: 'Inter', sans-serif;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+        #panel::-webkit-scrollbar { width: 3px; }
+        #panel::-webkit-scrollbar-thumb { background: #58a6ff; border-radius: 4px; }
+        
+        .panel-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: #58a6ff;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 12px;
+            border-bottom: 1px solid #21262d;
+            padding-bottom: 8px;
+        }
+        .control-group { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #21262d; }
+        .control-group:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        .control-group label { display: block; font-size: 10px; color: #8b949e; text-transform: uppercase; font-weight: 600; margin-bottom: 3px; }
+        .control-group select {
+            width: 100%; padding: 4px 6px; background: #1c2333; color: #e6edf3;
+            border: 1px solid #30363d; border-radius: 4px; font-size: 11px;
+            font-family: 'Inter', sans-serif; cursor: pointer; outline: none;
+        }
+        .control-group select:focus { border-color: #58a6ff; }
+        .control-group input[type="range"] {
+            width: 100%; margin: 4px 0; accent-color: #58a6ff;
+            background: #30363d; height: 3px; border-radius: 2px; cursor: pointer;
+        }
+        .checkbox-group { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
+        .checkbox-group input[type="checkbox"] { accent-color: #58a6ff; width: 14px; height: 14px; cursor: pointer; }
+        .checkbox-group label { text-transform: none !important; font-size: 11px !important; color: #e6edf3 !important; font-weight: 400 !important; margin-bottom: 0 !important; cursor: pointer; }
+        .slider-value { float: right; font-size: 10px; color: #58a6ff; font-weight: 500; }
+        .stats-row { display: flex; justify-content: space-between; font-size: 10px; color: #8b949e; margin-top: 4px; padding-top: 8px; border-top: 1px solid #21262d; font-weight: 500; }
+        
         #info {
             position: absolute;
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
             z-index: 1000;
-            background: rgba(0,0,0,0.8);
-            color: #0f0;
-            padding: 10px 20px;
-            border-radius: 10px;
-            font-family: monospace;
-            font-size: 14px;
-            text-align: center;
-            border: 1px solid #0f0;
+            background: rgba(13, 17, 23, 0.85);
+            padding: 6px 18px;
+            border-radius: 20px;
+            border: 1px solid #30363d;
+            color: #8b949e;
+            font-size: 11px;
+            pointer-events: none;
+            white-space: nowrap;
+            font-family: 'Inter', sans-serif;
+        }
+        #attribution {
+            position: absolute;
+            bottom: 60px;
+            left: 12px;
+            z-index: 1000;
+            background: rgba(13, 17, 23, 0.7);
+            padding: 4px 10px;
+            border-radius: 12px;
+            border: 1px solid #30363d;
+            color: #8b949e;
+            font-size: 9px;
+            pointer-events: none;
+            font-family: 'Inter', sans-serif;
+            opacity: 0.7;
         }
         .cesium-viewer-bottom { display: none !important; }
+        
+        @media (max-width: 640px) {
+            #panel { min-width: 160px; max-width: 180px; padding: 10px 12px; font-size: 11px; top: 60px; left: 6px; }
+            #info { font-size: 10px; padding: 4px 12px; white-space: normal; }
+        }
     </style>
 </head>
 <body>
 
     <div id="cesium-container"></div>
-    <div id="info">🌍 Visor 3D - Incendios Ucrania</div>
+
+    <div id="panel">
+        <div class="panel-title">⚙️ Controles</div>
+        
+        <div class="control-group">
+            <div class="checkbox-group">
+                <input type="checkbox" id="chk-fires" checked>
+                <label for="chk-fires">🔥 Incendios</label>
+            </div>
+            <label>FRP mínimo <span class="slider-value" id="val-frp">10</span></label>
+            <input type="range" id="frp-slider" min="0" max="100" value="10">
+        </div>
+        
+        <div class="control-group">
+            <label>🗺️ Tipo de mapa</label>
+            <select id="map-style-selector">
+                <option value="osm">🌍 OpenStreetMap</option>
+                <option value="satellite">🛰️ Satélite</option>
+                <option value="dark">🌙 Oscuro</option>
+            </select>
+        </div>
+
+        <div class="stats-row">
+            <span id="stats-fires">🔥 0</span>
+        </div>
+    </div>
+
+    <div id="info">🌍 Visor 3D Ucrania · Haz clic en un incendio para detalles</div>
+    <div id="attribution">🌍 Fuente: OpenStreetMap</div>
 
     <script>
-        console.log('🚀 INICIANDO CESIUM SIN TOKEN...');
+        console.log('🚀 INICIANDO CESIUM...');
 
         // ============================================================
-        // 1. CESIUM SIN NINGÚN TOKEN
+        // 1. CESIUM - SIN TOKEN
         // ============================================================
-        // Configuración manual sin Ion
         Cesium.Ion.defaultAccessToken = undefined;
 
         const viewer = new Cesium.Viewer('cesium-container', {
-            // Usar OSM como mapa base
             imageryProvider: new Cesium.UrlTemplateImageryProvider({
                 url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
                 subdomains: ['a', 'b', 'c'],
                 credit: '© OpenStreetMap contributors'
             }),
-            // Sin terreno 3D (más rápido y visible)
             terrainProvider: new Cesium.EllipsoidTerrainProvider(),
-            // Desactivar todo lo innecesario
             animation: false,
             timeline: false,
             infoBox: false,
@@ -63,27 +161,32 @@
             navigationHelpButton: false,
             fullscreenButton: false,
             vrButton: false,
-            // Fondo transparente NO, queremos ver el mapa
-            backgroundColor: new Cesium.Color(0.1, 0.1, 0.15, 1.0)
+            backgroundColor: new Cesium.Color(0.08, 0.1, 0.15, 1.0)
         });
 
-        // Configurar cámara (Ucrania)
+        // Cámara - Ucrania
         viewer.camera.setView({
-            destination: Cesium.Cartesian3.fromDegrees(32.0, 48.5, 800000),
+            destination: Cesium.Cartesian3.fromDegrees(32.0, 48.5, 600000),
             orientation: {
-                pitch: Cesium.Math.toRadians(-45),
+                pitch: Cesium.Math.toRadians(-40),
                 heading: Cesium.Math.toRadians(0),
                 roll: 0
             }
         });
 
-        // Forzar el renderizado
         viewer.scene.requestRender();
-
         console.log('✅ Cesium listo');
 
         // ============================================================
-        // 2. FUNCIONES
+        // 2. VARIABLES
+        // ============================================================
+        let firesData = [];
+        let fireEntities = [];
+        let selectedEntity = null;
+        let popupEntity = null;
+
+        // ============================================================
+        // 3. FUNCIONES
         // ============================================================
         function getPolygonCenter(coords) {
             const ring = coords[0] || coords;
@@ -96,12 +199,9 @@
             return [lon / count, lat / count];
         }
 
-        // ============================================================
-        // 3. CREAR SEMIESFERA 3D
-        // ============================================================
         function createFireSphere(lon, lat, frp) {
             const t = Math.min(frp / 500, 1);
-            const radius = 3000 + t * 10000; // 3km a 13km
+            const radius = 2000 + t * 8000;
             
             const r = 1.0;
             const g = 1.0 - t * 0.8;
@@ -109,9 +209,7 @@
 
             const position = Cesium.Cartesian3.fromDegrees(lon, lat, 0);
 
-            // ============================================================
-            // SEMIESFERA PRINCIPAL
-            // ============================================================
+            // Semiesfera
             const sphere = viewer.entities.add({
                 position: position,
                 ellipsoid: {
@@ -119,47 +217,150 @@
                     material: new Cesium.Color(r, g, b, 0.7),
                     emissiveColor: new Cesium.Color(r * 0.8, g * 0.5, b * 0.3, 0.8),
                     outline: false,
-                    slicePart: 0.5 // Solo la mitad superior
-                }
+                    slicePart: 0.5
+                },
+                properties: { frp: frp, lon: lon, lat: lat }
             });
 
-            // ============================================================
-            // GLOW (círculo en el suelo)
-            // ============================================================
+            // Glow
             const glow = viewer.entities.add({
                 position: position,
                 ellipse: {
                     semiMinorAxis: radius * 3,
                     semiMajorAxis: radius * 3,
-                    material: new Cesium.Color(r, g * 0.4, b * 0.2, 0.15),
+                    material: new Cesium.Color(r, g * 0.4, b * 0.2, 0.12),
                     outline: false,
                     height: 10
-                }
+                },
+                properties: { isGlow: true }
             });
 
-            // ============================================================
-            // NÚCLEO BRILLANTE
-            // ============================================================
+            // Núcleo
             const core = viewer.entities.add({
                 position: Cesium.Cartesian3.fromDegrees(lon, lat, radius * 0.3),
                 ellipsoid: {
-                    radii: new Cesium.Cartesian3(radius * 0.3, radius * 0.3, radius * 0.3),
+                    radii: new Cesium.Cartesian3(radius * 0.25, radius * 0.25, radius * 0.25),
                     material: new Cesium.Color(1.0, Math.min(g + 0.3, 1.0), Math.min(b + 0.3, 1.0), 0.9),
                     outline: false
-                }
+                },
+                properties: { isCore: true }
             });
 
             return { sphere, glow, core };
         }
 
         // ============================================================
-        // 4. DATOS DE PRUEBA
+        // 4. ACTUALIZAR INCENDIOS
         // ============================================================
-        function createTestFires() {
-            console.log('🔥 Creando semiesferas de prueba...');
+        function updateFires() {
+            const enabled = document.getElementById('chk-fires').checked;
+            const frpMin = parseInt(document.getElementById('frp-slider').value) || 0;
+
+            // Limpiar entidades anteriores
+            fireEntities.forEach(entity => {
+                viewer.entities.remove(entity);
+            });
+            fireEntities = [];
+
+            if (!enabled || firesData.length === 0) {
+                document.getElementById('stats-fires').textContent = '🔥 0';
+                return;
+            }
+
+            const filtered = firesData.filter(f => {
+                const frp = f.properties?.frp || 0;
+                return frp >= frpMin;
+            });
+
+            document.getElementById('stats-fires').textContent = '🔥 ' + filtered.length;
+
+            const toRender = filtered.slice(0, 150);
+
+            toRender.forEach(f => {
+                try {
+                    const frp = f.properties?.frp || 10;
+                    const coords = f.geometry.coordinates;
+                    const [lon, lat] = getPolygonCenter(coords);
+
+                    const entities = createFireSphere(lon, lat, frp);
+                    fireEntities.push(entities.sphere);
+                    fireEntities.push(entities.glow);
+                    fireEntities.push(entities.core);
+                } catch (e) {
+                    console.warn('Error:', e);
+                }
+            });
+
+            console.log(`✅ ${fireEntities.length / 3} semiesferas creadas`);
+        }
+
+        // ============================================================
+        // 5. CAMBIAR MAPA
+        // ============================================================
+        function updateMap() {
+            const selected = document.getElementById('map-style-selector').value;
+            let provider;
+
+            switch (selected) {
+                case 'satellite':
+                    provider = new Cesium.UrlTemplateImageryProvider({
+                        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                        credit: '© Esri'
+                    });
+                    break;
+                case 'dark':
+                    provider = new Cesium.UrlTemplateImageryProvider({
+                        url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+                        subdomains: ['a', 'b', 'c'],
+                        credit: '© CartoDB'
+                    });
+                    break;
+                default: // OSM
+                    provider = new Cesium.UrlTemplateImageryProvider({
+                        url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        subdomains: ['a', 'b', 'c'],
+                        credit: '© OpenStreetMap'
+                    });
+                    break;
+            }
+
+            viewer.imageryLayers.removeAll();
+            viewer.imageryLayers.addImageryProvider(provider);
             
+            const labels = {
+                'osm': '🌍 OpenStreetMap',
+                'satellite': '🛰️ Esri Satélite',
+                'dark': '🌙 CartoDB Dark'
+            };
+            document.getElementById('attribution').textContent = '🌍 Fuente: ' + labels[selected];
+        }
+
+        // ============================================================
+        // 6. CARGAR DATOS
+        // ============================================================
+        const FIRMS_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires_polygons.geojson';
+
+        function loadFires() {
+            console.log('📡 Cargando incendios...');
+
+            fetch(FIRMS_URL)
+                .then(r => r.json())
+                .then(data => {
+                    firesData = data.features || [];
+                    console.log(`✅ ${firesData.length} incendios cargados`);
+                    updateFires();
+                })
+                .catch(e => {
+                    console.error('Error:', e);
+                    // Datos de prueba
+                    createTestData();
+                });
+        }
+
+        function createTestData() {
+            console.log('🔥 Usando datos de prueba...');
             const testFires = [
-                [30.5234, 50.4501, 400], // Kyiv
+                [30.5234, 50.4501, 400],
                 [30.6, 50.5, 300],
                 [30.4, 50.4, 200],
                 [30.7, 50.3, 150],
@@ -169,71 +370,32 @@
                 [30.9, 50.7, 350],
                 [30.1, 50.2, 120]
             ];
-
-            let count = 0;
-            testFires.forEach(([lon, lat, frp]) => {
-                try {
-                    createFireSphere(lon, lat, frp);
-                    count++;
-                } catch (e) {
-                    console.error('Error:', e);
+            
+            firesData = testFires.map(([lon, lat, frp]) => ({
+                properties: { frp },
+                geometry: {
+                    coordinates: [[[lon-0.02, lat-0.02], [lon+0.02, lat-0.02], [lon+0.02, lat+0.02], [lon-0.02, lat+0.02], [lon-0.02, lat-0.02]]]
                 }
-            });
-
-            document.getElementById('info').textContent = `🔥 ${count} semiesferas 3D en Kyiv`;
-            console.log(`✅ ${count} semiesferas creadas`);
+            }));
+            updateFires();
         }
 
         // ============================================================
-        // 5. CARGAR INCENDIOS REALES
+        // 7. CONTROLES
         // ============================================================
-        const FIRMS_URL = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-tracker/main/fires_polygons.geojson';
-
-        function loadFires() {
-            console.log('📡 Cargando incendios reales...');
-
-            fetch(FIRMS_URL)
-                .then(r => r.json())
-                .then(data => {
-                    const features = data.features || [];
-                    console.log(`✅ ${features.length} incendios cargados`);
-                    
-                    if (features.length === 0) {
-                        createTestFires();
-                        return;
-                    }
-
-                    const toRender = features.slice(0, 100);
-                    let count = 0;
-
-                    toRender.forEach(f => {
-                        try {
-                            const frp = f.properties?.frp || 10;
-                            const coords = f.geometry.coordinates;
-                            const [lon, lat] = getPolygonCenter(coords);
-
-                            createFireSphere(lon, lat, frp);
-                            count++;
-                        } catch (e) {
-                            console.warn('Error:', e);
-                        }
-                    });
-
-                    document.getElementById('info').textContent = `🔥 ${count} semiesferas 3D en Ucrania`;
-                    console.log(`✅ ${count} semiesferas creadas`);
-                })
-                .catch(e => {
-                    console.error('Error cargando datos:', e);
-                    createTestFires();
-                });
-        }
+        document.getElementById('chk-fires').addEventListener('change', updateFires);
+        document.getElementById('frp-slider').addEventListener('input', function() {
+            document.getElementById('val-frp').textContent = this.value;
+            updateFires();
+        });
+        document.getElementById('map-style-selector').addEventListener('change', updateMap);
 
         // ============================================================
-        // 6. INICIAR
+        // 8. INICIAR
         // ============================================================
         setTimeout(() => {
             loadFires();
-        }, 1500);
+        }, 1000);
 
         console.log('🚀 Visor iniciado');
     </script>
