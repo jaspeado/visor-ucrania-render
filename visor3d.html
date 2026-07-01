@@ -19,7 +19,6 @@
             height: 100%; 
             pointer-events: none; 
             z-index: 10;
-            background: transparent !important;
         }
         #info { 
             position: absolute; 
@@ -72,7 +71,7 @@
         logDebug('🚀 INICIANDO...');
 
         // ============================================================
-        // 1. MAPA - CON ESTILO OSCURO QUE SIEMPRE FUNCIONA
+        // 1. MAPA
         // ============================================================
         const map = new maplibregl.Map({
             container: 'map',
@@ -108,6 +107,7 @@
         let scene, camera, renderer;
         let threeReady = false;
         let fireMeshes = [];
+        let initialized = false;
 
         function initThree() {
             if (threeReady) return;
@@ -117,7 +117,10 @@
 
             scene = new THREE.Scene();
 
-            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 10000000);
+            // Cámara ORTOGRÁFICA para seguir la proyección de MapLibre
+            const aspect = window.innerWidth / window.innerHeight;
+            camera = new THREE.OrthographicCamera(-aspect, aspect, 1, -1, 0.1, 1000);
+            camera.position.z = 1;
 
             renderer = new THREE.WebGLRenderer({ 
                 alpha: true, 
@@ -126,18 +129,7 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(window.devicePixelRatio);
             renderer.setClearColor(0x000000, 0);
-            renderer.setAlpha(true);
             container.appendChild(renderer.domElement);
-
-            // Luces
-            const ambient = new THREE.AmbientLight(0x404060);
-            scene.add(ambient);
-            const light1 = new THREE.DirectionalLight(0xffffff, 1);
-            light1.position.set(1, 1, 1);
-            scene.add(light1);
-            const light2 = new THREE.DirectionalLight(0xff8844, 0.5);
-            light2.position.set(-1, 0.5, -1);
-            scene.add(light2);
 
             threeReady = true;
             logDebug('✅ Three.js listo');
@@ -146,7 +138,11 @@
                 if (!threeReady) return;
                 const w = window.innerWidth;
                 const h = window.innerHeight;
-                camera.aspect = w / h;
+                const aspect2 = w / h;
+                camera.left = -aspect2;
+                camera.right = aspect2;
+                camera.top = 1;
+                camera.bottom = -1;
                 camera.updateProjectionMatrix();
                 renderer.setSize(w, h);
             });
@@ -157,67 +153,57 @@
         }
 
         // ============================================================
-        // 3. CONVERTIR COORDENADAS
+        // 3. CONVERTIR COORDENADAS A PÍXELES
         // ============================================================
-        function lngLatToMeters(lng, lat) {
-            const R = 6378137;
-            const x = R * lng * Math.PI / 180;
-            const y = R * Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360));
+        function lngLatToPixel(lng, lat) {
+            const point = map.project(new maplibregl.LngLat(lng, lat));
+            const canvas = map.getCanvas();
+            // Normalizar a coordenadas [-1, 1]
+            const x = (point.x / canvas.width) * 2 - 1;
+            const y = -((point.y / canvas.height) * 2 - 1);
             return { x, y };
         }
 
         // ============================================================
-        // 4. SINCRONIZAR CÁMARA
+        // 4. SINCRONIZAR CÁMARA - MÉTODO CORRECTO
         // ============================================================
         function syncCamera() {
             if (!map || !camera || !threeReady) return;
 
-            const center = map.getCenter();
-            const zoom = map.getZoom();
-            const pitch = map.getPitch();
-            const bearing = map.getBearing();
-
-            const centerMeters = lngLatToMeters(center.lng, center.lat);
-
-            const canvas = map.getCanvas();
-            const height = canvas.height;
-            const fov = camera.fov * Math.PI / 180;
-            const metersPerPixel = 156543.03392 * Math.cos(center.lat * Math.PI / 180) / Math.pow(2, zoom);
-            const cameraHeight = (height / 2) / Math.tan(fov / 2) * metersPerPixel;
-
-            const pitchRad = pitch * Math.PI / 180;
-            const bearingRad = -bearing * Math.PI / 180;
-
-            const hDist = cameraHeight * Math.sin(pitchRad);
-            const vDist = cameraHeight * Math.cos(pitchRad);
-
-            const offsetX = hDist * Math.sin(bearingRad);
-            const offsetY = hDist * Math.cos(bearingRad);
-            const offsetZ = vDist;
-
-            camera.position.set(
-                centerMeters.x + offsetX,
-                centerMeters.y + offsetY,
-                offsetZ
-            );
-
-            camera.lookAt(centerMeters.x, centerMeters.y, 0);
-            camera.updateProjectionMatrix();
-
-            const dist = Math.sqrt(offsetX*offsetX + offsetY*offsetY + offsetZ*offsetZ);
-            camera.near = Math.max(0.1, dist * 0.0001);
-            camera.far = Math.max(100000, dist * 20);
-            camera.updateProjectionMatrix();
+            // Obtener la matriz de proyección de MapLibre
+            const transform = map.transform;
+            const projMatrix = transform.glMatrix;
+            
+            // Convertir a matriz de Three.js
+            const m = new THREE.Matrix4().fromArray(projMatrix);
+            
+            // Invertir Y para Three.js
+            m.multiply(new THREE.Matrix4().makeScale(1, -1, 1));
+            
+            // Usar como matriz de proyección
+            camera.projectionMatrix = m;
+            camera.projectionMatrixInverse = new THREE.Matrix4().copy(m).invert();
+            
+            // Posición de la cámara (desde la matriz inversa)
+            const camPos = new THREE.Vector3();
+            const mInv = new THREE.Matrix4().copy(m).invert();
+            camPos.set(0, 0, 0).applyMatrix4(mInv);
+            camera.position.copy(camPos);
+            
+            camera.updateMatrixWorld(true);
         }
 
         // ============================================================
-        // 5. CREAR SEMIESFERA 3D (apunta hacia abajo)
+        // 5. CREAR SEMIESFERA 3D (en coordenadas de mundo)
         // ============================================================
         function createFireSphere(lon, lat, frp) {
-            const pos = lngLatToMeters(lon, lat);
+            // Usar coordenadas Mercator
+            const mercator = maplibregl.MercatorCoordinate.fromLngLat(
+                new maplibregl.LngLat(lon, lat)
+            );
             
             const t = Math.min(frp / 500, 1);
-            const radius = 500 + t * 2500;
+            const radius = 0.0003 + t * 0.0015;
 
             const r = 255;
             const g = Math.round(255 * (1 - t * 0.9));
@@ -225,7 +211,10 @@
 
             const group = new THREE.Group();
 
-            // SEMIESFERA - mitas superior (Z positivo)
+            // Posición en coordenadas Mercator
+            group.position.set(mercator.x, mercator.y, mercator.z + radius * 0.5);
+
+            // SEMIESFERA (mitad superior, apunta hacia arriba en Z)
             const geom = new THREE.SphereGeometry(radius, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
             const mat = new THREE.MeshPhongMaterial({
                 color: new THREE.Color(`rgb(${r}, ${g}, ${b})`),
@@ -239,7 +228,7 @@
                 shininess: 40
             });
             const sphere = new THREE.Mesh(geom, mat);
-            sphere.position.set(pos.x, pos.y, radius * 0.9);
+            sphere.position.set(0, 0, radius * 0.5);
             group.add(sphere);
 
             // GLOW
