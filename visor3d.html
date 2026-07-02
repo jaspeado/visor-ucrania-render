@@ -8,6 +8,7 @@
 <script src="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.js"></script>
 <link href="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.css" rel="stylesheet">
 <script src="https://unpkg.com/deck.gl@9.0.35/dist.min.js"></script>
+<script src="https://unpkg.com/supercluster@8.0.1/dist/supercluster.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
 
 <style>
@@ -191,12 +192,14 @@ const FIRMS_URL     = 'https://raw.githubusercontent.com/jaspeado/firms-ukraine-
 let deepstateData        = null;
 let firesData            = [];
 let currentFiresFiltered = [];
+let rawFilteredData      = []; // Datos filtrados originales (sin agrupar)
+let superclusterIndex    = null; // Índice para agrupación espacial
 let selectedRegion       = null;
 let activePopup          = null;
 let deckOverlay          = null;
 let animFrameId          = null;
 let pulsePhase           = 0;       // 0..1, ciclo de 2.5s
-let lastActiveFeatures   = [];      // referencia estable para animación
+let lastActiveFeatures   = [];      // referencia estable para animación (agrupados o no)
 
 // ============================================================
 // MAPA
@@ -258,21 +261,33 @@ const HEMISPHERE_MESH = buildHemisphereMesh();
 // ============================================================
 // HELPERS DE COLOR Y TAMAÑO
 // ============================================================
-// Radio base en metros (muy pequeño)
-function frpRadius(frp) {
-  return Math.max(80, Math.min(Math.sqrt(frp) * 60, 700));
+// Calcula el FRP efectivo (si es un cluster agrupado, multiplica el conteo)
+function getEffectiveFrp(props) {
+  if (props.cluster) return props.point_count * 50; // Valor estimado para agrupaciones
+  return props.frp || 10;
 }
 
-// Color núcleo — rampa amarillo→naranja→rojo según FRP, alpha ~90 (>50% transparente)
-function coreColor(frp) {
-  if (frp >= 300) return [255,   0,   0,  95];   // rojo puro — muy intenso
+// Radio dinámico: crece cuando el mapa está alejado para ser visible
+function frpRadius(props) {
+  const val = getEffectiveFrp(props);
+  const zoom = map.getZoom();
+  // Factor de escala: si el zoom es bajo (lejos), multiplicamos el tamaño
+  const zoomFactor = zoom < 8 ? (8 - zoom) * 0.6 + 1 : 1;
+  return Math.max(120, Math.min(Math.sqrt(val) * 80 * zoomFactor, 5000));
+}
+
+// Color núcleo
+function coreColor(props) {
+  const frp = getEffectiveFrp(props);
+  if (frp >= 300) return [255,   0,   0,  95];   // rojo puro
   if (frp >= 100) return [255,  80,   0,  90];   // rojo-naranja
   if (frp >=  40) return [255, 150,   0,  85];   // naranja
-  return                  [255, 220,   0,  80];   // amarillo — baja intensidad
+  return                  [255, 220,   0,  80];   // amarillo
 }
 
-// Color aura — mismo gradiente pero muy suave
-function glowColor(frp) {
+// Color aura
+function glowColor(props) {
+  const frp = getEffectiveFrp(props);
   if (frp >= 300) return [255,   0,   0,  30];
   if (frp >= 100) return [255,  80,   0,  24];
   if (frp >=  40) return [255, 150,   0,  18];
@@ -280,7 +295,8 @@ function glowColor(frp) {
 }
 
 // Color anillo de pulso
-function ringColor(frp, alpha) {
+function ringColor(props, alpha) {
+  const frp = getEffectiveFrp(props);
   if (frp >= 200) return [255,  50,   0, alpha];
   if (frp >=  80) return [255, 100,   0, alpha];
   return                  [255, 150,   0, alpha];
@@ -308,20 +324,28 @@ function renderDeckLayers(features) {
     id: 'fires-core',
     data: features,
     mesh: HEMISPHERE_MESH,
-    getPosition: d => {
-      return [d.geometry.coordinates[0], d.geometry.coordinates[1], 0]; // Z=0 para pegarlas al suelo
-    },
+    getPosition: d => [d.geometry.coordinates[0], d.geometry.coordinates[1], 0],
     getScale: d => {
-      const r = frpRadius(d.properties.frp || 10);
-      return [r, r, r * 1.2]; // 1.2 les da forma de llama vertical
+      const r = frpRadius(d.properties);
+      return [r, r, r * 1.2]; 
     },
-    getColor: d => coreColor(d.properties.frp || 10),
+    getColor: d => coreColor(d.properties),
     material: { ambient: 0.45, diffuse: 0.55, shininess: 120, specularColor: [255, 240, 180] },
     pickable: true,
     autoHighlight: true,
     highlightColor: [255, 255, 255, 90],
     onHover: info => { map.getCanvas().style.cursor = info.object ? 'pointer' : ''; },
-    onClick: info => { if (info.object) handleFireClick(info.object); },
+    onClick: info => { 
+      if (info.object) {
+        // Si es un cluster, hacemos zoom para separarlo
+        if (info.object.properties.cluster) {
+          const expansionZoom = superclusterIndex.getClusterExpansionZoom(info.object.properties.cluster_id);
+          map.flyTo({ center: info.object.geometry.coordinates, zoom: expansionZoom });
+        } else {
+          handleFireClick(info.object);
+        }
+      }
+    },
     parameters: { depthWriteEnabled: false }
   });
 
@@ -330,8 +354,8 @@ function renderDeckLayers(features) {
     id: 'fires-glow',
     data: features,
     getPosition: d => [d.geometry.coordinates[0], d.geometry.coordinates[1], 0],
-    getRadius: d => frpRadius(d.properties.frp || 10) * 1.2, // Reducido a 1.2
-    getFillColor: d => glowColor(d.properties.frp || 10),
+    getRadius: d => frpRadius(d.properties) * 1.2, 
+    getFillColor: d => glowColor(d.properties),
     filled: true, stroked: false,
     radiusUnits: 'meters',
     pickable: false,
@@ -339,7 +363,6 @@ function renderDeckLayers(features) {
   });
 
   // ── Capa 1: anillo de onda expansiva (pulso animado) ──────
-  // pulsePhase 0→1: el anillo crece desde 0.6x hasta 2.2x y se desvanece
   const ringScale = 0.6 + pulsePhase * 1.6;
   const ringAlpha = Math.round(80 * Math.pow(1 - pulsePhase, 1.5));
 
@@ -347,11 +370,11 @@ function renderDeckLayers(features) {
     id: 'fires-pulse',
     data: features,
     getPosition: d => [d.geometry.coordinates[0], d.geometry.coordinates[1], 0],
-    getRadius: d => frpRadius(d.properties.frp || 10) * ringScale,
+    getRadius: d => frpRadius(d.properties) * ringScale,
     getFillColor: [0, 0, 0, 0],
-    getLineColor: d => ringColor(d.properties.frp || 10, ringAlpha),
+    getLineColor: d => ringColor(d.properties, ringAlpha),
     filled: false, stroked: true,
-    getLineWidth: d => frpRadius(d.properties.frp || 10) * 0.04,
+    getLineWidth: d => frpRadius(d.properties) * 0.04,
     radiusUnits: 'meters', lineWidthUnits: 'meters',
     pickable: false,
     updateTriggers: { getRadius: pulsePhase, getLineColor: pulsePhase },
@@ -399,17 +422,9 @@ function handleFireClick(feature) {
     const t = String(parseInt(p.acq_time) || 0).padStart(4, '0');
     const hh = parseInt(t.slice(0, 2));
     const mm = parseInt(t.slice(2, 4));
-    
-    // 1. Creamos la fecha en UTC
     const utcDate = new Date(Date.UTC(y, m - 1, d, hh, mm, 0));
-    
-    // 2. El navegador la convierte automáticamente a la zona horaria local del usuario
-    localDateStr = utcDate.toLocaleString('es-ES', { 
-      day: '2-digit', month: '2-digit', year: 'numeric', 
-      hour: '2-digit', minute: '2-digit' 
-    });
+    localDateStr = utcDate.toLocaleString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   }
-  // -----------------------------------------
 
   activePopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, className: 'custom-popup' })
     .setLngLat([lon, lat])
@@ -442,9 +457,7 @@ function handleFireClick(feature) {
   if (popupEl) {
     popupEl.style.pointerEvents = 'auto';
     makeDraggable(popupEl, popupEl.querySelector('.popup-header'));
-    popupEl.querySelector('#popup-close').addEventListener('click', ev => {
-      ev.stopPropagation(); activePopup.remove(); activePopup = null;
-    });
+    popupEl.querySelector('#popup-close').addEventListener('click', ev => { ev.stopPropagation(); activePopup.remove(); activePopup = null; });
     popupEl.querySelector('#popup-min').addEventListener('click', ev => {
       ev.stopPropagation();
       const body = popupEl.querySelector('#popup-body');
@@ -468,130 +481,98 @@ function makeDraggable(el, handle) {
   if (!handle) return;
   let ox=0, oy=0, drag=false;
   const xy = e => e.touches?.length ? {x:e.touches[0].clientX,y:e.touches[0].clientY} : {x:e.clientX,y:e.clientY};
-  function start(e) {
-    e.preventDefault(); e.stopPropagation(); drag=true;
-    const r=el.getBoundingClientRect(), p=xy(e); ox=p.x-r.left; oy=p.y-r.top;
-    el.style.cssText += ';transform:none;position:fixed;margin:0;z-index:3000;left:'+r.left+'px;top:'+r.top+'px';
-    document.addEventListener('mousemove',move); document.addEventListener('mouseup',end);
-    document.addEventListener('touchmove',move,{passive:false}); document.addEventListener('touchend',end);
-  }
+  function start(e) { e.preventDefault(); e.stopPropagation(); drag=true; const r=el.getBoundingClientRect(), p=xy(e); ox=p.x-r.left; oy=p.y-r.top; el.style.cssText += ';transform:none;position:fixed;margin:0;z-index:3000;left:'+r.left+'px;top:'+r.top+'px'; document.addEventListener('mousemove',move); document.addEventListener('mouseup',end); document.addEventListener('touchmove',move,{passive:false}); document.addEventListener('touchend',end); }
   function move(e) { if(!drag)return; e.preventDefault(); const p=xy(e); el.style.left=(p.x-ox)+'px'; el.style.top=(p.y-oy)+'px'; }
   function end() { drag=false; document.removeEventListener('mousemove',move); document.removeEventListener('mouseup',end); document.removeEventListener('touchmove',move); document.removeEventListener('touchend',end); }
   handle.addEventListener('mousedown',start); handle.addEventListener('touchstart',start,{passive:false});
 }
-
 function makeWindowDraggable(el, handle) {
   if (!el||!handle) return;
   let ox=0,oy=0,drag=false;
   const xy=e=>e.touches?.length?{x:e.touches[0].clientX,y:e.touches[0].clientY}:{x:e.clientX,y:e.clientY};
-  function start(e) {
-    if(e.target.closest('.popup-btn'))return;
-    e.preventDefault(); drag=true;
-    const r=el.getBoundingClientRect(),p=xy(e); ox=p.x-r.left; oy=p.y-r.top;
-    el.style.position='fixed'; el.style.left=r.left+'px'; el.style.top=r.top+'px'; el.style.right='auto'; el.style.bottom='auto'; el.style.margin='0';
-    document.addEventListener('mousemove',move); document.addEventListener('mouseup',end);
-    document.addEventListener('touchmove',move,{passive:false}); document.addEventListener('touchend',end);
-  }
-  function move(e) {
-    if(!drag)return; e.preventDefault(); const p=xy(e);
-    el.style.left=Math.max(0,Math.min(p.x-ox,window.innerWidth-60))+'px';
-    el.style.top=Math.max(0,Math.min(p.y-oy,window.innerHeight-40))+'px';
-  }
+  function start(e) { if(e.target.closest('.popup-btn'))return; e.preventDefault(); drag=true; const r=el.getBoundingClientRect(),p=xy(e); ox=p.x-r.left; oy=p.y-r.top; el.style.position='fixed'; el.style.left=r.left+'px'; el.style.top=r.top+'px'; el.style.right='auto'; el.style.bottom='auto'; el.style.margin='0'; document.addEventListener('mousemove',move); document.addEventListener('mouseup',end); document.addEventListener('touchmove',move,{passive:false}); document.addEventListener('touchend',end); }
+  function move(e) { if(!drag)return; e.preventDefault(); const p=xy(e); el.style.left=Math.max(0,Math.min(p.x-ox,window.innerWidth-60))+'px'; el.style.top=Math.max(0,Math.min(p.y-oy,window.innerHeight-40))+'px'; }
   function end() { drag=false; document.removeEventListener('mousemove',move); document.removeEventListener('mouseup',end); document.removeEventListener('touchmove',move); document.removeEventListener('touchend',end); }
   handle.addEventListener('mousedown',start); handle.addEventListener('touchstart',start,{passive:false});
 }
-
 function makeWindowMinimizable(bodyEl, btnEl) {
   if (!bodyEl||!btnEl) return;
-  btnEl.addEventListener('click', ev => {
-    ev.stopPropagation();
-    const parent = bodyEl.closest('#panel')||bodyEl.closest('#legend-regions');
-    bodyEl.classList.toggle('minimized');
-    btnEl.textContent = bodyEl.classList.contains('minimized')?'▢':'─';
-    if (parent) parent.classList.toggle('minimized');
-  });
+  btnEl.addEventListener('click', ev => { ev.stopPropagation(); const parent = bodyEl.closest('#panel')||bodyEl.closest('#legend-regions'); bodyEl.classList.toggle('minimized'); btnEl.textContent = bodyEl.classList.contains('minimized')?'▢':'─'; if (parent) parent.classList.toggle('minimized'); });
 }
 
 // ============================================================
-// CUANDO EL MAPA ESTÁ LISTO
+// LÓGICA DE DATOS Y AGRUPACIÓN (CLUSTERING)
 // ============================================================
 function whenMapLoaded(cb) { if(map.loaded()) cb(); else map.on('load',cb); }
 
-// ============================================================
-// DEEPSTATE
-// ============================================================
-function updateDeepstate() {
-  if (!deepstateData) return;
-  const en=document.getElementById('chk-deepstate').checked;
-  const fc=document.getElementById('color-fill').value;
-  const lc=document.getElementById('color-line').value;
-  const fo=parseInt(document.getElementById('opacity-fill').value)/100;
-  const lo=parseInt(document.getElementById('opacity-line').value)/100;
-  ['deepstate-fill','deepstate-line'].forEach(id=>{if(map.getLayer(id))map.removeLayer(id);});
-  if(map.getSource('deepstate'))map.removeSource('deepstate');
-  if(!en)return;
-  map.addSource('deepstate',{type:'geojson',data:deepstateData});
-  map.addLayer({id:'deepstate-fill',type:'fill',source:'deepstate',paint:{'fill-color':fc,'fill-opacity':fo}});
-  map.addLayer({id:'deepstate-line',type:'line',source:'deepstate',paint:{'line-color':lc,'line-width':2.5,'line-opacity':lo}});
-}
-
-// ============================================================
-// PARSEO DE DATETIME UTC DE VIIRS
-// acq_date: "2026-06-30" | acq_time: número HHMM (ej: 13 → 00:13, 1340 → 13:40)
-// ============================================================
 function acqToUTC(props) {
-  const d = props.acq_date;
-  if (!d) return null;
+  const d = props.acq_date; if (!d) return null;
   const [y, m, day] = d.split('-').map(Number);
   const t = String(parseInt(props.acq_time) || 0).padStart(4, '0');
-  const hh = parseInt(t.slice(0, 2));
-  const mm = parseInt(t.slice(2, 4));
-  return Date.UTC(y, m - 1, day, hh, mm, 0);
+  return Date.UTC(y, m - 1, day, parseInt(t.slice(0, 2)), parseInt(t.slice(2, 4)), 0);
 }
 
-// ============================================================
-// INCENDIOS
-// ============================================================
-function updateFires() {
-  if (activePopup) { activePopup.remove(); activePopup=null; }
+// Se ejecuta cuando cambian los filtros (FRP, tiempo, región)
+function applyFilters() {
   const enabled   = document.getElementById('chk-fires').checked;
   const frpMin    = parseInt(document.getElementById('frp-slider').value)||0;
   const timeRange = parseInt(document.getElementById('time-range-selector').value)||48;
 
-  if (!enabled||firesData.length===0) {
-    lastActiveFeatures=[];
+  if (!enabled || firesData.length === 0) {
+    rawFilteredData = [];
+    currentFiresFiltered = [];
+    lastActiveFeatures = [];
     stopAnimation();
-    updateRegionLegend();
     document.getElementById('stats-fires').textContent='🔥 0';
+    updateRegionLegend();
+    if (deckOverlay) deckOverlay.setProps({ layers: [] });
     return;
   }
 
-  // Límite en UTC — Date.now() ya es UTC, igual que los timestamps de VIIRS
   const limiteUTC = Date.now() - timeRange * 3600000;
 
-  const filtered = firesData.filter(f=>{
-    if((f.properties?.frp||0)<frpMin)return false;
+  rawFilteredData = firesData.filter(f => {
+    if ((f.properties?.frp || 0) < frpMin) return false;
     const acqUTC = acqToUTC(f.properties);
-    // Si no hay fecha válida se incluye; si la hay, se filtra por tiempo
-    if(acqUTC !== null && acqUTC < limiteUTC) return false;
+    if (acqUTC !== null && acqUTC < limiteUTC) return false;
+    if (selectedRegion) {
+      const r = f.properties?.NAME_1 || '';
+      if (selectedRegion === 'Otras ubicaciones') return !r || r === '' || r === 'N/A' || r.toLowerCase() === 'desconocida';
+      return r === selectedRegion;
+    }
     return true;
   });
 
-  const byRegion = filtered.filter(f=>{
-    if(!selectedRegion)return true;
-    const r=f.properties?.NAME_1||'';
-    if(selectedRegion==='Otras ubicaciones')return !r||r===''||r==='N/A'||r.toLowerCase()==='desconocida';
-    return r===selectedRegion;
-  });
+  // Reconstruir el índice de agrupación con los datos filtrados
+  superclusterIndex = new Supercluster({ radius: 50, maxZoom: 14 });
+  superclusterIndex.load(rawFilteredData);
 
-  currentFiresFiltered=byRegion;
-  lastActiveFeatures=byRegion;
-
-  if(byRegion.length===0){ stopAnimation(); }
-  else if(!animFrameId)   { startAnimation(); }
-
-  document.getElementById('stats-fires').textContent='🔥 '+byRegion.length;
+  currentFiresFiltered = rawFilteredData; // Para la leyenda
+  document.getElementById('stats-fires').textContent='🔥 '+rawFilteredData.length;
   updateRegionLegend();
+  
+  updateMapView(); // Actualizar capa visual
+}
+
+// Se ejecuta cuando el mapa se mueve o cambia el zoom
+function updateMapView() {
+  const enabled = document.getElementById('chk-fires').checked;
+  if (!enabled || !superclusterIndex) {
+    lastActiveFeatures = [];
+    stopAnimation();
+    return;
+  }
+
+  const bounds = map.getBounds();
+  const bbox = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()];
+  const zoom = Math.floor(map.getZoom());
+  
+  // Obtener features agrupados o individuales según el zoom actual
+  lastActiveFeatures = superclusterIndex.getClusters(bbox, zoom);
+
+  if (lastActiveFeatures.length === 0) { stopAnimation(); }
+  else if (!animFrameId) { startAnimation(); }
+  else { renderDeckLayers(lastActiveFeatures); }
 }
 
 // ============================================================
@@ -619,14 +600,29 @@ function updateRegionLegend() {
       const r=this.dataset.region;
       if(r==='all') selectedRegion=null;
       else selectedRegion=(selectedRegion===r)?null:r;
-      updateFires();
+      applyFilters();
     });
   });
 }
 
 // ============================================================
-// TERRENO
+// DEEPSTATE Y TERRENO
 // ============================================================
+function updateDeepstate() {
+  if (!deepstateData) return;
+  const en=document.getElementById('chk-deepstate').checked;
+  const fc=document.getElementById('color-fill').value;
+  const lc=document.getElementById('color-line').value;
+  const fo=parseInt(document.getElementById('opacity-fill').value)/100;
+  const lo=parseInt(document.getElementById('opacity-line').value)/100;
+  ['deepstate-fill','deepstate-line'].forEach(id=>{if(map.getLayer(id))map.removeLayer(id);});
+  if(map.getSource('deepstate'))map.removeSource('deepstate');
+  if(!en)return;
+  map.addSource('deepstate',{type:'geojson',data:deepstateData});
+  map.addLayer({id:'deepstate-fill',type:'fill',source:'deepstate',paint:{'fill-color':fc,'fill-opacity':fo}});
+  map.addLayer({id:'deepstate-line',type:'line',source:'deepstate',paint:{'line-color':lc,'line-width':2.5,'line-opacity':lo}});
+}
+
 function updateTerrain() {
   const en=document.getElementById('chk-terrain').checked;
   const pitch=parseInt(document.getElementById('pitch-slider').value);
@@ -655,7 +651,7 @@ function updateBaseMap() {
 
   if(sel==='dark'){
     map.setStyle('https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',{diff:false});
-    map.once('style.load',()=>setTimeout(()=>{if(deepstateData)updateDeepstate();updateFires();updateTerrain();},200));
+    map.once('style.load',()=>setTimeout(()=>{if(deepstateData)updateDeepstate();applyFilters();updateTerrain();},200));
     return;
   }
   map.setStyle({version:8,sources:{},layers:[]});
@@ -664,12 +660,12 @@ function updateBaseMap() {
   map.once('style.load',()=>{
     map.addSource(sid,{type:'raster',tiles:tiles[sel]||tiles.osm,tileSize:256});
     map.addLayer({id:lid,type:'raster',source:sid});
-    setTimeout(()=>{if(deepstateData)updateDeepstate();updateFires();updateTerrain();},200);
+    setTimeout(()=>{if(deepstateData)updateDeepstate();applyFilters();updateTerrain();},200);
   });
 }
 
 // ============================================================
-// CARGA DE DATOS
+// CARGA DE DATOS INICIAL
 // ============================================================
 fetch(DEEPSTATE_URL).then(r=>r.json()).then(data=>{
   deepstateData=data;
@@ -678,27 +674,28 @@ fetch(DEEPSTATE_URL).then(r=>r.json()).then(data=>{
 
 fetch(FIRMS_URL).then(r=>r.json()).then(data=>{
   firesData=data.features||[];
-  whenMapLoaded(()=>updateFires());
+  whenMapLoaded(()=>{
+    applyFilters();
+    // Actualizar la capa visual cuando el mapa termine de moverse
+    map.on('moveend', updateMapView);
+  });
 }).catch(e=>console.error('FIRMS error:',e));
 
 // ============================================================
-// CONTROLES
+// CONTROLES UI
 // ============================================================
 document.getElementById('map-style-selector').addEventListener('change',updateBaseMap);
-document.getElementById('time-range-selector').addEventListener('change',()=>{selectedRegion=null;updateFires();});
+document.getElementById('time-range-selector').addEventListener('change',()=>{selectedRegion=null;applyFilters();});
 document.getElementById('chk-deepstate').addEventListener('change',updateDeepstate);
 document.getElementById('color-fill').addEventListener('input',updateDeepstate);
 document.getElementById('color-line').addEventListener('input',updateDeepstate);
 document.getElementById('opacity-fill').addEventListener('input',function(){document.getElementById('val-opacity-fill').textContent=(this.value/100).toFixed(2);updateDeepstate();});
 document.getElementById('opacity-line').addEventListener('input',function(){document.getElementById('val-opacity-line').textContent=(this.value/100).toFixed(2);updateDeepstate();});
-document.getElementById('chk-fires').addEventListener('change',updateFires);
-document.getElementById('frp-slider').addEventListener('input',function(){document.getElementById('val-frp').textContent=this.value;updateFires();});
+document.getElementById('chk-fires').addEventListener('change',applyFilters);
+document.getElementById('frp-slider').addEventListener('input',function(){document.getElementById('val-frp').textContent=this.value;applyFilters();});
 document.getElementById('chk-terrain').addEventListener('change',updateTerrain);
 document.getElementById('pitch-slider').addEventListener('input',function(){document.getElementById('val-pitch').textContent=this.value;updateTerrain();});
 
-// ============================================================
-// VENTANAS ARRASTRABLES
-// ============================================================
 makeWindowDraggable(document.getElementById('panel'),document.getElementById('panel-header'));
 makeWindowMinimizable(document.getElementById('panel-body'),document.getElementById('panel-min'));
 makeWindowDraggable(document.getElementById('legend-regions'),document.getElementById('legend-header'));
@@ -711,7 +708,7 @@ map.on('load',()=>{
   initDeckGL();
   updateTerrain();
   updateAttribution('dark');
-  console.log('✅ Visor 3D + deck.gl + explosiones listo');
+  console.log('✅ Visor 3D + deck.gl + clustering listo');
 });
 </script>
 </body>
