@@ -331,7 +331,7 @@ function renderDeckLayers(features) {
     id: 'fires-glow',
     data: features,
     getPosition: d => [d.geometry.coordinates[0], d.geometry.coordinates[1], 0],
-    getRadius: d => frpRadius(d.properties.frp || 10) * 1.8,
+    getRadius: d => frpRadius(d.properties.frp || 10) * 1.1,
     getFillColor: d => glowColor(d.properties.frp || 10),
     filled: true, stroked: false,
     radiusUnits: 'meters',
