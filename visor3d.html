@@ -297,6 +297,9 @@ function initDeckGL() {
 // ============================================================
 // DECK.GL — actualizar capas (llamado cada frame para el pulso)
 // ============================================================
+// ============================================================
+// DECK.GL — actualizar capas (llamado cada frame para el pulso)
+// ============================================================
 function renderDeckLayers(features) {
   if (!deckOverlay || !features || features.length === 0) {
     if (deckOverlay) deckOverlay.setProps({ layers: [] });
@@ -322,12 +325,44 @@ function renderDeckLayers(features) {
     highlightColor: [255, 255, 255, 90],
     onHover: info => { map.getCanvas().style.cursor = info.object ? 'pointer' : ''; },
     onClick: info => { if (info.object) handleFireClick(info.object); },
-    parameters: { 
-      depthWriteEnabled: false,
-      blendEquation: 'add',     // Blending aditivo para efecto de luz
-      blendFunc: ['src-alpha', 'one'] 
-    }
+    parameters: { depthWriteEnabled: false } // <-- Quitado el blend para que no falle
   });
+
+  // ── Capa 2: halo exterior (glow estático) ─────────────────
+  const glowLayer = new deck.ScatterplotLayer({
+    id: 'fires-glow',
+    data: features,
+    getPosition: d => [d.geometry.coordinates[0], d.geometry.coordinates[1], 0],
+    getRadius: d => frpRadius(d.properties.frp || 10) * 1.2, // Reducido a 1.2
+    getFillColor: d => glowColor(d.properties.frp || 10),
+    filled: true, stroked: false,
+    radiusUnits: 'meters',
+    pickable: false,
+    parameters: { depthWriteEnabled: false } // <-- Quitado el blend
+  });
+
+  // ── Capa 1: anillo de onda expansiva (pulso animado) ──────
+  const ringScale = 0.6 + pulsePhase * 1.6;
+  const ringAlpha = Math.round(80 * Math.pow(1 - pulsePhase, 1.5));
+
+  const pulseLayer = new deck.ScatterplotLayer({
+    id: 'fires-pulse',
+    data: features,
+    getPosition: d => [d.geometry.coordinates[0], d.geometry.coordinates[1], 0],
+    getRadius: d => frpRadius(d.properties.frp || 10) * ringScale,
+    getFillColor: [0, 0, 0, 0],
+    getLineColor: d => ringColor(d.properties.frp || 10, ringAlpha),
+    filled: false, stroked: true,
+    getLineWidth: d => frpRadius(d.properties.frp || 10) * 0.04,
+    radiusUnits: 'meters', lineWidthUnits: 'meters',
+    pickable: false,
+    updateTriggers: { getRadius: pulsePhase, getLineColor: pulsePhase },
+    parameters: { depthWriteEnabled: false }
+  });
+
+  // Orden de capas: glow abajo, pulso, núcleo encima
+  deckOverlay.setProps({ layers: [glowLayer, pulseLayer, coreLayer] });
+}
 
   // ── Capa 2: halo exterior (glow estático) ─────────────────
   const glowLayer = new deck.ScatterplotLayer({
