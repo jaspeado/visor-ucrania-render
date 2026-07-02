@@ -9,7 +9,6 @@
 <link href="https://unpkg.com/maplibre-gl@4.0.2/dist/maplibre-gl.css" rel="stylesheet">
 <script src="https://unpkg.com/deck.gl@9.0.35/dist.min.js"></script>
 <script src="https://unpkg.com/supercluster@8.0.1/dist/supercluster.min.js"></script>
-<!-- Librería para calcular zona horaria según latitud/longitud -->
 <script src="https://unpkg.com/tz-lookup@6.1.25/tz.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
 
@@ -75,10 +74,11 @@
   .region-item.all-regions { border-bottom: 1px solid #58a6ff !important; margin-bottom: 2px; }
   .region-item.all-regions .region-name { color: #58a6ff; font-weight: 600; }
 
+  /* FIX: z-index añadido para que el popup quede por delante de deck.gl */
   .maplibregl-popup-content { padding: 0 !important; overflow: hidden; background: #0d1117 !important; border: 1px solid #30363d !important; border-radius: 8px !important; box-shadow: 0 8px 24px rgba(0,0,0,0.6) !important; min-width: 200px !important; font-family: 'Inter', sans-serif !important; }
   .maplibregl-popup-tip { border-top-color: #30363d !important; }
   .maplibregl-popup-close-button { display: none !important; }
-  .maplibregl-popup { pointer-events: auto !important; }
+  .maplibregl-popup { pointer-events: auto !important; z-index: 1000 !important; }
 
   .popup-header { display: flex; align-items: center; justify-content: space-between; background: #161b22; padding: 6px 8px 6px 10px; cursor: grab; user-select: none; border-bottom: 1px solid #21262d; border-radius: 8px 8px 0 0; pointer-events: auto !important; }
   .popup-header:active { cursor: grabbing; }
@@ -404,7 +404,6 @@ function handleFireClick(feature) {
   const lat = feature.geometry.coordinates[1];
   const frp = p.frp || 0;
 
-  // --- Convertir a hora local basada en la ubicación geográfica ---
   let localDateStr = 'N/A';
   if (p.acq_date) {
     const [y, m, d] = p.acq_date.split('-').map(Number);
@@ -413,7 +412,6 @@ function handleFireClick(feature) {
     const mm = parseInt(t.slice(2, 4));
     const utcDate = new Date(Date.UTC(y, m - 1, d, hh, mm, 0));
     
-    // tzlookup(lat, lon) devuelve la zona horaria IANA (ej: "Europe/Kyiv", "Europe/Moscow")
     const timeZoneId = tzlookup(lat, lon) || 'UTC';
     
     localDateStr = utcDate.toLocaleString('es-ES', { 
@@ -423,7 +421,6 @@ function handleFireClick(feature) {
       timeZoneName: 'short' 
     });
   }
-  // ---------------------------------------------------------
 
   activePopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, className: 'custom-popup' })
     .setLngLat([lon, lat])
