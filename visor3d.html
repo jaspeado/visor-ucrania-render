@@ -310,7 +310,7 @@ function renderDeckLayers(features) {
     mesh: HEMISPHERE_MESH,
     getPosition: d => {
       const r = frpRadius(d.properties.frp || 10);
-      return [d.geometry.coordinates[0], d.geometry.coordinates[1], r * 0.3];
+      return [d.geometry.coordinates[0], d.geometry.coordinates[1], r * 0];
     },
     getScale: d => {
       const r = frpRadius(d.properties.frp || 10);
