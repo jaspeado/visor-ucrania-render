@@ -74,7 +74,6 @@
   .region-item.all-regions { border-bottom: 1px solid #58a6ff !important; margin-bottom: 2px; }
   .region-item.all-regions .region-name { color: #58a6ff; font-weight: 600; }
 
-  /* FIX: z-index añadido para que el popup quede por delante de deck.gl */
   .maplibregl-popup-content { padding: 0 !important; overflow: hidden; background: #0d1117 !important; border: 1px solid #30363d !important; border-radius: 8px !important; box-shadow: 0 8px 24px rgba(0,0,0,0.6) !important; min-width: 200px !important; font-family: 'Inter', sans-serif !important; }
   .maplibregl-popup-tip { border-top-color: #30363d !important; }
   .maplibregl-popup-close-button { display: none !important; }
@@ -331,8 +330,14 @@ function renderDeckLayers(features) {
     onClick: info => { 
       if (info.object) {
         if (info.object.properties.cluster) {
-          const expansionZoom = superclusterIndex.getClusterExpansionZoom(info.object.properties.cluster_id);
-          map.flyTo({ center: info.object.geometry.coordinates, zoom: expansionZoom, duration: 800, essential: true });
+          // En lugar de ir paso a paso, saltamos directamente al zoom 14
+          // donde el supercluster deja de agrupar y muestra todos los puntos individuales.
+          map.flyTo({ 
+            center: info.object.geometry.coordinates, 
+            zoom: 14, 
+            duration: 1000, 
+            essential: true 
+          });
         } else {
           handleFireClick(info.object);
         }
