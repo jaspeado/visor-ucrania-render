@@ -309,12 +309,11 @@ function renderDeckLayers(features) {
     data: features,
     mesh: HEMISPHERE_MESH,
     getPosition: d => {
-      const r = frpRadius(d.properties.frp || 10);
-      return [d.geometry.coordinates[0], d.geometry.coordinates[1], r * 0];
+      return [d.geometry.coordinates[0], d.geometry.coordinates[1], 0]; // Z=0 para pegarlas al suelo
     },
     getScale: d => {
       const r = frpRadius(d.properties.frp || 10);
-      return [r, r, r * 1];
+      return [r, r, r * 1.2]; // 1.2 les da forma de llama vertical
     },
     getColor: d => coreColor(d.properties.frp || 10),
     material: { ambient: 0.45, diffuse: 0.55, shininess: 120, specularColor: [255, 240, 180] },
@@ -323,7 +322,11 @@ function renderDeckLayers(features) {
     highlightColor: [255, 255, 255, 90],
     onHover: info => { map.getCanvas().style.cursor = info.object ? 'pointer' : ''; },
     onClick: info => { if (info.object) handleFireClick(info.object); },
-    parameters: { depthWriteEnabled: false }
+    parameters: { 
+      depthWriteEnabled: false,
+      blendEquation: 'add',     // Blending aditivo para efecto de luz
+      blendFunc: ['src-alpha', 'one'] 
+    }
   });
 
   // ── Capa 2: halo exterior (glow estático) ─────────────────
@@ -331,12 +334,16 @@ function renderDeckLayers(features) {
     id: 'fires-glow',
     data: features,
     getPosition: d => [d.geometry.coordinates[0], d.geometry.coordinates[1], 0],
-    getRadius: d => frpRadius(d.properties.frp || 10) * 1.1,
+    getRadius: d => frpRadius(d.properties.frp || 10) * 1.2, // Reducido de 1.8 a 1.2
     getFillColor: d => glowColor(d.properties.frp || 10),
     filled: true, stroked: false,
     radiusUnits: 'meters',
     pickable: false,
-    parameters: { depthWriteEnabled: false }
+    parameters: { 
+      depthWriteEnabled: false,
+      blendEquation: 'add',     // Blending aditivo
+      blendFunc: ['src-alpha', 'one'] 
+    }
   });
 
   // ── Capa 1: anillo de onda expansiva (pulso animado) ──────
@@ -393,6 +400,25 @@ function handleFireClick(feature) {
   const lat = feature.geometry.coordinates[1];
   const frp = p.frp || 0;
 
+  // --- Convertir a hora local del usuario ---
+  let localDateStr = 'N/A';
+  if (p.acq_date) {
+    const [y, m, d] = p.acq_date.split('-').map(Number);
+    const t = String(parseInt(p.acq_time) || 0).padStart(4, '0');
+    const hh = parseInt(t.slice(0, 2));
+    const mm = parseInt(t.slice(2, 4));
+    
+    // 1. Creamos la fecha en UTC
+    const utcDate = new Date(Date.UTC(y, m - 1, d, hh, mm, 0));
+    
+    // 2. El navegador la convierte automáticamente a la zona horaria local del usuario
+    localDateStr = utcDate.toLocaleString('es-ES', { 
+      day: '2-digit', month: '2-digit', year: 'numeric', 
+      hour: '2-digit', minute: '2-digit' 
+    });
+  }
+  // -----------------------------------------
+
   activePopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, className: 'custom-popup' })
     .setLngLat([lon, lat])
     .setHTML(`
@@ -405,6 +431,7 @@ function handleFireClick(feature) {
       </div>
       <div class="popup-body" id="popup-body">
         <div><span style="color:#ff6600;font-weight:600;">🔥 FRP:</span> ${frp} MW</div>
+        <div><span style="color:#8b949e;">Detección:</span> <span style="color:#e6edf3;">${localDateStr}</span></div>
         <div><span style="color:#8b949e;">LAT/LONG:</span>
           <span style="font-family:'Courier New',monospace;color:#e6edf3;">${lat.toFixed(5)}, ${lon.toFixed(5)}</span></div>
         <div><span style="color:#8b949e;">Localidad:</span> <span style="color:#e6edf3;">${p.locality || 'N/A'}</span></div>
